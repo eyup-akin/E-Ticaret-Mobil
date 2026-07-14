@@ -1,16 +1,33 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useFavorite } from '../context/FavoriteContext';
+import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 
 // Grid'de kullanılan tek bir ürün kartı. Hem Ana Sayfa hem Kategori Ürünleri kullanır.
 export default function UrunKarti({ urun, onPress }) {
   const { favoriMi, favoriDegistir } = useFavorite();
+  const { token } = useAuth();
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
+  // Bu bir BİLEŞEN (ekran değil) → navigation prop'u gelmez, hook ile çekiyoruz
+  const navigation = useNavigation();
+
   const favori = favoriMi(urun.id);
+
+  // 🚪 İŞLEM KAPISI
+  // Misafirse: favorileme YAPMA, giriş modalını aç.
+  // Üyeyse: normal favorileme işlemini çalıştır.
+  function kalbeBasildi() {
+    if (!token) {
+      navigation.navigate('Giris');
+      return;
+    }
+    favoriDegistir(urun.id);
+  }
 
   return (
     <TouchableOpacity style={styles.kart} activeOpacity={0.8} onPress={onPress}>
@@ -20,7 +37,7 @@ export default function UrunKarti({ urun, onPress }) {
 
       <TouchableOpacity
         style={styles.kalpButon}
-        onPress={() => favoriDegistir(urun.id)}
+        onPress={kalbeBasildi}
       >
         <Ionicons
           name={favori ? 'heart' : 'heart-outline'}

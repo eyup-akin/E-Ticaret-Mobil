@@ -7,9 +7,15 @@ import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
 
+import { useAuth } from '../context/AuthContext';
+
+
 export default function UrunDetayEkrani({ route, navigation }) {
   const { urunId } = route.params;
   const { favoriMi, favoriDegistir } = useFavorite();
+  
+  const { token } = useAuth();
+
   const { renkler } = useTema();
   const { sepeteEkle } = useSepet();
   const styles = stilOlustur(renkler);
@@ -34,6 +40,13 @@ export default function UrunDetayEkrani({ route, navigation }) {
   }, [urunId]);
 
   async function sepeteEkleButonu() {
+
+    // 🚪 İŞLEM KAPISI — misafirse sepete ekleme, giriş modalını aç
+    if (!token) {
+      navigation.navigate('Giris');
+      return;
+    }
+
     try {
       setIslemde(true);
       await sepeteEkle(urun.id, 1);
@@ -46,6 +59,15 @@ export default function UrunDetayEkrani({ route, navigation }) {
     } finally {
       setIslemde(false);
     }
+  }
+
+  // 🚪 İŞLEM KAPISI — favori kalbi
+  function favoriBasildi() {
+    if (!token) {
+      navigation.navigate('Giris');
+      return;
+    }
+    favoriDegistir(urun.id);
   }
 
   if (yukleniyor) {
@@ -91,7 +113,7 @@ export default function UrunDetayEkrani({ route, navigation }) {
       <View style={styles.altButonlar}>
         <TouchableOpacity
           style={styles.favoriButon}
-          onPress={() => favoriDegistir(urun.id)}
+          onPress={ favoriBasildi }
         >
           <Ionicons
             name={favori ? 'heart' : 'heart-outline'}

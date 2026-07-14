@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 
@@ -12,6 +14,17 @@ export default function GirisEkrani({ navigation }) {
   const [sifre, setSifre] = useState('');
   const [yukleniyor, setYukleniyor] = useState(false);
 
+  // MODALI KAPAT
+  // Geri gidilecek bir ekran varsa oraya dön (kullanıcı nereden geldiyse).
+  // Yoksa Ana Sayfa'ya git — böylece kullanıcı asla ekranda kilitli kalmaz.
+  function kapat() {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Ana');
+    }
+  }
+
   async function girisButonu() {
     if (!email || !sifre) {
       Alert.alert('Eksik bilgi', 'Email ve şifre boş olamaz.');
@@ -20,6 +33,7 @@ export default function GirisEkrani({ navigation }) {
     try {
       setYukleniyor(true);
       await girisYap(email, sifre);
+      kapat();   // ← giriş başarılı, modalı kapat ve geldiği yere dön
     } catch (hata) {
       Alert.alert('Giriş başarısız', hata.message);
     } finally {
@@ -28,46 +42,77 @@ export default function GirisEkrani({ navigation }) {
   }
 
   return (
-    <View style={styles.kapsayici}>
-      <Text style={styles.baslik}>Giriş Yap</Text>
+    <SafeAreaView style={styles.kapsayici} edges={['top']}>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor={renkler.yaziGri}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Şifre"
-        placeholderTextColor={renkler.yaziGri}
-        value={sifre}
-        onChangeText={setSifre}
-        secureTextEntry={true}
-      />
+      {/* ÜST BAR — kapatma butonu */}
+      <View style={styles.ustBar}>
+        <TouchableOpacity onPress={kapat} style={styles.kapatButon}>
+          <Ionicons name="close" size={26} color={renkler.yaziKoyu} />
+        </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity style={styles.buton} onPress={girisButonu} disabled={yukleniyor}>
-        {yukleniyor
-          ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-          : <Text style={styles.butonYazi}>Giriş Yap</Text>}
-      </TouchableOpacity>
+      <View style={styles.icerik}>
+        <Text style={styles.baslik}>Giriş Yap</Text>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Kayit')}>
-        <Text style={styles.altYazi}>Hesabın yok mu? Kayıt ol</Text>
-      </TouchableOpacity>
-    </View>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor={renkler.yaziGri}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Şifre"
+          placeholderTextColor={renkler.yaziGri}
+          value={sifre}
+          onChangeText={setSifre}
+          secureTextEntry={true}
+        />
+
+        <TouchableOpacity style={styles.buton} onPress={girisButonu} disabled={yukleniyor}>
+          {yukleniyor
+            ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
+            : <Text style={styles.butonYazi}>Giriş Yap</Text>}
+        </TouchableOpacity>
+
+        {/* replace: Giriş'i yığından çıkarır, Kayıt'ı yerine koyar */}
+        <TouchableOpacity onPress={() => navigation.replace('Kayit')}>
+          <Text style={styles.altYazi}>Hesabın yok mu? Kayıt ol</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={kapat}>
+          <Text style={styles.misafirYazi}>Misafir olarak devam et</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
+    backgroundColor: renkler.arkaPlan,
+  },
+  ustBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
+  kapatButon: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  icerik: {
+    flex: 1,
     justifyContent: 'center',
     padding: 24,
-    backgroundColor: renkler.arkaPlan,
+    paddingBottom: 80,
   },
   baslik: {
     fontSize: 28,
@@ -101,5 +146,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     color: renkler.anaRenk,
+  },
+  misafirYazi: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: renkler.yaziGri,
+    fontSize: 13,
   },
 });

@@ -5,10 +5,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
+
+import { useAuth } from '../context/AuthContext';
+import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
+
 import AramaCubugu from '../components/AramaCubugu';
 import SepetSatiri from '../components/SepetSatiri';
 
 export default function SepetEkrani({ navigation }) {
+  
+  const { token } = useAuth();
+  
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
@@ -18,8 +25,10 @@ export default function SepetEkrani({ navigation }) {
   // Ekran her odağa geldiğinde sepeti yenile
   useFocusEffect(
     useCallback(() => {
+      // Misafirse veri çekme — 401 hatası basmasın
+      if (!token) return;
       sepetiYukle();
-    }, [])
+    }, [token])
   );
 
   // Silmeden önce onay sor
@@ -38,6 +47,18 @@ export default function SepetEkrani({ navigation }) {
   const filtreliSepet = aramaMetni
     ? sepet.filter((s) => s.productName.toLowerCase().includes(aramaMetni.toLowerCase()))
     : sepet;
+
+
+  // 🔒 MİSAFİR KAPISI — tüm hook'lardan SONRA, ilk return'den ÖNCE
+  if (!token) {
+    return (
+      <GirisGerekliEkrani
+        ikon="cart-outline"
+        baslik="Sepetini görmek için giriş yap"
+        aciklama="Sepetine ürün ekleyip kolayca sipariş verebilirsin."
+      />
+    );
+  }
 
   if (yukleniyor) {
     return (

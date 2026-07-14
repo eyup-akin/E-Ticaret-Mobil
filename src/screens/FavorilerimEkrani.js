@@ -6,9 +6,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { useFavorite } from '../context/FavoriteContext';
+
+import { useAuth } from '../context/AuthContext';
+import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
+
 import AramaCubugu from '../components/AramaCubugu';
 
 export default function FavorilerimEkrani({ navigation }) {
+  
+  const { token } = useAuth();
+  
   const { renkler } = useTema();
   const { favoriDegistir, favoriIdler } = useFavorite();
   const styles = stilOlustur(renkler);
@@ -30,8 +37,9 @@ export default function FavorilerimEkrani({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (!token) return;
       favorileriGetir();
-    }, [])
+    }, [token])
   );
 
   async function cikar(item) {
@@ -71,6 +79,17 @@ export default function FavorilerimEkrani({ navigation }) {
           <Ionicons name="heart" size={24} color={renkler.favoriRenk} />
         </TouchableOpacity>
       </TouchableOpacity>
+    );
+  }
+
+  // 🔒 MİSAFİR KAPISI
+  if (!token) {
+    return (
+      <GirisGerekliEkrani
+        ikon="heart-outline"
+        baslik="Favorilerini görmek için giriş yap"
+        aciklama="Beğendiğin ürünleri kaydedip istediğin zaman kolayca bulabilirsin."
+      />
     );
   }
 

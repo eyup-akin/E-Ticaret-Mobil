@@ -5,6 +5,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
+
+import { useAuth } from '../context/AuthContext';
+import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
+
 import AramaCubugu from '../components/AramaCubugu';
 
 // Backend'deki kod adlarını okunabilir yazıya çevirir
@@ -22,6 +26,9 @@ function odemeYazisi(kod) {
 }
 
 export default function SiparislerimEkrani({ navigation }) {
+  
+  const { token } = useAuth();
+  
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
@@ -42,8 +49,9 @@ export default function SiparislerimEkrani({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (!token) return;
       siparisleriGetir();
-    }, [])
+    }, [token])
   );
 
   // Arama: hem sipariş NUMARASINA hem içindeki ÜRÜN ADINA bakar
@@ -105,6 +113,17 @@ export default function SiparislerimEkrani({ navigation }) {
           <Text style={styles.kartBilgi}>**** {item.cardLast4}</Text>
         </View>
       </TouchableOpacity>
+    );
+  }
+
+  // 🔒 MİSAFİR KAPISI
+  if (!token) {
+    return (
+      <GirisGerekliEkrani
+        ikon="receipt-outline"
+        baslik="Siparişlerini görmek için giriş yap"
+        aciklama="Verdiğin siparişleri ve kargo durumlarını buradan takip edebilirsin."
+      />
     );
   }
 

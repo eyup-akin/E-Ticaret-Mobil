@@ -8,7 +8,7 @@ import AramaCubugu from '../components/AramaCubugu';
 import UrunKarti from '../components/UrunKarti';
 
 export default function AnaSayfaEkrani({ navigation }) {
-  const { favorileriYukle, favoriIdler } = useFavorite();
+  const { favoriIdler } = useFavorite();
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
@@ -33,7 +33,7 @@ export default function AnaSayfaEkrani({ navigation }) {
 
   useEffect(() => {
     urunleriGetir();
-    favorileriYukle();
+  //  favorileriYukle();
   }, []);
 
   return (
