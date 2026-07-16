@@ -5,30 +5,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
-
 import { useAuth } from '../context/AuthContext';
 import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
-
 import AramaCubugu from '../components/AramaCubugu';
-
-// Backend'deki kod adlarını okunabilir yazıya çevirir
-function durumYazisi(kod) {
-  if (kod === 'hazirlaniyor') return 'Hazırlanıyor';
-  if (kod === 'kargoda') return 'Kargoda';
-  if (kod === 'teslim') return 'Teslim Edildi';
-  return kod;
-}
-
-function odemeYazisi(kod) {
-  if (kod === 'odendi') return 'Ödendi';
-  if (kod === 'beklemede') return 'Beklemede';
-  return kod;
-}
+import { durumYazisi, durumRengi, odemeYazisi, odemeRengi } from '../utils/durum';   // ⭐
+import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';                     // ⭐
 
 export default function SiparislerimEkrani({ navigation }) {
-  
   const { token } = useAuth();
-  
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
@@ -54,34 +38,25 @@ export default function SiparislerimEkrani({ navigation }) {
     }, [token])
   );
 
-  // Arama: hem sipariş NUMARASINA hem içindeki ÜRÜN ADINA bakar
   const filtreliSiparisler = aramaMetni
     ? siparisler.filter((s) => {
         const kelime = aramaMetni.toLowerCase();
-
-        // Sipariş no eşleşmesi ("12" veya "#12" yazabilir)
         const noEslesme = String(s.id).includes(kelime.replace('#', ''));
-
-        // İçindeki ürünlerden biri eşleşiyor mu?
-        const urunEslesme = s.items.some((u) =>
-          u.productName.toLowerCase().includes(kelime)
-        );
-
+        const urunEslesme = s.items.some((u) => u.productName.toLowerCase().includes(kelime));
         return noEslesme || urunEslesme;
       })
     : siparisler;
 
   function siparisKarti({ item }) {
-    // Kargo durumuna göre rozet rengi
-    const durumRengi =
-      item.status === 'teslim' ? renkler.basari
-      : item.status === 'kargoda' ? renkler.anaRenk
-      : renkler.yaziOrta;
+    const rozetR = durumRengi(item.status, renkler);
+    const odemeR = odemeRengi(item.paymentStatus, renkler);
 
-    // Ürün adlarını kısa özet halinde göster
-    const urunOzet = item.items
-      .map((u) => u.productName + ' × ' + u.quantity)
-      .join(', ');
+    const urunOzet = item.items.map((u) => u.productName + ' × ' + u.quantity).join(', ');
+
+    const odemeIkon =
+      item.paymentStatus === 'odendi' ? 'checkmark-circle'
+      : item.paymentStatus === 'iade_edildi' ? 'arrow-undo-outline'
+      : 'time-outline';
 
     return (
       <TouchableOpacity
@@ -91,23 +66,21 @@ export default function SiparislerimEkrani({ navigation }) {
       >
         <View style={styles.kartUst}>
           <Text style={styles.siparisNo}>Sipariş #{item.id}</Text>
-          <Text style={styles.tutar}>{item.total.toFixed(2)} ₺</Text>
+          <Text style={styles.tutar}>{paraBicimle(item.total)}</Text>
         </View>
+
+        <Text style={styles.tarih}>{tarihBicimle(item.createdAt)}</Text>
 
         <Text style={styles.urunOzet} numberOfLines={2}>{urunOzet}</Text>
 
         <View style={styles.rozetler}>
-          <View style={[styles.rozet, { backgroundColor: durumRengi }]}>
+          <View style={[styles.rozet, { backgroundColor: rozetR }]}>
             <Text style={styles.rozetYazi}>{durumYazisi(item.status)}</Text>
           </View>
 
-          <View style={[styles.rozet, styles.rozetOdeme]}>
-            <Ionicons
-              name={item.paymentStatus === 'odendi' ? 'checkmark-circle' : 'time-outline'}
-              size={13}
-              color={renkler.basari}
-            />
-            <Text style={styles.rozetOdemeYazi}>  {odemeYazisi(item.paymentStatus)}</Text>
+          <View style={[styles.rozetOdeme, { borderColor: odemeR }]}>
+            <Ionicons name={odemeIkon} size={13} color={odemeR} />
+            <Text style={[styles.rozetOdemeYazi, { color: odemeR }]}>  {odemeYazisi(item.paymentStatus)}</Text>
           </View>
 
           <Text style={styles.kartBilgi}>**** {item.cardLast4}</Text>
@@ -116,7 +89,6 @@ export default function SiparislerimEkrani({ navigation }) {
     );
   }
 
-  // 🔒 MİSAFİR KAPISI
   if (!token) {
     return (
       <GirisGerekliEkrani
@@ -128,11 +100,7 @@ export default function SiparislerimEkrani({ navigation }) {
   }
 
   if (yukleniyor) {
-    return (
-      <View style={styles.ortala}>
-        <ActivityIndicator size="large" color={renkler.anaRenk} />
-      </View>
-    );
+    return <View style={styles.ortala}><ActivityIndicator size="large" color={renkler.anaRenk} /></View>;
   }
 
   return (
@@ -159,9 +127,7 @@ export default function SiparislerimEkrani({ navigation }) {
           keyExtractor={(item) => item.id.toString()}
           renderItem={siparisKarti}
           contentContainerStyle={styles.liste}
-          ListEmptyComponent={
-            <Text style={styles.bosYazi}>Eşleşen sipariş bulunamadı.</Text>
-          }
+          ListEmptyComponent={<Text style={styles.bosYazi}>Eşleşen sipariş bulunamadı.</Text>}
         />
       )}
     </SafeAreaView>
@@ -171,23 +137,23 @@ export default function SiparislerimEkrani({ navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.arkaPlan
   },
   ortala: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.arkaPlan
   },
   baslik: {
     fontSize: 24,
     fontWeight: 'bold',
     color: renkler.yaziKoyu,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 16
   },
   liste: {
-    padding: 12,
+    padding: 12
   },
   kart: {
     backgroundColor: renkler.kartArka,
@@ -195,65 +161,71 @@ const stilOlustur = (renkler) => StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: renkler.kenarlik,
+    borderColor: renkler.kenarlik
   },
   kartUst: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 2
   },
   siparisNo: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: renkler.yaziKoyu,
+    color: renkler.yaziKoyu
   },
   tutar: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: renkler.anaRenk,
+    color: renkler.anaRenk
+  },
+  tarih: {
+    fontSize: 12,
+    color: renkler.yaziGri,
+    marginBottom: 8  // ⭐ yeni
   },
   urunOzet: {
     fontSize: 13,
     color: renkler.yaziOrta,
-    marginBottom: 10,
+    marginBottom: 10
   },
   rozetler: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   rozet: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginRight: 8,
+    marginRight: 8
   },
   rozetYazi: {
     fontSize: 12,
     fontWeight: '600',
-    color: renkler.anaRenkUstuYazi,
+    color: renkler.anaRenkUstuYazi
   },
   rozetOdeme: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: renkler.basari,
+    borderWidth: 1
   },
   rozetOdemeYazi: {
     fontSize: 12,
-    fontWeight: '600',
-    color: renkler.basari,
+    fontWeight: '600'
   },
   kartBilgi: {
     fontSize: 12,
     color: renkler.yaziGri,
-    marginLeft: 'auto',
+    marginLeft: 'auto'
   },
   bosYazi: {
     fontSize: 16,
     color: renkler.yaziGri,
     marginTop: 12,
-    textAlign: 'center',
-  },
+    textAlign: 'center'
+  }
 });
