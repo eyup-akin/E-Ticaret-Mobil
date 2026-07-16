@@ -58,7 +58,13 @@ export async function apiIstek(yol, secenekler = {}) {
   // ---------- OTURUM DÜŞTÜ ----------
   // 401 = token bayat, kullanıcı pasifleştirilmiş, veya süre dolmuş.
   // Kasayı boşaltıp AuthContext'e haber veriyoruz → giriş ekranına düşer.
-  if (cevap.status === 401) {
+  //
+  // AMA: login/register denemesinin 401'i "oturum bitti" DEĞİL —
+  // "şifre yanlış" veya "hesap pasif" demek. Orada zaten oturum yok,
+  // kasayı boşaltmaya gerek yok; backend'in gerçek mesajını göstereceğiz.
+  const authIstegi = yol.startsWith('/auth/');
+
+  if (cevap.status === 401 && !authIstegi) {
     await tokenSil();
     await kullaniciSil();
 

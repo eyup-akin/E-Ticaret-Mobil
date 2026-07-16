@@ -10,7 +10,7 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
-  const [kullanici, setKullanici] = useState(null); // { fullName, role }
+  const [kullanici, setKullanici] = useState(null); // { id, fullName, role }
   const [yukleniyor, setYukleniyor] = useState(true); // açılışta token kontrolü
 
   // ---------- UYGULAMA AÇILINCA: kasada token var mı bak ----------
@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
     const veri = await apiPost('/auth/login', { email: email, password: sifre });
 
     // backend { token, fullName, role } döndürüyor
-    const kul = { fullName: veri.fullName, role: veri.role };
+    const kul = { id: veri.id, fullName: veri.fullName, role: veri.role };
 
     await tokenKaydet(veri.token);
     await kullaniciKaydet(kul);
