@@ -73,6 +73,7 @@ export default function HesabimEkrani({ navigation }) {
               {menuSatiri('receipt-outline', 'Siparişlerim', 'Siparislerim')}
               {menuSatiri('location-outline', 'Adreslerim', 'Adreslerim')}
               {menuSatiri('card-outline', 'Kartlarım', 'Kartlarim')}
+              {menuSatiri('wallet-outline', 'Ödemelerim', 'Odemelerim')}
             </View>
           </>
         ) : (
