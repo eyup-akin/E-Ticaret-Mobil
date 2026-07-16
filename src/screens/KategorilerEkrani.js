@@ -52,7 +52,11 @@ export default function KategorilerEkrani({ navigation }) {
         }
       >
         <Text style={styles.emoji}>{kategoriEmoji(item.name)}</Text>
-        <Text style={styles.kategoriAd} numberOfLines={2}>{item.name}</Text>
+
+        <View>
+          <Text style={styles.kategoriAd} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.urunSayisi}>{item.productCount} ürün</Text>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -146,6 +150,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: renkler.yaziKoyu,
+  },
+  urunSayisi: {
+    fontSize: 12,
+    color: renkler.yaziGri,
+    marginTop: 2
   },
   bosYazi: {
     textAlign: 'center',

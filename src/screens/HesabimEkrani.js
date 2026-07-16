@@ -1,14 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { apiGet } from '../services/api';                 // ⭐
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
+import { gunBicimle } from '../utils/bicimlendir';        // ⭐
 
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
   const { renkler, temaAdi, temaDegistir } = useTema();
   const styles = stilOlustur(renkler);
+
+  const [profil, setProfil] = useState(null);   // ⭐ email + üyelik tarihi buradan
+
+  // Giriş varsa profili çek, çıkışta temizle
+  useEffect(() => {
+    async function profiliGetir() {
+      if (!token) {
+        setProfil(null);
+        return;
+      }
+      try {
+        const veri = await apiGet('/auth/ben-kimim');
+        setProfil(veri);
+      } catch (hata) {
+        console.log('Profil alınamadı:', hata.message);
+      }
+    }
+    profiliGetir();
+  }, [token]);
 
   function menuSatiri(ikon, baslik, hedef) {
     return (
@@ -34,7 +55,18 @@ export default function HesabimEkrani({ navigation }) {
           <>
             <View style={styles.kart}>
               <Text style={styles.ad}>{kullanici?.fullName}</Text>
-              <Text style={styles.rol}>Rol: {kullanici?.role}</Text>
+
+              {profil?.email ? (
+                <Text style={styles.eposta}>{profil.email}</Text>
+              ) : null}
+
+              <View style={styles.kartAlt}>
+                <Text style={styles.rol}>Rol: {kullanici?.role}</Text>
+
+                {profil?.createdAt ? (
+                  <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>
+                ) : null}
+              </View>
             </View>
 
             <View style={styles.menu}>
@@ -86,7 +118,6 @@ export default function HesabimEkrani({ navigation }) {
         )}
 
         {/* ============ ORTAK: GÖRÜNÜM (TEMA) ============ */}
-        {/* Tema cihazda saklanıyor, token gerektirmiyor — misafire de açık. */}
         <Text style={styles.bolumBaslik}>Görünüm</Text>
         <View style={styles.temaSatir}>
           <TouchableOpacity
@@ -122,16 +153,16 @@ export default function HesabimEkrani({ navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.arkaPlan
   },
   icerik: {
-    padding: 16,
+    padding: 16
   },
   baslik: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: renkler.yaziKoyu,
+    color: renkler.yaziKoyu
   },
 
   /* --- ÜYE GÖRÜNÜMÜ --- */
@@ -139,20 +170,34 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.acikKart,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 20
   },
   ad: {
     fontSize: 18,
     fontWeight: '600',
-    color: renkler.yaziKoyu,
+    color: renkler.yaziKoyu
+  },
+  eposta: {
+    fontSize: 14,
+    color: renkler.yaziOrta,
+    marginTop: 2
+  },
+  kartAlt: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10
   },
   rol: {
     fontSize: 15,
-    color: renkler.yaziOrta,
-    marginTop: 4,
+    color: renkler.yaziOrta
+  },
+  uyelik: {
+    fontSize: 13,
+    color: renkler.yaziGri
   },
   menu: {
-    marginBottom: 24,
+    marginBottom: 24
   },
   menuSatir: {
     flexDirection: 'row',
@@ -162,13 +207,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: renkler.kenarlik,
+    borderColor: renkler.kenarlik
   },
   menuYazi: {
     flex: 1,
     fontSize: 16,
     color: renkler.yaziKoyu,
-    marginLeft: 12,
+    marginLeft: 12
   },
 
   /* --- MİSAFİR GÖRÜNÜMÜ --- */
@@ -177,7 +222,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderRadius: 14,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 12
   },
   misafirIkonDaire: {
     width: 78,
@@ -186,20 +231,20 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.kartArka,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 16
   },
   misafirBaslik: {
     fontSize: 20,
     fontWeight: 'bold',
     color: renkler.yaziKoyu,
-    marginBottom: 8,
+    marginBottom: 8
   },
   misafirAciklama: {
     fontSize: 14,
     color: renkler.yaziOrta,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 22,
+    marginBottom: 22
   },
   anaButon: {
     backgroundColor: renkler.anaRenk,
@@ -207,12 +252,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 10
   },
   anaButonYazi: {
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   ikincilButon: {
     backgroundColor: 'transparent',
@@ -221,18 +266,18 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
-    width: '100%',
+    width: '100%'
   },
   ikincilButonYazi: {
     color: renkler.anaRenk,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   misafirDipnot: {
     fontSize: 12,
     color: renkler.yaziGri,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 24
   },
 
   /* --- ORTAK: TEMA --- */
@@ -240,11 +285,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: renkler.yaziKoyu,
-    marginBottom: 10,
+    marginBottom: 10
   },
   temaSatir: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: 24
   },
   temaButon: {
     flex: 1,
@@ -253,19 +298,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderWidth: 1,
     borderColor: renkler.inputKenar,
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 10
   },
   temaButonSecili: {
     backgroundColor: renkler.anaRenk,
-    borderColor: renkler.anaRenk,
+    borderColor: renkler.anaRenk
   },
   temaYazi: {
     fontSize: 15,
-    color: renkler.yaziOrta,
+    color: renkler.yaziOrta
   },
   temaYaziSecili: {
     color: renkler.anaRenkUstuYazi,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
 
   /* --- ÇIKIŞ --- */
@@ -273,11 +318,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.anaRenk,
     padding: 14,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   cikisYazi: {
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+  }
 });

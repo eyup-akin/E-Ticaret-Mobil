@@ -38,3 +38,18 @@ export function tarihBicimle(tarihMetni) {
     minute: '2-digit',
   });
 }
+
+// "2026-07-13T14:30:00"  →  "13.07.2026"
+export function gunBicimle(tarihMetni) {
+  if (!tarihMetni) {
+    return '-';
+  }
+
+  const tarih = new Date(tarihMetni);
+
+  return tarih.toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
