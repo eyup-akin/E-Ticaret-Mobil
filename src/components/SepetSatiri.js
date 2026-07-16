@@ -6,14 +6,14 @@ import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
 
 // Sepetteki TEK bir satırın görünümü. Veri işi yok, sadece çizim + tıklama.
-export default function SepetSatiri({ item, onAdetDegistir, onSil }) {
+export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
   const resim = resimUrl(item.productImageUrl);
 
   return (
-    <View style={styles.satir}>
+    <TouchableOpacity style={styles.satir} activeOpacity={0.85} onPress={() => onBas && onBas(item)}>
       {resim ? (
         <Image source={{ uri: resim }} style={styles.resim} resizeMode="cover" />
       ) : (
@@ -45,16 +45,15 @@ export default function SepetSatiri({ item, onAdetDegistir, onSil }) {
         </View>
       </View>
 
-      <View style={styles.sag}>
-        <TouchableOpacity onPress={() => onSil(item)} style={styles.silButon}>
-          <Ionicons name="trash-outline" size={20} color={renkler.yaziGri} />
-        </TouchableOpacity>
+      {/* ⭐ EKSİK OLAN ÇÖP KUTUSU KISMI BURASI ⭐ */}
+      <TouchableOpacity 
+        style={styles.silButon} 
+        onPress={() => onSil(item)}
+      >
+        <Ionicons name="trash-outline" size={22} color="#e74c3c" />
+      </TouchableOpacity>
 
-        <Text style={styles.satirToplam}>
-          {paraBicimle(item.productPrice * item.quantity)}
-        </Text>
-      </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

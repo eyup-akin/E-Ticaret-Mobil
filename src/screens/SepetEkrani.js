@@ -96,6 +96,12 @@ export default function SepetEkrani({ navigation }) {
                 item={item}
                 onAdetDegistir={adetGuncelle}
                 onSil={silmeyiOnayla}
+                onBas={(it) =>
+                  navigation.navigate('AnaSayfa', {
+                    screen: 'UrunDetay',
+                    params: { urunId: it.productId },
+                  })
+                }
               />
             )}
             contentContainerStyle={styles.liste}
