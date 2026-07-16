@@ -61,7 +61,7 @@ export default function HesabimEkrani({ navigation }) {
               ) : null}
 
               <View style={styles.kartAlt}>
-                <Text style={styles.rol}>Rol: {kullanici?.role}</Text>
+                <Text style={styles.rol}>Rol: {profil?.role || kullanici?.role}</Text>
 
                 {profil?.createdAt ? (
                   <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>

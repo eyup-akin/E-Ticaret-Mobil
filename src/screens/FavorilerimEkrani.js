@@ -6,18 +6,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { useFavorite } from '../context/FavoriteContext';
-
 import { useAuth } from '../context/AuthContext';
 import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
-
 import AramaCubugu from '../components/AramaCubugu';
+import UrunKarti from '../components/UrunKarti';   // ⭐ ana sayfadaki kartın aynısı
 
 export default function FavorilerimEkrani({ navigation }) {
-  
   const { token } = useAuth();
-  
   const { renkler } = useTema();
-  const { favoriDegistir, favoriIdler } = useFavorite();
+  const { favoriMi, favoriIdler } = useFavorite();
   const styles = stilOlustur(renkler);
 
   const [favoriler, setFavoriler] = useState([]);
@@ -42,47 +39,36 @@ export default function FavorilerimEkrani({ navigation }) {
     }, [token])
   );
 
-  async function cikar(item) {
-    await favoriDegistir(item.productId);
-    setFavoriler((onceki) => onceki.filter((f) => f.productId !== item.productId));
-  }
+  // Arama süzgeci + karttan kalbe basıp çıkarılanları anında gizle
+  const filtreliFavoriler = favoriler
+    .filter((f) => favoriMi(f.productId))
+    .filter((f) =>
+      aramaMetni ? f.productName.toLowerCase().includes(aramaMetni.toLowerCase()) : true
+    );
 
-  // Elimizdeki listede süz — backend'e gitmeye gerek yok
-  const filtreliFavoriler = aramaMetni
-    ? favoriler.filter((f) =>
-        f.productName.toLowerCase().includes(aramaMetni.toLowerCase())
-      )
-    : favoriler;
+  function kartCiz({ item }) {
+    // FavoriteDto → UrunKarti'nın beklediği "urun" şekline çevir
+    const urun = {
+      id: item.productId,
+      name: item.productName,
+      price: item.productPrice,
+      stock: item.stock,
+      mainImageUrl: item.productImageUrl,
+    };
 
-  function favoriSatiri({ item }) {
     return (
-      <TouchableOpacity
-        style={styles.satir}
-        activeOpacity={0.8}
+      <UrunKarti
+        urun={urun}
         onPress={() =>
           navigation.navigate('AnaSayfa', {
             screen: 'UrunDetay',
             params: { urunId: item.productId },
           })
         }
-      >
-        <View style={styles.harfKutu}>
-          <Text style={styles.harfYazi}>{item.productName.charAt(0)}</Text>
-        </View>
-
-        <View style={styles.orta}>
-          <Text style={styles.urunAd} numberOfLines={2}>{item.productName}</Text>
-          <Text style={styles.fiyat}>{item.productPrice} ₺</Text>
-        </View>
-
-        <TouchableOpacity onPress={() => cikar(item)} style={styles.kalpButon}>
-          <Ionicons name="heart" size={24} color={renkler.favoriRenk} />
-        </TouchableOpacity>
-      </TouchableOpacity>
+      />
     );
   }
 
-  // 🔒 MİSAFİR KAPISI
   if (!token) {
     return (
       <GirisGerekliEkrani
@@ -124,7 +110,9 @@ export default function FavorilerimEkrani({ navigation }) {
       <FlatList
         data={filtreliFavoriler}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={favoriSatiri}
+        renderItem={kartCiz}
+        numColumns={2}
+        columnWrapperStyle={styles.satir}
         contentContainerStyle={styles.liste}
         extraData={favoriIdler}
         ListEmptyComponent={
@@ -143,82 +131,45 @@ export default function FavorilerimEkrani({ navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.arkaPlan
   },
   ortala: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.arkaPlan
   },
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: renkler.kenarlik,
+    borderBottomColor: renkler.kenarlik
   },
   geriButon: {
-    marginRight: 12,
+    marginRight: 12
   },
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
-    color: renkler.yaziKoyu,
+    color: renkler.yaziKoyu
   },
   liste: {
-    padding: 12,
-    flexGrow: 1,
+    padding: 8,
+    flexGrow: 1
   },
   satir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: renkler.kartArka,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
-  },
-  harfKutu: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: renkler.anaRenk,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  harfYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  orta: {
-    flex: 1,
-  },
-  urunAd: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: renkler.yaziKoyu,
-    marginBottom: 4,
-  },
-  fiyat: {
-    fontSize: 16,
-    color: renkler.anaRenk,
-    fontWeight: 'bold',
-  },
-  kalpButon: {
-    padding: 8,
+    justifyContent: 'space-between'
   },
   bosKutu: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 80
   },
   bosYazi: {
     fontSize: 16,
     color: renkler.yaziGri,
-    marginTop: 12,
-  },
+    marginTop: 12
+  }
 });
