@@ -30,3 +30,8 @@ export function odemeRengi(kod, renkler) {
   if (kod === 'iade_edildi') return '#8e44ad';   // mor
   return renkler.yaziOrta;                          // beklemede
 }
+
+// Bu durumdaki sipariş iptal edilebilir mi? (backend IptalEdilebilirDurumlar ile aynı)
+export function iptalEdilebilirMi(kod) {
+  return kod === 'hazirlaniyor' || kod === 'kargoda';
+}
