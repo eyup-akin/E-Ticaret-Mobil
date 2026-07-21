@@ -4,6 +4,7 @@ import { apiPost, oturumBittiKaydet } from '../services/api';
 import {
   tokenKaydet, tokenAl, tokenSil,
   kullaniciKaydet, kullaniciAl, kullaniciSil,
+  refreshTokenKaydet, refreshTokenAl, refreshTokenSil, // ⭐ YENİ
 } from '../services/tokenStorage';
 
 const AuthContext = createContext();
@@ -50,6 +51,9 @@ export function AuthProvider({ children }) {
     const kul = { id: veri.id, fullName: veri.fullName, role: veri.role };
 
     await tokenKaydet(veri.token);
+    
+    await refreshTokenKaydet(veri.refreshToken); // ⭐ YENİ — refresh'i de sakla
+
     await kullaniciKaydet(kul);
 
     setToken(veri.token);
@@ -69,8 +73,20 @@ export function AuthProvider({ children }) {
 
   // ---------- ÇIKIŞ YAP ----------
   async function cikisYap() {
+    // Sunucuya haber ver: bu cihazın refresh token'ını iptal et (gerçek çıkış).
+    // Ağ hatası olsa bile yerel çıkış mutlaka olsun diye try/catch.
+    try {
+      const refresh = await refreshTokenAl();
+      if (refresh) {
+        await apiPost('/auth/logout', { refreshToken: refresh });
+      }
+    } catch {
+      // sunucuya ulaşılamasa bile aşağıda yerel kasayı boşaltıyoruz
+    }
+
     await tokenSil();
     await kullaniciSil();
+    await refreshTokenSil(); // ⭐ YENİ
 
     setToken(null);
     setKullanici(null);
