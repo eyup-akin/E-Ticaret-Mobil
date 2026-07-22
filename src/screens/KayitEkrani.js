@@ -31,8 +31,25 @@ export default function KayitEkrani({ navigation }) {
     }
     try {
       setYukleniyor(true);
-      await kayitOl(adSoyad, email, sifre);   // kayıt + otomatik giriş
-      kapat();                                 // ← modalı kapat
+
+      const veri = await kayitOl(adSoyad, email, sifre);
+
+      // Kayıt başarılı AMA hesap henüz doğrulanmamış → modalı kapatmıyoruz.
+      // Kullanıcıyı Giriş ekranına bırakıyoruz ki maili doğrulayıp
+      // buradan devam edebilsin.
+      //
+      // Yönlendirmeyi Alert'in butonuna bağladık: kullanıcı mesajı okumadan
+      // ekran altından kaymasın.
+      Alert.alert(
+        'Kayıt başarılı',
+        veri?.mesaj || 'Mailine doğrulama linki gönderdik. Doğruladıktan sonra giriş yapabilirsin.',
+        [
+          {
+            text: 'Giriş ekranına dön',
+            onPress: () => navigation.replace('Giris'),
+          },
+        ]
+      );
     } catch (hata) {
       Alert.alert('Kayıt başarısız', hata.message);
     } finally {

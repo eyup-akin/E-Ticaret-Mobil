@@ -60,15 +60,24 @@ export function AuthProvider({ children }) {
     setKullanici(kul);
   }
 
-  // ---------- KAYIT OL (sonra otomatik giriş yaptırır) ----------
+  // ---------- KAYIT OL ----------
+  // ⚠️ OTOMATİK GİRİŞ KALDIRILDI.
+  // Backend yeni hesabı "doğrulanmamış" (EmailDogrulandiMi = false) açıyor ve
+  // login o hesabı içeri almıyor. Otomatik giriş denersek kayıt BAŞARILI olduğu
+  // hâlde kullanıcı "Kayıt başarısız" hatası görüyordu.
+  //
+  // Artık sadece kayıt yapıp backend'in mesajını ekrana geri veriyoruz;
+  // kullanıcı maildeki linke tıkladıktan sonra kendisi giriş yapacak.
   async function kayitOl(adSoyad, email, sifre) {
-    await apiPost('/auth/register', {
+    const veri = await apiPost('/auth/register', {
       fullName: adSoyad,
       email: email,
       password: sifre,
     });
 
-    await girisYap(email, sifre);
+    // Backend { mesaj: "Kayıt başarılı! Lütfen email adresine..." } döndürüyor.
+    // Ekran bunu kullanıcıya gösterecek.
+    return veri;
   }
 
   // ---------- ÇIKIŞ YAP ----------
