@@ -9,6 +9,8 @@ import MainTabNavigator from './MainTabNavigator';
 import GirisEkrani from '../screens/GirisEkrani';
 import KayitEkrani from '../screens/KayitEkrani';
 
+import SifremiUnuttumEkrani from '../screens/SifremiUnuttumEkrani';
+
 // Kök seviyede bir yığın (stack) kuruyoruz.
 // Uygulamanın kendisi bu yığının EN ALT katmanı olacak.
 // Giriş ve Kayıt ekranları onun ÜSTÜNE açılan modal pencereler olacak.
@@ -72,6 +74,10 @@ export default function RootNavigator() {
           <RootStack.Screen
             name="Kayit"
             component={KayitEkrani}
+          />
+          <RootStack.Screen
+            name="SifremiUnuttum"
+            component={SifremiUnuttumEkrani}
           />
         </RootStack.Group>
 

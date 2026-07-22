@@ -21,6 +21,8 @@ export const acikTema = {
   inputKenar: '#dddddd',
 
   basari: '#27ae60',
+  hata: '#e74c3c',       // ⭐ EKLENDİ — 8 CSS dosyası bunu kullanıyordu ama tanımsızdı
+  uyari: '#f39c12',      // ⭐ EKLENDİ — DashboardSayfasi.css kullanıyor
   pasif: '#cccccc',
 
   favoriRenk: '#e74c3c',   // kalp her zaman kırmızı — temadan bağımsız
@@ -46,6 +48,8 @@ export const koyuTema = {
   inputKenar: '#444444',
 
   basari: '#2ecc71',
+  hata: '#ff6b6b',       // ⭐ koyu zeminde okunsun diye açık kırmızı
+  uyari: '#fbbf24',      // ⭐ koyu zeminde okunsun diye açık turuncu
   pasif: '#555555',
 
   favoriRenk: '#e74c3c',   // kalp her zaman kırmızı — temadan bağımsız

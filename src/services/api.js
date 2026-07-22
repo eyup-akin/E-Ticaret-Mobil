@@ -107,7 +107,15 @@ export async function apiIstek(yol, secenekler = {}, yenidenDenendi = false) {
 
   if (!cevap.ok) {
     const hataMesaji = veri && veri.mesaj ? veri.mesaj : 'Bir hata oluştu';
-    throw new Error(hataMesaji);
+
+    // ⭐ Backend "kod" gönderdiyse hata nesnesine iliştir.
+    // JS'te Error bir nesnedir; üstüne kendi alanlarını ekleyebilirsin.
+    // Böylece ekranlar metne bakmadan durumu ayırt edebilir:
+    //    catch (hata) { if (hata.kod === 'EMAIL_DOGRULANMADI') ... }
+    const hata = new Error(hataMesaji);
+    hata.kod = veri && veri.kod ? veri.kod : null;
+
+    throw hata;
   }
 
   return veri;

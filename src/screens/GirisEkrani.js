@@ -35,6 +35,17 @@ export default function GirisEkrani({ navigation }) {
       await girisYap(email, sifre);
       kapat();   // ← giriş başarılı, modalı kapat ve geldiği yere dön
     } catch (hata) {
+      // ⭐ Email doğrulanmamışsa bu bir "hata" değil, eksik bir adım.
+      // Backend'in gönderdiği KOD'a bakıyoruz, mesaj metnine değil —
+      // metin ileride değişirse kontrol kırılmasın.
+      if (hata.kod === 'EMAIL_DOGRULANMADI') {
+        Alert.alert(
+          'Hesabın henüz doğrulanmadı',
+          hata.message + '\n\nDoğruladıktan sonra buradan giriş yapabilirsin.'
+        );
+        return;
+      }
+
       Alert.alert('Giriş başarısız', hata.message);
     } finally {
       setYukleniyor(false);
@@ -76,6 +87,10 @@ export default function GirisEkrani({ navigation }) {
           {yukleniyor
             ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
             : <Text style={styles.butonYazi}>Giriş Yap</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('SifremiUnuttum')}>
+          <Text style={styles.sifremiUnuttumYazi}>Şifremi unuttum</Text>
         </TouchableOpacity>
 
         {/* replace: Giriş'i yığından çıkarır, Kayıt'ı yerine koyar */}
@@ -141,6 +156,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  sifremiUnuttumYazi: {
+    textAlign: 'center',
+    marginTop: 14,
+    fontSize: 13,
+    color: renkler.yaziOrta,
   },
   altYazi: {
     textAlign: 'center',
