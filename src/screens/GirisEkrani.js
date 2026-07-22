@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+import { apiPost } from '../services/api';
+
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 
@@ -25,6 +28,23 @@ export default function GirisEkrani({ navigation }) {
     }
   }
 
+
+
+  // Doğrulama linkini yeniden gönderir.
+  // AuthContext üzerinden değil doğrudan apiPost ile çağırıyoruz:
+  // bu işlem oturumla ilgili değil, tek seferlik basit bir istek.
+  async function dogrulamaLinkiGonder() {
+    try {
+      const veri = await apiPost('/auth/resend-verification', { email: email });
+      Alert.alert('Gönderildi', veri.mesaj);
+    } catch (hata) {
+      // Rate limit'e takılırsa ("15 dakikada 3 istek") mesajı burada görünür
+      Alert.alert('Gönderilemedi', hata.message);
+    }
+  }
+
+
+
   async function girisButonu() {
     if (!email || !sifre) {
       Alert.alert('Eksik bilgi', 'Email ve şifre boş olamaz.');
@@ -41,7 +61,11 @@ export default function GirisEkrani({ navigation }) {
       if (hata.kod === 'EMAIL_DOGRULANMADI') {
         Alert.alert(
           'Hesabın henüz doğrulanmadı',
-          hata.message + '\n\nDoğruladıktan sonra buradan giriş yapabilirsin.'
+          hata.message + '\n\nMaili bulamıyorsan yeni bir link isteyebilirsin.',
+          [
+            { text: 'Linki tekrar gönder', onPress: dogrulamaLinkiGonder },
+            { text: 'Tamam', style: 'cancel' },
+          ]
         );
         return;
       }
