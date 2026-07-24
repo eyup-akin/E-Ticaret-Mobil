@@ -17,15 +17,23 @@ export default function GirisEkrani({ navigation }) {
   const [sifre, setSifre] = useState('');
   const [yukleniyor, setYukleniyor] = useState(false);
 
-  // MODALI KAPAT
-  // Geri gidilecek bir ekran varsa oraya dön (kullanıcı nereden geldiyse).
-  // Yoksa Ana Sayfa'ya git — böylece kullanıcı asla ekranda kilitli kalmaz.
+  // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
+  //
+  // Neden goBack() değil: modal her zaman "Ana"nın üstüne açılıyor, yani
+  // canGoBack() hep true dönüyordu ve kullanıcı geldiği sekmeye geri
+  // düşüyordu. Hesabım'dan gelen, giriş yapsa da vazgeçse de yine
+  // Hesabım'da uyanıyordu.
+  //
+  // Üç katı da belirtiyoruz çünkü her navigator kendi geçmişini tutar:
+  //   'Ana'          → RootStack'teki sekme kabuğu
+  //   'AnaSayfa'     → o kabuğun Ana Sayfa sekmesi
+  //   'AnaSayfaMain' → o sekmenin ürün listesi ekranı
+  // Sonuncusu olmazsa sekme UrunDetay'da kalmışsa orada uyanırdı.
   function kapat() {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Ana');
-    }
+    navigation.navigate('Ana', {
+      screen: 'AnaSayfa',
+      params: { screen: 'AnaSayfaMain' },
+    });
   }
 
 

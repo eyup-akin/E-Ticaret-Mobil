@@ -15,13 +15,13 @@ export default function KayitEkrani({ navigation }) {
   const [sifre, setSifre] = useState('');
   const [yukleniyor, setYukleniyor] = useState(false);
 
-  // MODALI KAPAT (GirisEkrani ile aynı mantık)
+  // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
+  // (GirisEkrani'ndaki ile birebir aynı mantık — açıklaması orada.)
   function kapat() {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Ana');
-    }
+    navigation.navigate('Ana', {
+      screen: 'AnaSayfa',
+      params: { screen: 'AnaSayfaMain' },
+    });
   }
 
   async function kayitButonu() {
