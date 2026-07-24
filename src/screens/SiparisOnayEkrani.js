@@ -51,7 +51,8 @@ export default function SiparisOnayEkrani({ route, navigation }) {
 
       // Başarı ekranına git (geri tuşuyla buraya dönemesin)
       navigation.replace('SiparisBasarili', {
-        siparisId: sonuc.siparisId,
+        siparisId: sonuc.siparisId,   // detaya gitmek için gerekli (URL anahtarı)
+        siparisNo: sonuc.siparisNo,   // ⭐ ekranda gösterilecek numara
         toplam: sonuc.toplam,
       });
     } catch (hata) {

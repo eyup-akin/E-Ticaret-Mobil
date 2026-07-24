@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 
 export default function SiparisBasariliEkrani({ route, navigation }) {
-  const { siparisId, toplam } = route.params;
+  const { siparisId, siparisNo, toplam } = route.params;
 
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
@@ -23,7 +23,7 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
         <View style={styles.kutu}>
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>Sipariş No</Text>
-            <Text style={styles.deger}>#{siparisId}</Text>
+            <Text style={styles.deger}>{siparisNo}</Text>
           </View>
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>Tutar</Text>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,7 +41,12 @@ export default function SiparislerimEkrani({ navigation }) {
   const filtreliSiparisler = aramaMetni
     ? siparisler.filter((s) => {
         const kelime = aramaMetni.toLowerCase();
-        const noEslesme = String(s.id).includes(kelime.replace('#', ''));
+        // Numara harf içeriyor (SP-260724-4821), o yüzden karşılaştırmadan
+        // önce küçük harfe çeviriyoruz. Kullanıcı "sp-2607" de yazsa,
+        // sadece "4821" de yazsa bulunsun.
+        const noEslesme = (s.orderNumber || '')
+          .toLowerCase()
+          .includes(kelime);
         const urunEslesme = s.items.some((u) => u.productName.toLowerCase().includes(kelime));
         return noEslesme || urunEslesme;
       })
@@ -65,7 +70,7 @@ export default function SiparislerimEkrani({ navigation }) {
         onPress={() => navigation.navigate('SiparisDetay', { siparisId: item.id })}
       >
         <View style={styles.kartUst}>
-          <Text style={styles.siparisNo}>Sipariş #{item.id}</Text>
+          <Text style={styles.siparisNo}>{item.orderNumber}</Text>
           <Text style={styles.tutar}>{paraBicimle(item.total)}</Text>
         </View>
 
@@ -170,7 +175,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginBottom: 2
   },
   siparisNo: {
-    fontSize: 16,
+    // Tek aralıklı yazı tipi: alt alta gelen numaralar hizalı görünür.
+    // ⚠️ 'monospace' sadece Android'de çalışır, iOS'ta böyle bir font yok.
+    // Platform.select her işletim sisteminde doğru fontu seçer.
+    fontFamily: Platform.select({
+      ios: 'Courier',
+      android: 'monospace'
+    }),
+    fontSize: 14,
     fontWeight: 'bold',
     color: renkler.yaziKoyu
   },

@@ -56,7 +56,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.geriButon}>
           <Ionicons name="arrow-back" size={24} color={renkler.yaziKoyu} />
         </TouchableOpacity>
-        <Text style={styles.ustBaslik}>Sipariş #{siparis.id}</Text>
+        <Text style={styles.ustBaslik}>{siparis.orderNumber}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.icerik}>
@@ -66,6 +66,43 @@ export default function SiparisDetayEkrani({ route, navigation }) {
         <View style={styles.bolum}>
           {!iptalMi && <Text style={styles.bolumBaslik}>Kargo Durumu</Text>}
           <KargoDurumu siparis={siparis} />
+        </View>
+
+        {/* TESLİMAT ADRESİ
+            Sipariş anında dondurulmuş bilgi — müşteri adresini sonradan
+            değiştirse bile burada eski hali görünür ve görünmelidir. */}
+        <View style={styles.bolum}>
+          <Text style={styles.bolumBaslik}>Teslimat Adresi</Text>
+
+          <View style={styles.kutu}>
+            <View style={styles.satir}>
+              <Text style={styles.etiket}>Alıcı</Text>
+              <Text style={styles.deger}>
+                {siparis.shippingFullName || '—'}
+              </Text>
+            </View>
+
+            <View style={styles.satir}>
+              <Text style={styles.etiket}>Başlık</Text>
+              <Text style={styles.deger}>
+                {siparis.shippingTitle || '—'}
+              </Text>
+            </View>
+
+            <View style={styles.satir}>
+              <Text style={styles.etiket}>Şehir</Text>
+              <Text style={styles.deger}>
+                {siparis.shippingCity || '—'}
+              </Text>
+            </View>
+
+            {/* Açık adres uzun olduğu için satır düzeni yerine alt alta.
+                Sağa yaslanmış uzun metin dar ekranda okunmaz hale gelir. */}
+            <Text style={styles.adresEtiket}>Açık Adres</Text>
+            <Text style={styles.adresMetin}>
+              {siparis.shippingFullAddress || '—'}
+            </Text>
+          </View>
         </View>
 
         {/* ÖDEME */}
@@ -183,6 +220,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: renkler.yaziKoyu
+  },
+  adresEtiket: {
+    fontSize: 13,
+    color: renkler.yaziGri,
+    marginTop: 12,
+    marginBottom: 4
+  },
+  adresMetin: {
+    fontSize: 14,
+    color: renkler.yaziKoyu,
+    lineHeight: 20
   },
   bosYazi: {
     fontSize: 16,
