@@ -23,7 +23,10 @@ export default function AdresSecEkrani({ route, navigation }) {
   const [baslik, setBaslik] = useState('');
   const [acikAdres, setAcikAdres] = useState('');
   const [sehir, setSehir] = useState('');
+  const [telefon, setTelefon] = useState('');      // ⭐ YENİ
   const [kaydediliyor, setKaydediliyor] = useState(false);
+
+  
 
   async function adresleriGetir() {
     try {
@@ -45,7 +48,7 @@ export default function AdresSecEkrani({ route, navigation }) {
   );
 
   async function adresEkle() {
-    if (!baslik || !acikAdres || !sehir) {
+    if (!baslik || !acikAdres || !sehir || !telefon) {
       Alert.alert('Eksik bilgi', 'Tüm alanları doldur.');
       return;
     }
@@ -55,10 +58,12 @@ export default function AdresSecEkrani({ route, navigation }) {
         title: baslik,
         fullAddress: acikAdres,
         city: sehir,
+        phone: telefon,              // ⭐
       });
       setBaslik('');
       setAcikAdres('');
       setSehir('');
+      setTelefon('');                // ⭐
       setFormAcik(false);
       await adresleriGetir();
     } catch (hata) {
@@ -67,6 +72,7 @@ export default function AdresSecEkrani({ route, navigation }) {
       setKaydediliyor(false);
     }
   }
+
 
   function devamEt() {
     if (!seciliId) {
@@ -120,6 +126,9 @@ export default function AdresSecEkrani({ route, navigation }) {
           <Text style={styles.adresBaslik}>{item.title}</Text>
           <Text style={styles.adresMetin}>{item.fullAddress}</Text>
           <Text style={styles.adresSehir}>{item.city}</Text>
+          {item.phone && (
+            <Text style={styles.adresTelefon}>{item.phone}</Text>
+          )}
         </View>
 
         {!secimModu && (
@@ -192,6 +201,16 @@ export default function AdresSecEkrani({ route, navigation }) {
               onChangeText={setSehir}
             />
 
+            <TextInput
+              style={styles.input}
+              placeholder="Telefon (örn: 0532 123 45 67)"
+              placeholderTextColor={renkler.yaziGri}
+              value={telefon}
+              onChangeText={setTelefon}
+              keyboardType="phone-pad"
+              maxLength={20}
+            />
+
             <View style={styles.formButonlar}>
               <TouchableOpacity style={styles.iptalButon} onPress={() => setFormAcik(false)}>
                 <Text style={styles.iptalYazi}>Vazgeç</Text>
@@ -228,6 +247,11 @@ export default function AdresSecEkrani({ route, navigation }) {
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
+  adresTelefon: {
+    fontSize: 13,
+    color: renkler.yaziGri,
+    marginTop: 2
+  },
   kapsayici: {
     flex: 1,
     backgroundColor: renkler.arkaPlan,

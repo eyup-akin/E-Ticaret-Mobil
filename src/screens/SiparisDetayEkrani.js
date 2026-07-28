@@ -96,6 +96,13 @@ export default function SiparisDetayEkrani({ route, navigation }) {
               </Text>
             </View>
 
+            <View style={styles.satir}>
+              <Text style={styles.etiket}>Telefon</Text>
+              <Text style={styles.deger}>
+                {siparis.shippingPhone || '—'}
+              </Text>
+            </View>
+
             {/* Açık adres uzun olduğu için satır düzeni yerine alt alta.
                 Sağa yaslanmış uzun metin dar ekranda okunmaz hale gelir. */}
             <Text style={styles.adresEtiket}>Açık Adres</Text>
