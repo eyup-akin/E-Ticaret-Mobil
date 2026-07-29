@@ -159,8 +159,42 @@ export default function SiparisDetayEkrani({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.altBar}>
-        <Text style={styles.toplamEtiket}>Toplam</Text>
-        <Text style={styles.toplamTutar}>{paraBicimle(siparis.total)}</Text>
+        {/* ⭐ İndirim varsa dökümü göster.
+            
+            ⚠️ Bu değerler DONDURULMUŞ alanlardan geliyor:
+            subTotal, couponCode, discountAmount — hepsi sipariş
+            anında Order tablosuna yazıldı. Kuponun bugünkü haline
+            BAKMIYORUZ. Admin kuponu silse, oranını değiştirse veya
+            pasifleştirse bile bu sipariş aynı görünür.
+            
+            Aynı desen adres (ShippingFullName vb.) ve birim fiyat
+            (UnitPrice) için de geçerli — projedeki tutarlı yaklaşım. */}
+        {siparis.discountAmount > 0 && (
+          <>
+            <View style={styles.ozetSatir}>
+              <Text style={styles.ozetEtiket}>Ara toplam</Text>
+              <Text style={styles.ozetDeger}>{paraBicimle(siparis.subTotal)}</Text>
+            </View>
+
+            <View style={styles.ozetSatir}>
+              <Text style={styles.ozetEtiket}>
+                İndirim{siparis.couponCode ? ` (${siparis.couponCode})` : ''}
+              </Text>
+              <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
+                −{paraBicimle(siparis.discountAmount)}
+              </Text>
+            </View>
+
+            <View style={styles.ozetAyirac} />
+          </>
+        )}
+
+        <View style={styles.toplamSatir}>
+          <Text style={styles.toplamEtiket}>
+            {siparis.discountAmount > 0 ? 'Ödenen' : 'Toplam'}
+          </Text>
+          <Text style={styles.toplamTutar}>{paraBicimle(siparis.total)}</Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -280,14 +314,39 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: 'bold',
     color: renkler.yaziKoyu
   },
+  /* Artık birden fazla satır olabildiği için yatay dizilim
+     kaldırıldı; satırlar alt alta akıyor. Yatay hizalama
+     her satırın kendi içinde (toplamSatir / ozetSatir) yapılıyor. */
   altBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: renkler.kenarlik,
     backgroundColor: renkler.kartArka
+  },
+  toplamSatir: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  ozetSatir: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6
+  },
+  ozetEtiket: {
+    fontSize: 14,
+    color: renkler.yaziOrta
+  },
+  ozetDeger: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: renkler.yaziKoyu
+  },
+  ozetAyirac: {
+    height: 1,
+    backgroundColor: renkler.kenarlik,
+    marginVertical: 8
   },
   toplamEtiket: {
     fontSize: 15,

@@ -5,7 +5,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 
 export default function SiparisBasariliEkrani({ route, navigation }) {
-  const { siparisId, siparisNo, toplam } = route.params;
+  // ⭐ araToplam, indirim, kuponKodu → SiparisOnayEkrani'ndan geliyor.
+  //    Bunlar SUNUCUNUN döndürdüğü değerler; kendi hesabımız değil.
+  //    Böylece ekranda gösterilen sayı ile veritabanına yazılan
+  //    sayı birebir aynı oluyor.
+  const { siparisId, siparisNo, toplam, araToplam, indirim, kuponKodu } = route.params;
+
+  // Number(...) ile sarmalıyoruz çünkü JSON'dan gelen decimal
+  // bazen sayı bazen metin olabilir; toplama/karşılaştırma yaparken
+  // "0" > 0 gibi sürprizler yaşamayalım.
+  //
+  // ?? 0 → alan hiç gelmemişse (eski bir gezinme kaydı gibi) 0 say.
+  // || yerine ?? kullanıyoruz: 0 geçerli bir değer, onu ezmemeli.
+  const indirimSayi = Number(indirim ?? 0);
 
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
@@ -25,15 +37,48 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             <Text style={styles.etiket}>Sipariş No</Text>
             <Text style={styles.deger}>{siparisNo}</Text>
           </View>
+
+          {/* ⭐ İndirim varsa dökümü göster.
+              Yoksa sadece "Tutar" satırı kalır — eskisi gibi. */}
+          {indirimSayi > 0 && (
+            <>
+              <View style={styles.kutuSatir}>
+                <Text style={styles.etiket}>Ara toplam</Text>
+                <Text style={styles.deger}>{Number(araToplam).toFixed(2)} ₺</Text>
+              </View>
+
+              <View style={styles.kutuSatir}>
+                <Text style={styles.etiket}>
+                  İndirim{kuponKodu ? ` (${kuponKodu})` : ''}
+                </Text>
+                <Text style={styles.degerIndirim}>
+                  −{indirimSayi.toFixed(2)} ₺
+                </Text>
+              </View>
+            </>
+          )}
+
           <View style={styles.kutuSatir}>
-            <Text style={styles.etiket}>Tutar</Text>
+            <Text style={styles.etiket}>{indirimSayi > 0 ? 'Ödenen' : 'Tutar'}</Text>
             <Text style={styles.degerVurgu}>{Number(toplam).toFixed(2)} ₺</Text>
           </View>
+
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>Durum</Text>
             <Text style={styles.deger}>Hazırlanıyor</Text>
           </View>
         </View>
+
+        {/* ⭐ Tasarruf rozeti — küçük ama etkili bir dokunuş.
+            Müşteriye "iyi iş çıkardın" hissi verir ve bir dahaki
+            sefere kupon aramaya teşvik eder. */}
+        {indirimSayi > 0 && (
+          <View style={styles.tasarrufRozet}>
+            <Text style={styles.tasarrufYazi}>
+              🎉 Bu siparişte {indirimSayi.toFixed(2)} ₺ tasarruf ettin!
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.altBar}>
@@ -110,6 +155,28 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
     color: renkler.anaRenk,
+  },
+  degerIndirim: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: renkler.basari,
+  },
+  tasarrufRozet: {
+    width: '100%',
+    backgroundColor: renkler.acikKart,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: renkler.basari,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  tasarrufYazi: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: renkler.basari,
+    textAlign: 'center',
   },
   altBar: {
     padding: 16,

@@ -5,12 +5,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPost } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
+import { paraBicimle } from '../utils/bicimlendir';
 
 export default function SiparisOnayEkrani({ route, navigation }) {
   const { adresId, kartId } = route.params;
 
   const { renkler } = useTema();
-  const { sepet, toplamTutar, sepetiSifirla } = useSepet();
+
+  const {
+    sepet,
+    toplamTutar,
+    sepetiSifirla,
+
+    // ⭐ YENİ — kupon bilgileri
+    kupon,
+    indirimTutari,
+    odenecekTutar,
+    kuponuKaldir,
+  } = useSepet();
+
   const styles = stilOlustur(renkler);
 
   const [adres, setAdres] = useState(null);
@@ -37,30 +50,82 @@ export default function SiparisOnayEkrani({ route, navigation }) {
     ozetiGetir();
   }, []);
 
+
   // SİPARİŞİ TAMAMLA — backend transaction'ı burada tetikleniyor
-  async function siparisiTamamla() {
+  //
+  // kuponsuzDene parametresi neden var?
+  //   Kupon reddedilirse kullanıcıya "kuponsuz devam edelim mi?" diye
+  //   soruyoruz. Evet derse aynı fonksiyonu true ile tekrar çağırıyoruz.
+  //
+  //   Neden kuponuKaldir() çağırıp state'e güvenmiyoruz?
+  //   React'te setState ANINDA etki etmez — bir sonraki render'da geçerli
+  //   olur. kuponuKaldir() çağırıp hemen siparisiTamamla() dersek, fonksiyon
+  //   hâlâ ESKİ kupon değerini görür ve aynı hatayı tekrar alırız.
+  //   Parametre ile açıkça söylemek bu zamanlama tuzağını tamamen atlatır.
+  async function siparisiTamamla(kuponsuzDene = false) {
     try {
       setGonderiliyor(true);
 
+      // ⭐ SADECE KOD gönderiyoruz, indirim tutarını DEĞİL.
+      //    Sunucu indirimi kendi hesaplıyor. Ön yüzden gelen para
+      //    bilgisine güvenilmez — kullanıcı uygulamayı değiştirip
+      //    "indirim: 999999" gönderebilir.
+      //
+      //    ?? null → kupon yoksa alan null gider, backend'deki
+      //    string? CouponCode bunu "kupon kullanılmıyor" olarak anlar.
       const sonuc = await apiPost('/orders', {
         addressId: adresId,
         cardId: kartId,
+        couponCode: kuponsuzDene ? null : (kupon?.kod ?? null),
       });
 
-      sepetiSifirla(); // backend sepeti temizledi, ekranı da senkronla
+      sepetiSifirla(); // backend sepeti temizledi, ekranı da senkronla (kuponu da bırakır)
 
       // Başarı ekranına git (geri tuşuyla buraya dönemesin)
       navigation.replace('SiparisBasarili', {
         siparisId: sonuc.siparisId,   // detaya gitmek için gerekli (URL anahtarı)
         siparisNo: sonuc.siparisNo,   // ⭐ ekranda gösterilecek numara
         toplam: sonuc.toplam,
+
+        // ⭐ YENİ — indirim dökümü.
+        //    Sunucunun döndürdüğü değerleri taşıyoruz, kendi
+        //    hesabımızı değil. Ekranda gösterilen sayı ile
+        //    veritabanına yazılan sayı birebir aynı olsun.
+        araToplam: sonuc.araToplam,
+        indirim: sonuc.indirim,
+        kuponKodu: sonuc.kuponKodu,
       });
     } catch (hata) {
-      // Stok yetersizliği gibi hatalar burada yakalanır
-      Alert.alert('Sipariş verilemedi', hata.message);
       setGonderiliyor(false);
+
+      // ⭐ HATA KODUNA GÖRE DAVRAN
+      //
+      // hata.kod'u api.js dolduruyor: backend cevabındaki "kod" alanını
+      // Error nesnesine iliştiriyor. Metne bakarak karar vermiyoruz —
+      // mesaj metni değişebilir, kod değişmez.
+      if (hata.kod === 'KUPON_GECERSIZ') {
+        Alert.alert(
+          'Kupon uygulanamadı',
+          hata.message + '\n\nSiparişi kuponsuz tamamlamak ister misin?',
+          [
+            { text: 'Vazgeç', style: 'cancel' },
+            {
+              text: 'Kuponsuz devam et',
+              onPress: () => {
+                kuponuKaldir();           // ekrandaki kuponu temizle
+                siparisiTamamla(true);    // state'i beklemeden tekrar dene
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Stok yetersizliği gibi diğer hatalar burada yakalanır
+      Alert.alert('Sipariş verilemedi', hata.message);
     }
   }
+
 
   if (yukleniyor) {
     return (
@@ -112,23 +177,65 @@ export default function SiparisOnayEkrani({ route, navigation }) {
                   {s.productName} × {s.quantity}
                 </Text>
                 <Text style={styles.urunFiyat}>
-                  {(s.productPrice * s.quantity).toFixed(2)} ₺
+                  {paraBicimle(s.productPrice * s.quantity)}
                 </Text>
               </View>
             ))}
           </View>
         </View>
+
+        {/* ⭐ YENİ — KUPON BÖLÜMÜ
+            Sadece kupon uygulanmışsa görünür. Türetilmiş koşul:
+            kupon nesnesinin varlığı zaten bilginin kendisi,
+            ayrı bir "kuponVarMi" state'ine gerek yok. */}
+        {kupon !== null && (
+          <View style={styles.bolum}>
+            <Text style={styles.bolumBaslik}>Kupon</Text>
+            <View style={[styles.kutu, styles.kuponKutu]}>
+              <Ionicons name="pricetag" size={20} color={renkler.basari} />
+              <View style={styles.kuponOrta}>
+                <Text style={styles.kuponKod}>{kupon.kod}</Text>
+                <Text style={styles.kuponAciklama} numberOfLines={1}>
+                  {kupon.aciklama}
+                </Text>
+              </View>
+              <Text style={styles.kuponIndirim}>−{paraBicimle(indirimTutari)}</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.altBar}>
+        {/* ⭐ YENİ — İndirim varsa döküm göster, yoksa tek satır.
+            "İndirim: 0,00 ₺" yazmak gereksiz gürültü olurdu. */}
+        {indirimTutari > 0 && (
+          <>
+            <View style={styles.ozetSatir}>
+              <Text style={styles.ozetEtiket}>Ara toplam</Text>
+              <Text style={styles.ozetDeger}>{paraBicimle(toplamTutar)}</Text>
+            </View>
+
+            <View style={styles.ozetSatir}>
+              <Text style={styles.ozetEtiket}>İndirim</Text>
+              <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
+                −{paraBicimle(indirimTutari)}
+              </Text>
+            </View>
+
+            <View style={styles.ayirac} />
+          </>
+        )}
+
         <View style={styles.toplamSatir}>
-          <Text style={styles.toplamEtiket}>Toplam</Text>
-          <Text style={styles.toplamTutar}>{toplamTutar.toFixed(2)} ₺</Text>
+          <Text style={styles.toplamEtiket}>
+            {indirimTutari > 0 ? 'Ödenecek' : 'Toplam'}
+          </Text>
+          <Text style={styles.toplamTutar}>{paraBicimle(odenecekTutar)}</Text>
         </View>
 
         <TouchableOpacity
           style={styles.tamamlaButon}
-          onPress={siparisiTamamla}
+          onPress={() => siparisiTamamla(false)}
           disabled={gonderiliyor}
         >
           {gonderiliyor
@@ -220,11 +327,65 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: '600',
     color: renkler.yaziKoyu,
   },
+
+
+  /* ---------- KUPON KUTUSU ---------- */
+
+  kuponKutu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: renkler.basari,
+  },
+  kuponOrta: {
+    flex: 1,
+  },
+  kuponKod: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: renkler.yaziKoyu,
+    letterSpacing: 0.5,
+  },
+  kuponAciklama: {
+    fontSize: 12,
+    color: renkler.yaziGri,
+    marginTop: 2,
+  },
+  kuponIndirim: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: renkler.basari,
+  },
+
+
+  /* ---------- ALT BAR ---------- */
+
   altBar: {
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: renkler.kenarlik,
     backgroundColor: renkler.kartArka,
+  },
+  ozetSatir: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  ozetEtiket: {
+    fontSize: 14,
+    color: renkler.yaziOrta,
+  },
+  ozetDeger: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: renkler.yaziKoyu,
+  },
+  ayirac: {
+    height: 1,
+    backgroundColor: renkler.kenarlik,
+    marginVertical: 8,
   },
   toplamSatir: {
     flexDirection: 'row',
