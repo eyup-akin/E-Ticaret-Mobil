@@ -12,6 +12,8 @@ import SifreDegistirEkrani from '../screens/SifreDegistirEkrani';   // ⭐ YENİ
 
 import HesapKapatEkrani from '../screens/HesapKapatEkrani';         // ⭐ YENİ
 
+import OturumlarimEkrani from '../screens/OturumlarimEkrani';       // ⭐ YENİ
+
 const Stack = createNativeStackNavigator();
 
 export default function HesabimStack() {
@@ -31,6 +33,8 @@ export default function HesabimStack() {
       <Stack.Screen name="SifreDegistir" component={SifreDegistirEkrani} />
 
       <Stack.Screen name="HesapKapat" component={HesapKapatEkrani} /> 
+
+      <Stack.Screen name="Oturumlarim" component={OturumlarimEkrani} />
       
     </Stack.Navigator>
   );

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiGet } from '../services/api';                 // ⭐
+import { useFocusEffect } from '@react-navigation/native';
+import { apiGet, apiPost } from '../services/api';
+import { refreshTokenAl } from '../services/tokenStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 import { gunBicimle } from '../utils/bicimlendir';        // ⭐
@@ -13,6 +15,19 @@ export default function HesabimEkrani({ navigation }) {
   const styles = stilOlustur(renkler);
 
   const [profil, setProfil] = useState(null);   // ⭐ email + üyelik tarihi buradan
+
+  // ⭐ YENİ — aktif oturum sayısı.
+  //
+  // null = henüz bilinmiyor / alınamadı.
+  //
+  // Neden 0 ile başlatmıyoruz? Çünkü 0 geçerli bir cevap ("hiç oturum
+  // yok") ama bizim durumumuz "henüz sormadım". İkisini karıştırırsak
+  // veri gelmeden ekranda "0" yazar ve kullanıcı yanlış bilgi görür.
+  // ?? ile || farkında öğrendiğimiz aynı prensip: yokluk ile sıfır
+  // birbirinden ayrı şeyler.
+  const [oturumSayisi, setOturumSayisi] = useState(null);
+
+
 
   // Giriş varsa profili çek, çıkışta temizle
   useEffect(() => {
@@ -30,6 +45,61 @@ export default function HesabimEkrani({ navigation }) {
     }
     profiliGetir();
   }, [token]);
+  
+  // ⭐ YENİ — OTURUM SAYISINI ÇEK
+  //
+  // Neden useFocusEffect, useEffect değil?
+  //   Kullanıcı Oturumlarım ekranına girip bir oturum kapatıp geri
+  //   dönebilir. useEffect sadece token değişince çalışırdı ve sayaç
+  //   bayat kalırdı. useFocusEffect ekran her odağa geldiğinde çalışır.
+  //
+  //   Sunucudan gelen türetilmiş değer, girdisi değişebiliyorsa yeniden
+  //   sorulmalı — kupon indiriminde de aynı ilkeyi uygulamıştık.
+  useFocusEffect(
+    useCallback(() => {
+      // Misafirse istek atma
+      if (!token) {
+        setOturumSayisi(null);
+        return;
+      }
+
+      // ⭐ İPTAL BAYRAĞI
+      //
+      // Kullanıcı ekrana girip hemen çıkarsa istek hâlâ yolda olabilir.
+      // Cevap gelince setOturumSayisi çağrılır ama ekran artık odakta
+      // değil — boşa iş. Temizlik fonksiyonunda bayrağı kaldırıp
+      // cevabı yok sayıyoruz.
+      let iptalEdildi = false;
+
+      async function sayiyiGetir() {
+        try {
+          // Mobilde kasa ASENKRON (SecureStore) — await şart
+          const refresh = (await refreshTokenAl()) ?? '';
+
+          const veri = await apiPost('/auth/oturumlarim', {
+            refreshToken: refresh,
+          });
+
+          if (!iptalEdildi) {
+            setOturumSayisi(veri.toplam);
+          }
+        } catch {
+          // Sessizce yut. Bu bir SAYAÇ — alınamazsa ekran yine
+          // çalışmalı, kullanıcıya hata göstermek gereksiz gürültü.
+          // Asıl hata yönetimi Oturumlarım ekranında yapılıyor.
+          if (!iptalEdildi) {
+            setOturumSayisi(null);
+          }
+        }
+      }
+
+      sayiyiGetir();
+
+      return () => {
+        iptalEdildi = true;
+      };
+    }, [token])
+  );
 
   function menuSatiri(ikon, baslik, hedef) {
     return (
@@ -99,6 +169,33 @@ export default function HesabimEkrani({ navigation }) {
               </TouchableOpacity>
 
               {menuSatiri('lock-closed-outline', 'Şifre Değiştir', 'SifreDegistir')}
+
+              {/* ⭐ YENİ — Aktif Oturumlar + sayaç rozeti.
+                  
+                  menuSatiri yardımcısını kullanmıyoruz çünkü o sağ
+                  tarafa rozet koymuyor. Tek bir istisna için yardımcının
+                  imzasını değiştirip tüm çağrıları güncellemek yerine
+                  bu satırı elle yazıyoruz — "bir kere gereken şey için
+                  soyutlama değiştirilmez". */}
+              <TouchableOpacity
+                style={styles.menuSatir}
+                onPress={() => navigation.navigate('Oturumlarim')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="desktop-outline" size={22} color={renkler.anaRenk} />
+                <Text style={styles.menuYazi}>Aktif Oturumlar</Text>
+
+                {/* Sayı henüz gelmediyse "···" gösteriyoruz.
+                    Boş bırakmak "hiç oturum yok" gibi okunurdu;
+                    0 yazmak düpedüz yanlış bilgi olurdu. */}
+                <View style={styles.sayacRozet}>
+                  <Text style={styles.sayacYazi}>
+                    {oturumSayisi === null ? '···' : oturumSayisi}
+                  </Text>
+                </View>
+
+                <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
+              </TouchableOpacity>
             </View>
           </>
         ) : (
@@ -271,6 +368,26 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.yaziKoyu,
     marginLeft: 12
   },
+
+  /* ⭐ YENİ — oturum sayacı rozeti.
+     minWidth: tek haneli ve iki haneli sayılarda rozet aynı genişlikte
+     kalsın, satırlar arası zıplama olmasın. */
+  sayacRozet: {
+    minWidth: 26,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    backgroundColor: renkler.acikKart,
+    marginRight: 8,
+    alignItems: 'center'
+  },
+  sayacYazi: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: renkler.yaziOrta
+  },
+
+
 
   /* --- MİSAFİR GÖRÜNÜMÜ --- */
   misafirKart: {
