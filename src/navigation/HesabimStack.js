@@ -7,6 +7,9 @@ import AdresSecEkrani from '../screens/AdresSecEkrani';
 import KartSecEkrani from '../screens/KartSecEkrani';
 import OdemelerimEkrani from '../screens/OdemelerimEkrani';
 
+import ProfilDuzenleEkrani from '../screens/ProfilDuzenleEkrani';   // ⭐ YENİ
+import SifreDegistirEkrani from '../screens/SifreDegistirEkrani';   // ⭐ YENİ
+
 const Stack = createNativeStackNavigator();
 
 export default function HesabimStack() {
@@ -18,6 +21,13 @@ export default function HesabimStack() {
       <Stack.Screen name="Adreslerim" component={AdresSecEkrani} />
       <Stack.Screen name="Kartlarim" component={KartSecEkrani} />
       <Stack.Screen name="Odemelerim" component={OdemelerimEkrani} />
+
+      {/* ⭐ YENİ — Aşama 6 hesap yönetimi ekranları.
+          HesabimStack içinde olmaları önemli: geri tuşu doğal olarak
+          Hesabım ekranına dönüyor, ayrıca alt sekme çubuğu kaybolmuyor. */}
+      <Stack.Screen name="ProfilDuzenle" component={ProfilDuzenleEkrani} />
+      <Stack.Screen name="SifreDegistir" component={SifreDegistirEkrani} />
+      
     </Stack.Navigator>
   );
 }

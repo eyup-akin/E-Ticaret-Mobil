@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
-import { apiPost, oturumBittiKaydet } from '../services/api';
+import { apiPost, apiPut, oturumBittiKaydet } from '../services/api';
 import {
   tokenKaydet, tokenAl, tokenSil,
   kullaniciKaydet, kullaniciAl, kullaniciSil,
@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
     const kul = { id: veri.id, fullName: veri.fullName, role: veri.role };
 
     await tokenKaydet(veri.token);
-    
+
     await refreshTokenKaydet(veri.refreshToken); // ⭐ YENİ — refresh'i de sakla
 
     await kullaniciKaydet(kul);
@@ -80,6 +80,73 @@ export function AuthProvider({ children }) {
     return veri;
   }
 
+  // ---------- ⭐ YENİ — PROFİL GÜNCELLE ----------
+  //
+  // Neden ekran doğrudan apiPut çağırmıyor da burası yapıyor?
+  //
+  //   Ad soyad iki yerde saklı:
+  //     1. AuthContext'teki 'kullanici' state'i (ekranların okuduğu)
+  //     2. SecureStore'daki kalıcı kopya (uygulama kapanınca kaybolmaması için)
+  //
+  //   Ekran doğrudan API'yi çağırsaydı ikisini de güncellemeyi hatırlaması
+  //   gerekirdi. Unutursa uygulamayı kapatıp açınca eski ad geri gelirdi —
+  //   bulunması çok zor bir hata. Kimlik durumunun sahibi burası, güncellemeyi
+  //   de burası yapmalı.
+  async function profilGuncelle(adSoyad) {
+    const veri = await apiPut('/auth/profil', { fullName: adSoyad });
+
+    // Sunucunun döndürdüğü değeri kullanıyoruz, kullanıcının yazdığını DEĞİL.
+    // Sunucu Trim() uyguluyor; "  Ali  " gönderdiysek "Ali" dönüyor.
+    // Kendi yazdığımızı kaydetsek ekranda boşluklu hâli görünürdü.
+    const guncel = {
+      id: veri.id,
+      fullName: veri.fullName,
+      role: veri.role,
+    };
+
+    await kullaniciKaydet(guncel);  // kalıcı kopya
+    setKullanici(guncel);           // ekranlardaki kopya
+
+    return veri; // { mesaj, ... } — ekran mesajı gösterecek
+  }
+
+  // ---------- ⭐ YENİ — ŞİFRE DEĞİŞTİR ----------
+  //
+  // ⚠️ BURADAKİ TOKEN KAYDETME İŞLEMİ ZORUNLUDUR, İSTEĞE BAĞLI DEĞİL.
+  //
+  //   Backend şifre değişince şunları yapıyor:
+  //     · Tüm refresh token'ları iptal ediyor
+  //     · SecurityStamp'i yeniliyor → eldeki access token ANINDA ölüyor
+  //     · Bu cihaz için YENİ token çifti üretip cevapta döndürüyor
+  //
+  //   Yeni token'ları kaydetmezsek şu zincir çalışır:
+  //     sonraki istek → ölü access token → 401
+  //       → api.js sessiz yenileme dener → İPTAL EDİLMİŞ refresh token
+  //       → backend bunu TOKEN HIRSIZLIĞI sanar (reuse detection)
+  //       → kullanıcının tüm oturumları uçar, giriş ekranına düşer
+  //
+  //   Yani kendi güvenlik korumamız bizi ısırır. Şifresini başarıyla
+  //   değiştiren kullanıcı sebepsizce çıkışa atılır.
+  async function sifreDegistir(eskiSifre, yeniSifre) {
+    const veri = await apiPost('/auth/change-password', {
+      eskiSifre: eskiSifre,
+      yeniSifre: yeniSifre,
+    });
+
+    // Taze token çiftini kasaya yaz — yukarıdaki zinciri önlüyor.
+    await tokenKaydet(veri.token);
+    await refreshTokenKaydet(veri.refreshToken);
+
+    // React state'ini de güncelle.
+    // Bunu atlasak: kasada yeni token var ama AuthContext'teki 'token'
+    // state'i eskiyi tutar. api.js kasadan okuduğu için istekler çalışır,
+    // ama "token var mı" kontrolü yapan ekranlar eski değere bakar.
+    // Tutarsız iki gerçek bırakmıyoruz.
+    setToken(veri.token);
+
+    return veri; // { mesaj, token, refreshToken }
+  }
+
   // ---------- ÇIKIŞ YAP ----------
   async function cikisYap() {
     // Sunucuya haber ver: bu cihazın refresh token'ını iptal et (gerçek çıkış).
@@ -103,7 +170,18 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ token, kullanici, yukleniyor, girisYap, kayitOl, cikisYap }}
+      value={{
+        token,
+        kullanici,
+        yukleniyor,
+        girisYap,
+        kayitOl,
+        cikisYap,
+
+        // ⭐ YENİ
+        profilGuncelle,
+        sifreDegistir,
+      }}
     >
       {children}
     </AuthContext.Provider>

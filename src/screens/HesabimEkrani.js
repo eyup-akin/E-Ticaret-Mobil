@@ -75,6 +75,31 @@ export default function HesabimEkrani({ navigation }) {
               {menuSatiri('card-outline', 'Kartlarım', 'Kartlarim')}
               {menuSatiri('wallet-outline', 'Ödemelerim', 'Odemelerim')}
             </View>
+
+            {/* ⭐ YENİ — HESAP AYARLARI
+                Alışveriş menüsünden AYRI bir grup olarak duruyor.
+                Sebebi: "Siparişlerim" ve "Adreslerim" alışverişe dair,
+                "Şifre Değiştir" hesaba dair. Farklı amaçları aynı listede
+                karıştırmak kullanıcıyı yavaşlatır — göz gruplara göre tarar. */}
+            <Text style={styles.bolumBaslik}>Hesap Ayarları</Text>
+            <View style={styles.menu}>
+              {/* Profil ekranı e-postayı KİLİTLİ göstermek için biliyor
+                  olmalı; parametre olarak geçiyoruz. Orada ayrıca
+                  /auth/ben-kimim çağırmak gereksiz bir ağ turu olurdu. */}
+              <TouchableOpacity
+                style={styles.menuSatir}
+                onPress={() =>
+                  navigation.navigate('ProfilDuzenle', { eposta: profil?.email })
+                }
+                activeOpacity={0.7}
+              >
+                <Ionicons name="person-outline" size={22} color={renkler.anaRenk} />
+                <Text style={styles.menuYazi}>Profili Düzenle</Text>
+                <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
+              </TouchableOpacity>
+
+              {menuSatiri('lock-closed-outline', 'Şifre Değiştir', 'SifreDegistir')}
+            </View>
           </>
         ) : (
           /* ============ MİSAFİR GÖRÜNÜMÜ ============ */
