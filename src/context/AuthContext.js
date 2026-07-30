@@ -147,6 +147,46 @@ export function AuthProvider({ children }) {
     return veri; // { mesaj, token, refreshToken }
   }
 
+
+  // ---------- ⭐ YENİ — HESABI KAPAT ----------
+  //
+  // Sunucu tarafında olan şey: kullanıcı satırı SİLİNMİYOR, anonimleşiyor.
+  // Adresler, kartlar, sepet, favoriler ve refresh token'lar siliniyor;
+  // siparişler ve yorumlar muhasebe kaydı olarak kalıyor.
+  //
+  // Bizim burada yapacağımız iş: yerel kasayı boşaltmak.
+  //
+  // ⚠️ NEDEN cikisYap() ÇAĞIRMIYORUZ?
+  //   cikisYap ilk iş olarak sunucuya POST /auth/logout atıyor —
+  //   "bu cihazın refresh token'ını iptal et" demek için. Ama sunucu o
+  //   token'ı ZATEN SİLDİ. Yani boşa bir ağ turu atmış olurduk.
+  //
+  //   Hata vermezdi (logout endpoint'i token bulunmasa da 200 dönüyor),
+  //   ama gereksiz iş gereksizdir. Ayrıca "hesabı kapattım, şimdi çıkış
+  //   yapıyorum" ifadesi kavramsal olarak da tuhaf — hesap yok artık,
+  //   çıkılacak bir oturum da yok.
+  async function hesabiKapat(sifre) {
+    // Sunucu şifreyi doğruluyor; yanlışsa hata fırlatır ve buradan
+    // aşağıya hiç geçmeyiz. Yani kasa yanlış şifrede boşalmaz.
+    const veri = await apiPost('/auth/hesabimi-sil', { sifre: sifre });
+
+    // Yerel kasayı boşalt. Sunucudaki token'lar zaten öldü;
+    // burada temizlemezsek uygulama "giriş yapılmış" sanmaya devam eder
+    // ve her istekte 401 yiyip tuhaf davranırdı.
+    await tokenSil();
+    await kullaniciSil();
+    await refreshTokenSil();
+
+    // State'i sıfırla → uygulama misafir görünümüne düşer.
+    // RootNavigator ve ekranlar token'ın null olmasına bakıp
+    // otomatik olarak misafir arayüzüne geçiyor; elle yönlendirme
+    // yapmamıza gerek yok.
+    setToken(null);
+    setKullanici(null);
+
+    return veri; // { mesaj }
+  }
+
   // ---------- ÇIKIŞ YAP ----------
   async function cikisYap() {
     // Sunucuya haber ver: bu cihazın refresh token'ını iptal et (gerçek çıkış).
@@ -181,6 +221,7 @@ export function AuthProvider({ children }) {
         // ⭐ YENİ
         profilGuncelle,
         sifreDegistir,
+        hesabiKapat,
       }}
     >
       {children}

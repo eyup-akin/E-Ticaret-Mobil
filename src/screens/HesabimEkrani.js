@@ -167,9 +167,39 @@ export default function HesabimEkrani({ navigation }) {
 
         {/* ============ SADECE ÜYE: ÇIKIŞ ============ */}
         {token ? (
-          <TouchableOpacity style={styles.cikisButon} onPress={cikisYap}>
-            <Text style={styles.cikisYazi}>Çıkış Yap</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.cikisButon} onPress={cikisYap}>
+              <Text style={styles.cikisYazi}>Çıkış Yap</Text>
+            </TouchableOpacity>
+
+            {/* ⭐ YENİ — TEHLİKELİ BÖLGE
+                
+                Tasarım kararları:
+                  · En ALTTA duruyor — kullanıcı buraya kazara gelmez,
+                    kaydırıp aramak gerekir
+                  · Büyük buton DEĞİL, ince bir metin bağlantısı — göze
+                    çarpmasın, yanlışlıkla basılmasın
+                  · Üstünde ayırıcı çizgi var — "burası farklı bir bölge"
+                  · Altında ne olacağı yazıyor — tıklamadan önce bilsin
+                
+                Yıkıcı işlemleri kolay erişilir yapmak kötü tasarımdır.
+                Zor bulunur ama BULUNABİLİR olmalı — gizlemek de yanlış. */}
+            <View style={styles.tehlikeAyirac} />
+
+            <TouchableOpacity
+              style={styles.tehlikeSatir}
+              onPress={() => navigation.navigate('HesapKapat')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={18} color={renkler.hata} />
+              <Text style={styles.tehlikeSatirYazi}>Hesabımı Kapat</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.tehlikeAciklama}>
+              Kişisel bilgilerin silinir, geçmiş siparişlerin muhasebe
+              kaydı olarak saklanır. Bu işlem geri alınamaz.
+            </Text>
+          </>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -350,5 +380,32 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold'
+  },
+
+  /* --- ⭐ YENİ: TEHLİKELİ BÖLGE --- */
+  tehlikeAyirac: {
+    height: 1,
+    backgroundColor: renkler.kenarlik,
+    marginTop: 32,
+    marginBottom: 16
+  },
+  tehlikeSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12
+  },
+  tehlikeSatirYazi: {
+    fontSize: 15,
+    color: renkler.hata,
+    fontWeight: '600'
+  },
+  tehlikeAciklama: {
+    fontSize: 12,
+    color: renkler.yaziGri,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 8
   }
 });

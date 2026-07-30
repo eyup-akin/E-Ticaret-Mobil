@@ -10,6 +10,8 @@ import OdemelerimEkrani from '../screens/OdemelerimEkrani';
 import ProfilDuzenleEkrani from '../screens/ProfilDuzenleEkrani';   // ⭐ YENİ
 import SifreDegistirEkrani from '../screens/SifreDegistirEkrani';   // ⭐ YENİ
 
+import HesapKapatEkrani from '../screens/HesapKapatEkrani';         // ⭐ YENİ
+
 const Stack = createNativeStackNavigator();
 
 export default function HesabimStack() {
@@ -27,6 +29,8 @@ export default function HesabimStack() {
           Hesabım ekranına dönüyor, ayrıca alt sekme çubuğu kaybolmuyor. */}
       <Stack.Screen name="ProfilDuzenle" component={ProfilDuzenleEkrani} />
       <Stack.Screen name="SifreDegistir" component={SifreDegistirEkrani} />
+
+      <Stack.Screen name="HesapKapat" component={HesapKapatEkrani} /> 
       
     </Stack.Navigator>
   );
