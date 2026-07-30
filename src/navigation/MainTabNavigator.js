@@ -8,6 +8,8 @@ import SepetStack from './SepetStack';
 import HesabimStack from './HesabimStack';
 import SepetIkonu from '../components/SepetIkonu';
 
+import FavoriIkonu from '../components/FavoriIkonu';
+
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
@@ -24,13 +26,27 @@ export default function MainTabNavigator() {
           borderTopColor: renkler.kenarlik,
         },
         tabBarIcon: ({ color, size }) => {
+          // Rozetli sekmeler kendi bileşenlerini kullanıyor.
+          //
+          // Neden burada useSepet/useFavorite çağırmıyoruz?
+          //   Çağırsaydık, sepete bir ürün eklendiğinde TÜM sekme
+          //   çubuğu yeniden çizilirdi. Şu anki yapıda sadece ilgili
+          //   küçük ikon çiziliyor.
+          //
+          //   Kural: veriyi kullanan bileşen mümkün olduğunca yaprakta
+          //   (ağacın ucunda) dursun; yukarı taşırsan yeniden çizim
+          //   alanı büyür.
           if (route.name === 'Sepet') {
             return <SepetIkonu color={color} size={size} />;
           }
 
+          if (route.name === 'Favoriler') {
+            return <FavoriIkonu color={color} size={size} />;
+          }
+
+          // Rozetsiz sade sekmeler
           let ikon;
           if (route.name === 'AnaSayfa') ikon = 'home';
-          else if (route.name === 'Favoriler') ikon = 'heart';
           else if (route.name === 'Hesabim') ikon = 'person';
           return <Ionicons name={ikon} size={size} color={color} />;
         },
