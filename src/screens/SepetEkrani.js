@@ -35,6 +35,7 @@ export default function SepetEkrani({ navigation }) {
     sepet,
     yukleniyor,
     toplamTutar,
+    pasifUrunSayisi,     // ⭐ YENİ
     sepetiYukle,
     adetGuncelle,
     sepettenCikar,
@@ -185,6 +186,28 @@ export default function SepetEkrani({ navigation }) {
             {/* ============ ALT PANEL ============ */}
             <View style={styles.altPanel}>
 
+              {/* ⭐ YENİ — SATIŞTAN KALDIRILMIŞ ÜRÜN UYARISI
+                  
+                  Kupon uyarısının ÜSTÜNDE duruyor çünkü daha acil:
+                  kupon uyarısı bir fırsatın kaçtığını söyler, bu ise
+                  siparişin hiç verilemeyeceğini. Ekranda yukarıdan aşağı
+                  okuma sırası, önem sırasıyla aynı olmalı.
+                  
+                  Kapatma (X) düğmesi BİLEREK yok: kupon uyarısı
+                  bilgilendirmedir, kapatılabilir. Bu ise çözülene kadar
+                  duran bir engeldir; kapatılabilir olsaydı müşteri
+                  kapatır, sonra kilitli butonun sebebini anlamazdı. */}
+              {pasifUrunSayisi > 0 && (
+                <View style={styles.pasifUyariKutu}>
+                  <Ionicons name="close-circle" size={18} color={renkler.hata} />
+
+                  <Text style={styles.pasifUyariYazi}>
+                    Sepetinde satıştan kaldırılmış {pasifUrunSayisi} ürün var.
+                    Sipariş verebilmek için çöp kutusuna basıp çıkarman gerekiyor.
+                  </Text>
+                </View>
+              )}
+
               {/* ---- OTOMATİK KALDIRMA UYARISI ---- */}
               {/* Sepet değişince kupon geçersizleştiyse burada çıkar.
                   Sessizce kaldırsaydık müşteri indirimin nereye
@@ -301,11 +324,30 @@ export default function SepetEkrani({ navigation }) {
                 </View>
               </View>
 
+              {/* ⭐ Sepette pasif ürün varsa sipariş akışı hiç başlamasın.
+                  
+                  Neden burada engelliyoruz da sunucunun reddetmesini
+                  beklemiyoruz? Sunucu zaten reddediyor — asıl güvenlik
+                  orada. Ama müşteriyi adres seç, kart seç, onayla
+                  adımlarından geçirip EN SONDA hata vermek kötü bir
+                  deneyim. Engel, sorunun görüldüğü yerde durmalı.
+                  
+                  Buton metnini de değiştiriyoruz: soluk bir "Sipariş Ver"
+                  butonu neden çalışmadığını söylemez, kullanıcı butona
+                  basıp durur. */}
               <TouchableOpacity
-                style={styles.siparisButon}
+                style={[
+                  styles.siparisButon,
+                  pasifUrunSayisi > 0 && styles.siparisButonPasif,
+                ]}
+                disabled={pasifUrunSayisi > 0}
                 onPress={() => navigation.navigate('AdresSec', { siparisAkisi: true })}
               >
-                <Text style={styles.siparisYazi}>Sipariş Ver</Text>
+                <Text style={styles.siparisYazi}>
+                  {pasifUrunSayisi > 0
+                    ? 'Önce satıştan kalkan ürünleri çıkar'
+                    : 'Sipariş Ver'}
+                </Text>
               </TouchableOpacity>
             </View>
           </>
@@ -356,6 +398,29 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.kartArka,
   },
 
+
+  /* ---------- ⭐ SATIŞTAN KALDIRILMIŞ ÜRÜN UYARISI ---------- */
+
+  /* Kupon uyarısıyla aynı iskelet, farklı renk.
+     Sol kenar çizgisi kırmızı: "bilgi" değil "engel" olduğunu söyler. */
+  pasifUyariKutu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: renkler.acikKart,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: renkler.hata,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  pasifUyariYazi: {
+    flex: 1,
+    fontSize: 12,
+    color: renkler.yaziOrta,
+    lineHeight: 17,
+  },
 
   /* ---------- OTOMATİK KALDIRMA UYARISI ---------- */
 
@@ -522,5 +587,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+
+  /* ⭐ YENİ — kilitli sipariş butonu.
+     
+     Kupon butonundaki 0.5 ile aynı değeri kullanıyoruz — aynı anlam
+     (bu düğme şu an çalışmıyor) uygulama genelinde aynı görünmeli. */
+  siparisButonPasif: {
+    opacity: 0.5,
   },
 });

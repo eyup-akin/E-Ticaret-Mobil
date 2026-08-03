@@ -12,42 +12,87 @@ export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
 
   const resim = resimUrl(item.productImageUrl);
 
+  // ⭐ YENİ — bu ürün satıştan kaldırılmış mı?
+  //
+  // "=== false" tercihinin sebebi SepetContext'te uzun uzun yazıldı:
+  // alan hiç gelmediyse (undefined) ürünü satıştaymış gibi kabul ediyoruz.
+  const pasif = item.isActive === false;
+
   return (
-    <TouchableOpacity style={styles.satir} activeOpacity={0.85} onPress={() => onBas && onBas(item)}>
+    <TouchableOpacity
+      style={[styles.satir, pasif && styles.satirPasif]}
+      activeOpacity={0.85}
+      // ⭐ YENİ — pasif ürünün detayına GİDİLEMEZ.
+      //
+      // Backend'de GetProduct, pasif ürün için müşteriye 404 dönüyor.
+      // Tıklamaya izin verseydik müşteri "Ürün bulunamadı" hata ekranıyla
+      // karşılaşırdı — sepette duran bir şey için kafa karıştırıcı.
+      // Tıklamayı baştan kapatmak dürüst davranış: gidecek yer yok.
+      disabled={pasif}
+      onPress={() => onBas && onBas(item)}
+    >
       {resim ? (
-        <Image source={{ uri: resim }} style={styles.resim} resizeMode="cover" />
+        <Image
+          source={{ uri: resim }}
+          style={[styles.resim, pasif && styles.soluk]}
+          resizeMode="cover"
+        />
       ) : (
-        <View style={styles.harfKutu}>
+        <View style={[styles.harfKutu, pasif && styles.soluk]}>
           <Text style={styles.harfYazi}>{item.productName.charAt(0)}</Text>
         </View>
       )}
 
       <View style={styles.orta}>
-        <Text style={styles.urunAd} numberOfLines={2}>{item.productName}</Text>
-        <Text style={styles.birimFiyat}>{paraBicimle(item.productPrice)}</Text>
+        <Text
+          style={[styles.urunAd, pasif && styles.yaziPasif]}
+          numberOfLines={2}
+        >
+          {item.productName}
+        </Text>
 
-        <View style={styles.adetKutu}>
-          <TouchableOpacity
-            style={styles.adetButon}
-            onPress={() => onAdetDegistir(item, item.quantity - 1)}
-          >
-            <Ionicons name="remove" size={18} color={renkler.yaziKoyu} />
-          </TouchableOpacity>
+        <Text style={[styles.birimFiyat, pasif && styles.soluk]}>
+          {paraBicimle(item.productPrice)}
+        </Text>
 
-          <Text style={styles.adetYazi}>{item.quantity}</Text>
+        {/* ⭐ YENİ — pasifse adet kontrolü yerine uyarı rozeti.
+            
+            Neden adet butonlarını gizliyoruz da sadece kilitlemiyoruz?
+            Satın alınamayan bir ürünün adedini değiştirmenin hiçbir
+            anlamı yok. Soluk ama duran butonlar "belki basarsam olur"
+            hissi verir. Yerine yapılması GEREKEN şeyi söyleyen bir
+            uyarı koyuyoruz — boşluk doldurmuyor, yön gösteriyor. */}
+        {pasif ? (
+          <View style={styles.pasifRozet}>
+            <Ionicons name="close-circle" size={14} color={renkler.hata} />
+            <Text style={styles.pasifRozetYazi}>Satıştan kaldırıldı</Text>
+          </View>
+        ) : (
+          <View style={styles.adetKutu}>
+            <TouchableOpacity
+              style={styles.adetButon}
+              onPress={() => onAdetDegistir(item, item.quantity - 1)}
+            >
+              <Ionicons name="remove" size={18} color={renkler.yaziKoyu} />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.adetButon}
-            onPress={() => onAdetDegistir(item, item.quantity + 1)}
-          >
-            <Ionicons name="add" size={18} color={renkler.yaziKoyu} />
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.adetYazi}>{item.quantity}</Text>
+
+            <TouchableOpacity
+              style={styles.adetButon}
+              onPress={() => onAdetDegistir(item, item.quantity + 1)}
+            >
+              <Ionicons name="add" size={18} color={renkler.yaziKoyu} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* ⭐ EKSİK OLAN ÇÖP KUTUSU KISMI BURASI ⭐ */}
-      <TouchableOpacity 
-        style={styles.silButon} 
+      {/* Çöp kutusu — pasif satırda BİLEREK açık bırakıldı.
+          Müşterinin yapması gereken tek eylem bu; kapatmak onu
+          çıkmaza sokardı. */}
+      <TouchableOpacity
+        style={styles.silButon}
         onPress={() => onSil(item)}
       >
         <Ionicons name="trash-outline" size={22} color="#e74c3c" />
@@ -68,6 +113,32 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderWidth: 1,
     borderColor: renkler.kenarlik
   },
+
+  /* ⭐ YENİ — pasif satırın kenarlığı kırmızıya döner.
+     
+     Neden tüm satıra opacity vermiyoruz?
+     Uyarı rozetinin ve çöp kutusunun TAM görünür kalması lazım —
+     müşterinin görmesi ve basması gereken şeyler onlar. Soluklaştırmayı
+     sadece "artık önemsiz" olan parçalara (resim, fiyat) uyguluyoruz. */
+  satirPasif: {
+    borderColor: renkler.hata,
+    backgroundColor: renkler.acikKart
+  },
+
+  /* Tek bir öğeyi soluklaştırmak için ortak yardımcı stil */
+  soluk: {
+    opacity: 0.45
+  },
+
+  /* Ürün adı: soluk + üstü çizili.
+     İki ayrı sinyal veriyoruz çünkü renk/opaklık tek başına bilgi
+     taşımamalı — renk körü ya da güneş altında bakan kullanıcı
+     çizgiyi yine de görür. */
+  yaziPasif: {
+    opacity: 0.45,
+    textDecorationLine: 'line-through'
+  },
+
   resim: {
     width: 84,
     height: 84,
@@ -103,6 +174,29 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.yaziGri,
     marginBottom: 10
   },
+
+  /* ⭐ YENİ — "Satıştan kaldırıldı" rozeti.
+     
+     Adet kontrolünün kapladığı dikey alanla benzer yükseklikte
+     tutuyoruz ki satır yükseklikleri listede zıplamasın. */
+  pasifRozet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: renkler.arkaPlan,
+    borderWidth: 1,
+    borderColor: renkler.hata,
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 9
+  },
+  pasifRozetYazi: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: renkler.hata
+  },
+
   adetKutu: {
     flexDirection: 'row',
     alignItems: 'center'

@@ -8,6 +8,7 @@ const SepetContext = createContext({
   yukleniyor: false,
   toplamTutar: 0,
   urunSayisi: 0,
+  pasifUrunSayisi: 0,     // ⭐ YENİ
   sepetiYukle: async () => {},
   sepeteEkle: async () => {},
   adetGuncelle: async () => {},
@@ -130,6 +131,27 @@ export function SepetProvider({ children }) {
 
   const toplamTutar = sepet.reduce((acc, s) => acc + s.productPrice * s.quantity, 0);
   const urunSayisi = sepet.reduce((acc, s) => acc + s.quantity, 0); // rozet için
+
+  // ⭐ YENİ — sepette satıştan kaldırılmış kaç satır var?
+  //
+  // Türetilmiş değer: sepetten hesaplanabiliyor, ayrı state tutmuyoruz.
+  // Sepet her değiştiğinde kendiliğinden yeniden hesaplanıyor.
+  //
+  // ⚠️ Neden "s.isActive === false" yazdık da "!s.isActive" demedik?
+  //
+  // Bir alan üç değer alabilir: true, false, undefined.
+  // undefined, backend'in o alanı hiç göndermediği durumdur — eski bir
+  // API sürümü, bozuk bir cevap, ya da biz DTO'ya eklemeyi unutmuş
+  // olsaydık. "!s.isActive" yazsaydık undefined da true sayılır ve
+  // sepetteki BÜTÜN ürünler "satıştan kaldırıldı" görünürdü. Sipariş
+  // butonu kilitlenir, müşteri hiçbir şey satın alamazdı.
+  //
+  // "=== false" ise sadece sunucunun AÇIKÇA "hayır" dediği durumu
+  // yakalar. Bilgi gelmediyse ürün satıştaymış gibi davranıyoruz —
+  // güvenli varsayılan bu yönde, çünkü asıl kilit zaten sunucuda ve
+  // yanlış pozitif (satılabilir ürünü engellemek) burada yanlış
+  // negatiften daha zararlı.
+  const pasifUrunSayisi = sepet.filter((s) => s.isActive === false).length;
 
   // Kupon yoksa indirim 0.
   //
@@ -261,6 +283,7 @@ export function SepetProvider({ children }) {
         yukleniyor,
         toplamTutar,
         urunSayisi,
+        pasifUrunSayisi,     // ⭐ YENİ
         sepetiYukle,
         sepeteEkle,
         adetGuncelle,
