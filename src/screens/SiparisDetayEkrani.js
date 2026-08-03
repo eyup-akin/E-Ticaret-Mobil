@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
@@ -17,6 +18,14 @@ export default function SiparisDetayEkrani({ route, navigation }) {
   const [siparis, setSiparis] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
 
+  // ⭐ YENİ — takip numarası panoya kopyalandı mı?
+  //
+  // Neden Alert kullanmıyoruz? Alert ekranı kaplar ve kapatmak için
+  // bir dokunuş daha ister. Bu kadar küçük bir onay için ağır kalır.
+  // Yazının kendisi 2 saniyeliğine değişiyor — geri bildirim, eylemin
+  // gerçekleştiği yerde.
+  const [kopyalandi, setKopyalandi] = useState(false);
+
   async function siparisiGetir(sessiz = false) {
     try {
       if (!sessiz) setYukleniyor(true);
@@ -32,6 +41,34 @@ export default function SiparisDetayEkrani({ route, navigation }) {
   useEffect(() => {
     siparisiGetir();
   }, [siparisId]);
+
+  // ⭐ YENİ — "Kopyalandı" yazısını 2 saniye sonra sil.
+  //
+  // setTimeout'u kopyalama fonksiyonunun içine koysaydık, kullanıcı üst
+  // üste iki kez kopyaladığında iki zamanlayıcı çalışır ve birincisi,
+  // ikinci kopyalamanın yazısını erken silerdi. Effect'in temizliği
+  // eskisini iptal ederek bunu engelliyor.
+  useEffect(() => {
+    if (!kopyalandi) {
+      return;
+    }
+
+    const sayac = setTimeout(() => setKopyalandi(false), 2000);
+    return () => clearTimeout(sayac);
+  }, [kopyalandi]);
+
+  // ⭐ YENİ — takip numarasını panoya kopyala
+  async function takipNoKopyala() {
+    try {
+      await Clipboard.setStringAsync(siparis.trackingNumber);
+      setKopyalandi(true);
+    } catch (hata) {
+      // Pano yazma nadiren başarısız olur. Olursa da numara zaten
+      // ekranda duruyor, kullanıcı elle yazabilir. Bu yüzden hata
+      // penceresi açmıyoruz — çözemeyeceği bir uyarı vermek gereksiz.
+      console.log('Panoya kopyalanamadı:', hata.message);
+    }
+  }
 
   if (yukleniyor) {
     return (
@@ -67,6 +104,85 @@ export default function SiparisDetayEkrani({ route, navigation }) {
           {!iptalMi && <Text style={styles.bolumBaslik}>Kargo Durumu</Text>}
           <KargoDurumu siparis={siparis} />
         </View>
+
+        {/* ⭐ YENİ — KARGO TAKİP BİLGİSİ
+            
+            Sadece takip numarası varsa çiziliyor. "Hazırlanıyor"
+            aşamasındaki siparişte bu bölüm hiç yok — boş bir kutu
+            göstermek müşteriye "bir şey eksik" hissi verirdi.
+            
+            Kargo Durumu'nun HEMEN ALTINDA: müşteri sipariş detayını
+            açtığında ilk merak ettiği şey "nerede kaldı" sorusu.
+            Adres ve ödeme bilgisi ikincil — onları zaten biliyor. */}
+        {siparis.trackingNumber ? (
+          <View style={styles.bolum}>
+            <Text style={styles.bolumBaslik}>Kargo Takip</Text>
+
+            <View style={styles.kutu}>
+              <View style={styles.satir}>
+                <Text style={styles.etiket}>Firma</Text>
+                <Text style={styles.deger}>
+                  {siparis.shippingCompany || '—'}
+                </Text>
+              </View>
+
+              {/* Takip numarası tıklanabilir.
+                  
+                  Neden UZUN BASINCA kopyalıyoruz, tek dokunuşla değil?
+                  Tek dokunuş kaza eseri olur — müşteri listeyi kaydırırken
+                  parmağı değebilir ve ne olduğunu anlamadan panosu değişir.
+                  Uzun basmak bilinçli bir eylemdir ve mobilde "kopyala"
+                  için zaten alışılmış harekettir (WhatsApp, tarayıcı,
+                  notlar hep böyle).
+                  
+                  delayLongPress: varsayılan 500ms. 400'e çekiyoruz;
+                  numarayı kopyalamak sık yapılan bir iş, biraz daha
+                  çabuk tepki versin. */}
+              <TouchableOpacity
+                onLongPress={takipNoKopyala}
+                delayLongPress={400}
+                activeOpacity={0.6}
+              >
+                <View style={styles.satir}>
+                  <Text style={styles.etiket}>Takip No</Text>
+                  <Text style={styles.takipNo}>{siparis.trackingNumber}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* İpucu satırı, kopyalanınca onaya dönüşüyor.
+                  
+                  Bu ipucu olmadan uzun basma özelliği KEŞFEDİLEMEZ —
+                  görünmeyen bir özellik, olmayan bir özelliktir. */}
+              <Text
+                style={[
+                  styles.kopyaIpucu,
+                  kopyalandi && styles.kopyaIpucuBasarili,
+                ]}
+              >
+                {kopyalandi
+                  ? '✓ Takip numarası kopyalandı'
+                  : 'Numarayı kopyalamak için üzerine uzun bas'}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* ⭐ YENİ — MÜŞTERİNİN KENDİ NOTU
+            
+            Neden müşteriye de gösteriyoruz? Not asıl olarak kargo
+            hazırlayan için ama müşterinin "ben ne yazmıştım" sorusuna
+            cevap vermesi de önemli: kapıya bırakılmasını istediğini
+            hatırlamazsa kargocuyu bekler. Kendi verisini görebilmek
+            temel bir beklenti. */}
+        {siparis.customerNote ? (
+          <View style={styles.bolum}>
+            <Text style={styles.bolumBaslik}>Sipariş Notun</Text>
+
+            <View style={styles.kutu}>
+              <Text style={styles.notMetin}>{siparis.customerNote}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* TESLİMAT ADRESİ
             Sipariş anında dondurulmuş bilgi — müşteri adresini sonradan
@@ -237,6 +353,47 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bolum: {
     marginBottom: 20
   },
+
+  /* ⭐ YENİ — takip numarası.
+     
+     Eşit genişlikli font: numaralar karakter karakter okunuyor ve
+     "1" ile "l", "0" ile "O" ayrımı normal fontta zor. Yanlış okunan
+     tek karakter numarayı kullanılmaz yapar.
+     
+     letterSpacing: monospace'te bile uzun diziler birbirine yapışık
+     görünüyor; harfleri hafif açmak gözle takibi kolaylaştırıyor. */
+  takipNo: {
+    fontSize: 14,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    letterSpacing: 0.5,
+    color: renkler.yaziKoyu,
+    fontWeight: '600'
+  },
+
+  /* ⭐ YENİ — uzun basma ipucu / kopyalandı onayı */
+  kopyaIpucu: {
+    fontSize: 11,
+    color: renkler.yaziGri,
+    marginTop: 6,
+    textAlign: 'right'
+  },
+  kopyaIpucuBasarili: {
+    color: renkler.basari,
+    fontWeight: '600'
+  },
+
+  /* ⭐ YENİ — müşteri notu metni.
+     
+     pre-wrap yerine RN'de bir şey yapmaya gerek yok: React Native
+     Text bileşeni satır sonlarını ZATEN korur. Web'deki
+     white-space: pre-wrap ihtiyacı burada yok — RN'in metin
+     motoru HTML gibi boşlukları sıkıştırmıyor. */
+  notMetin: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: renkler.yaziKoyu
+  },
+
   bolumBaslik: {
     fontSize: 15,
     fontWeight: '600',

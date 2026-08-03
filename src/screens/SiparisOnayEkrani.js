@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPost } from '../services/api';
@@ -30,6 +30,19 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   const [kart, setKart] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [gonderiliyor, setGonderiliyor] = useState(false);
+
+  // ⭐ YENİ — sipariş notu (isteğe bağlı).
+  //
+  // Neden SepetContext'te değil de bu ekranda?
+  // Not, sepete değil SİPARİŞE ait. Sepet ekranından çıkıp geri
+  // gelen kullanıcının notu kaybolmasın diye context'e koymak
+  // aklımıza gelebilir ama not zaten bu ekranda yazılıp aynı
+  // ekranda gönderiliyor — ömrü tek ekran kadar.
+  //
+  // Kural: veriyi ihtiyaç duyulan en dar kapsamda tut. Gereksiz
+  // yere yukarı taşımak, o veriyi ne zaman temizleyeceğin sorusunu
+  // da beraberinde getirir.
+  const [not, setNot] = useState('');
 
   // Seçilen adres ve kartın detaylarını getir (özet göstermek için)
   useEffect(() => {
@@ -77,6 +90,18 @@ export default function SiparisOnayEkrani({ route, navigation }) {
         addressId: adresId,
         cardId: kartId,
         couponCode: kuponsuzDene ? null : (kupon?.kod ?? null),
+
+        // ⭐ YENİ — sipariş notu.
+        //
+        // Boşsa null gönderiyoruz, boş string değil. Backend "değer yok"
+        // durumunu NULL ile temsil ediyor; boş string gönderirsek
+        // veritabanında iki farklı "boşluk" temsili oluşur ve ileride
+        // "notu olan siparişler" filtresi boş notları da yakalar.
+        //
+        // trim() burada da yapılıyor ama backend'de de var — bu tekrar
+        // değil, savunma derinliği. Ön yüz doğrulaması atlanabilir
+        // (Postman), sunucu doğrulaması atlanamaz.
+        customerNote: not.trim() === '' ? null : not.trim(),
       });
 
       sepetiSifirla(); // backend sepeti temizledi, ekranı da senkronla (kuponu da bırakır)
@@ -146,7 +171,25 @@ export default function SiparisOnayEkrani({ route, navigation }) {
 
       <Text style={styles.adimYazi}>3 / 3 — Onayla</Text>
 
-      <ScrollView contentContainerStyle={styles.icerik}>
+      {/* ⭐ automaticallyAdjustKeyboardInsets: iOS'ta klavye açılınca
+          ScrollView'un alt boşluğunu otomatik büyütür, böylece not
+          alanı klavyenin altında kalmaz. Android'de sistem zaten
+          pencereyi yeniden boyutlandırıyor.
+          
+          Sepet ekranındaki KeyboardAvoidingView yaklaşımından farklı
+          bir çözüm kullandık çünkü orada klavyeden kaçması gereken
+          şey ALT PANEL (ScrollView'un dışında) idi. Burada kaçması
+          gereken alan ScrollView'un İÇİNDE — bu özellik tam o durum
+          için var ve daha az kod istiyor.
+          
+          keyboardShouldPersistTaps="handled": klavye açıkken
+          "Siparişi Tamamla"ya basınca ilk dokunuş klavyeyi kapatıp
+          yutulmasın, buton doğrudan çalışsın. */}
+      <ScrollView
+        contentContainerStyle={styles.icerik}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Teslimat adresi */}
         <View style={styles.bolum}>
           <Text style={styles.bolumBaslik}>Teslimat Adresi</Text>
@@ -203,6 +246,51 @@ export default function SiparisOnayEkrani({ route, navigation }) {
             </View>
           </View>
         )}
+
+        {/* ⭐ YENİ — SİPARİŞ NOTU
+            
+            Neden EN ALTTA, kuponun bile altında?
+            İsteğe bağlı bir alan. Üstte olsaydı, notu olmayan
+            kullanıcıların (çoğunluk) her seferinde üstünden atlaması
+            gerekirdi. Zorunlu bilgiler üstte, isteğe bağlılar altta —
+            akış hızı çoğunluğa göre ayarlanır. */}
+        <View style={styles.bolum}>
+          <Text style={styles.bolumBaslik}>Sipariş Notu (isteğe bağlı)</Text>
+
+          <View style={styles.kutu}>
+            <TextInput
+              style={styles.notGirdi}
+              value={not}
+              onChangeText={setNot}
+              placeholder="Örn: Kapıya bırakın, zili çalmayın."
+              placeholderTextColor={renkler.yaziGri}
+
+              /* multiline: not birkaç satır olabilir.
+                 numberOfLines Android'de başlangıç yüksekliği verir;
+                 iOS'ta etkisiz olduğu için stilde minHeight de var. */
+              multiline
+              numberOfLines={3}
+
+              /* Sunucudaki [MaxLength(500)] ile aynı sayı.
+                 Burada engellemek, kullanıcının 600 karakter yazıp
+                 gönderdikten sonra hata almasından iyidir. */
+              maxLength={500}
+
+              /* Çok satırlı alanda metin üstten başlasın.
+                 Android'de varsayılan dikey ortalama, kutu yüksek
+                 olunca metin havada duruyor gibi görünür. */
+              textAlignVertical="top"
+
+              editable={!gonderiliyor}
+            />
+
+            <Text style={styles.notSayac}>{not.length} / 500</Text>
+          </View>
+
+          <Text style={styles.notIpucu}>
+            Bu not kargo etiketine basılır ve paketi hazırlayan kişi görür.
+          </Text>
+        </View>
       </ScrollView>
 
       <View style={styles.altBar}>
@@ -413,4 +501,33 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+
+  /* ⭐ YENİ — sipariş notu girişi */
+  notGirdi: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: renkler.yaziKoyu,
+
+    /* Android'de multiline TextInput varsayılan iç boşluk ekler;
+       sıfırlayıp kendi ölçümüzü veriyoruz ki iki platformda
+       aynı görünsün. */
+    padding: 0,
+    minHeight: 60
+  },
+
+  notSayac: {
+    fontSize: 11,
+    color: renkler.yaziGri,
+    textAlign: 'right',
+    marginTop: 8
+  },
+
+  notIpucu: {
+    fontSize: 12,
+    color: renkler.yaziGri,
+    marginTop: 6,
+    lineHeight: 17
+  },
+
+
 });
