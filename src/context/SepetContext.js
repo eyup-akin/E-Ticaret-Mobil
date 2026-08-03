@@ -250,9 +250,36 @@ export function SepetProvider({ children }) {
     // Kupon yoksa doğrulanacak bir şey de yok
     if (!kupon) return;
 
-    async function yenidenDogrula() {
+    // ⭐ YENİ — İPTAL BAYRAĞI
+    //
+    // Effect temizlenirken (sepet tekrar değişti, ekran kapandı) bu
+    // bayrağı kaldırıyoruz. Yolda olan cevap geldiğinde bayrağa bakıp
+    // "bu cevap artık geçersiz" deyip yok sayıyoruz.
+    //
+    // Neden gerekli? İstek 800ms sürerken müşteri adedi tekrar
+    // değiştirirse iki istek yarışır. Cevaplar SIRASIZ dönebilir —
+    // eski isteğin cevabı sonra gelirse bayat indirimi ekrana yazardı.
+    let iptal = false;
+
+    // ⭐ YENİ — GECİKTİRME (debounce)
+    //
+    // İsteği hemen atmıyoruz, 500ms bekliyoruz. Bu süre içinde sepet
+    // tekrar değişirse aşağıdaki temizlik fonksiyonu sayacı iptal ediyor
+    // ve süre baştan başlıyor.
+    //
+    // Sonuç: müşteri "+" butonuna 8 kez arka arkaya bassa bile SADECE
+    // 1 istek gidiyor — son duruma ait olan.
+    //
+    // Neden 500ms? Arama kutusundaki 400ms'ten biraz uzun tuttuk:
+    // burada gecikme kullanıcıyı bekletmiyor (indirim satırı zaten
+    // ekranda duruyor, sadece tazeleniyor), o yüzden ağdan tasarrufu
+    // tepki hızına tercih ettik.
+    const sayac = setTimeout(async () => {
       try {
         const veri = await apiPost('/coupons/dogrula', { code: kupon.kod });
+
+        // Cevap geldi ama bu arada effect temizlendiyse yok say
+        if (iptal) return;
 
         // Hâlâ geçerli — indirim tutarını tazele
         setKupon({
@@ -261,6 +288,8 @@ export function SepetProvider({ children }) {
           indirim: veri.indirim,
         });
       } catch (hata) {
+        if (iptal) return;
+
         const kaldirilanKod = kupon.kod;
         setKupon(null);
 
@@ -270,9 +299,21 @@ export function SepetProvider({ children }) {
           setKuponUyari(`"${kaldirilanKod}" kuponu artık geçerli değil: ${hata.message}`);
         }
       }
-    }
+    }, 500);
 
-    yenidenDogrula();
+    // ⚠️ TEMİZLİK FONKSİYONU — atlanamaz.
+    //
+    // İki iş yapıyor:
+    //   1) Henüz atılmamış isteği iptal ediyor (clearTimeout)
+    //   2) Atılmış ama cevabı gelmemiş isteğin sonucunu geçersiz
+    //      kılıyor (iptal = true)
+    //
+    // Bu ikisi farklı anları koruyor: biri "istek daha yola çıkmadı",
+    // diğeri "istek yolda ama artık umurumuzda değil".
+    return () => {
+      iptal = true;
+      clearTimeout(sayac);
+    };
   }, [toplamTutar, urunSayisi]);
 
 
