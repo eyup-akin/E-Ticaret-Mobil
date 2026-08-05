@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,36 @@ import { apiGet, apiPost } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
 import { paraBicimle } from '../utils/bicimlendir';
+
+
+// ⭐ YENİ — ÇİFT SİPARİŞ KORUMASI ANAHTARI ÜRETİCİSİ
+//
+// Neden bileşenin dışında?
+// Hiçbir state veya prop kullanmıyor — saf bir fonksiyon. İçeride
+// olsaydı her render'da yeniden tanımlanırdı, boşuna.
+//
+// Neden hazır bir UUID kütüphanesi kurmuyoruz?
+// React Native'de crypto.randomUUID her ortamda yok; expo-crypto
+// kurmak gerekirdi. Beş satırlık bir ihtiyaç için bağımlılık
+// eklemiyoruz.
+//
+// Bu anahtarın KRİPTOGRAFİK olması gerekmiyor — sır taşımıyor,
+// sadece "aynı sipariş denemesi mi" sorusunu cevaplıyor. Ayrıca
+// benzersizlik kullanıcı bazında aranıyor (index UserId ile
+// bileşik), yani tek kullanıcının kendi anahtarlarıyla çakışması
+// gerekiyor ki bu pratikte imkânsız.
+//
+// Zaman + iki rastgele parça: "m3k9x1-a7f2q8b4-p1n6r0zt" gibi.
+function istekAnahtariUret() {
+  const zaman = Date.now().toString(36);
+
+  const rastgele =
+    Math.random().toString(36).slice(2, 10) +
+    Math.random().toString(36).slice(2, 10);
+
+  return zaman + '-' + rastgele;
+}
+
 
 export default function SiparisOnayEkrani({ route, navigation }) {
   const { adresId, kartId } = route.params;
@@ -44,6 +74,30 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   // da beraberinde getirir.
   const [not, setNot] = useState('');
 
+  // ⭐ YENİ — bu sipariş denemesinin kimliği.
+  //
+  // NEDEN useRef, NEDEN useState DEĞİL?
+  // Bu değer ekranda hiçbir yerde gösterilmiyor. useState kullansaydık
+  // her değişimde gereksiz bir render tetiklenirdi. Kural: useRef
+  // görsel olmayan veri için, useState görsel veri için.
+  //
+  // NEDEN useRef(istekAnahtariUret()) DEĞİL?
+  // O yazımda fonksiyon HER render'da çağrılır — React sadece ilk
+  // değeri saklar ama üretim boşuna tekrarlanır. Aşağıdaki tembel
+  // ilkleme deseni fonksiyonu tam bir kez çalıştırır.
+  //
+  // ÖMRÜ: Ekran mount olunca doğar, unmount olunca ölür. Sipariş
+  // başarılı olunca navigation.replace ile bu ekran yok ediliyor,
+  // dolayısıyla anahtar da gidiyor. Müşteri yeni bir sipariş
+  // vermeye kalkarsa yeni ekran yeni anahtar üretir — eski sipariş
+  // yanlışlıkla "tekrar" sayılmaz.
+  const istekAnahtariRef = useRef(null);
+
+  if (istekAnahtariRef.current === null) {
+    istekAnahtariRef.current = istekAnahtariUret();
+  }
+
+
   // Seçilen adres ve kartın detaylarını getir (özet göstermek için)
   useEffect(() => {
     async function ozetiGetir() {
@@ -76,6 +130,18 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   //   hâlâ ESKİ kupon değerini görür ve aynı hatayı tekrar alırız.
   //   Parametre ile açıkça söylemek bu zamanlama tuzağını tamamen atlatır.
   async function siparisiTamamla(kuponsuzDene = false) {
+    // ⭐ YENİ — hızlı çift dokunuşa karşı ilk savunma.
+    //
+    // Buton zaten disabled ama setState anında etkimez: iki dokunuş
+    // 50 ms arayla gelirse ikinci dokunuş henüz eski render'ı görür.
+    //
+    // ⚠️ Bu koruma YETMEZ, sadece ucuz durumu ucuza halleder.
+    // Gerçek garanti backend'deki unique index. Ön yüz doğrulaması
+    // atlanabilir (Postman), sunucu doğrulaması atlanamaz.
+    if (gonderiliyor) {
+      return;
+    }
+
     try {
       setGonderiliyor(true);
 
@@ -102,6 +168,15 @@ export default function SiparisOnayEkrani({ route, navigation }) {
         // değil, savunma derinliği. Ön yüz doğrulaması atlanabilir
         // (Postman), sunucu doğrulaması atlanamaz.
         customerNote: not.trim() === '' ? null : not.trim(),
+        // ⭐ YENİ — çift sipariş koruması.
+        //
+        // ⚠️ .current okunuyor: ref'in kendisi bir kutu, değer
+        // içinde. Kutuyu göndersek backend'e "[object Object]" giderdi.
+        //
+        // Bu değer, kupon reddedilip fonksiyon ikinci kez çağrıldığında
+        // da AYNI kalır — ve bu doğru davranış: kullanıcı hâlâ aynı
+        // siparişi vermeye çalışıyor, ikinci bir sipariş değil.
+        idempotencyKey: istekAnahtariRef.current,
       });
 
       sepetiSifirla(); // backend sepeti temizledi, ekranı da senkronla (kuponu da bırakır)
