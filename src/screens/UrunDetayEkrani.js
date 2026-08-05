@@ -12,6 +12,18 @@ import UrunGaleri from '../components/UrunGaleri';
 import YorumBolumu from '../components/YorumBolumu';
 import Yildizlar from '../components/Yildizlar';
 
+// ⭐ YENİ — açıklamanın "uzun" sayıldığı karakter eşiği.
+//
+// Bu bir YAKLAŞIKLIK. Gerçek doğru yol metnin kaç satır kapladığını
+// onTextLayout ile ölçmek olurdu ama o ölçüm ilk render'dan SONRA
+// gelir — yani buton bir kare geç belirir ve ekran zıplar.
+//
+// 160 karakter, telefon genişliğinde kabaca 4 satır ediyor. Kısa
+// açıklamalarda "Devamını gör" hiç çıkmıyor, uzunlarda çıkıyor.
+// Yanlış tarafa düşen sınır durumunda olan tek şey: gereksiz bir
+// buton veya gereksiz bir kesik. İkisi de zararsız.
+const ACIKLAMA_ESIGI = 160;
+
 export default function UrunDetayEkrani({ route, navigation }) {
   const { urunId } = route.params;
   const { favoriMi, favoriDegistir } = useFavorite();
@@ -24,6 +36,13 @@ export default function UrunDetayEkrani({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [islemde, setIslemde] = useState(false);
   const [eklendi, setEklendi] = useState(false);
+
+  // ⭐ YENİ — açıklama tamamen açık mı?
+  //
+  // Bu GÖRSEL bir durum (ekranın görünümünü değiştiriyor), o yüzden
+  // useState. Görsel olmayan veriler için useRef kullanıyorduk —
+  // sipariş anahtarı gibi.
+  const [aciklamaAcik, setAciklamaAcik] = useState(false);
 
   async function urunuGetir(sessiz = false) {
     try {
@@ -116,6 +135,55 @@ export default function UrunDetayEkrani({ route, navigation }) {
           </Text>
         </View>
 
+        {/* ⭐ YENİ — ÜRÜN AÇIKLAMASI */}
+        {/*
+          ⚠️ Açıklama boşsa bölüm HİÇ ÇİZİLMİYOR.
+
+          "Açıklama yok" yazan boş bir kart koymak, kullanıcıya
+          bilgi vermeyen bir kutu göstermek demek. "İşi olmayan
+          ekran yapılmaz" — burada da işi olmayan kart yapılmıyor.
+
+          urun.description null gelebilir; ?. ile güvenli okuyup
+          trim ediyoruz ki sadece boşluktan ibaret metinler de
+          "yok" sayılsın.
+        */}
+        {urun.description && urun.description.trim() !== '' && (
+          <View style={styles.aciklamaKart}>
+            <Text style={styles.aciklamaBaslik}>Ürün Açıklaması</Text>
+
+            <Text
+              style={styles.aciklamaMetin}
+
+              /* Kapalıyken 4 satırda kes, açıkken sınır yok.
+                 undefined vermek "sınırsız" demek — 0 vermek
+                 metni tamamen gizlerdi. */
+              numberOfLines={aciklamaAcik ? undefined : 4}
+            >
+              {urun.description}
+            </Text>
+
+            {/* Buton sadece metin GERÇEKTEN uzunsa çizilsin.
+                Üç satırlık bir açıklamanın altına "Devamını gör"
+                koymak kullanıcıyı boşuna tıklatır. */}
+            {urun.description.length > ACIKLAMA_ESIGI && (
+              <TouchableOpacity
+                style={styles.aciklamaButon}
+                onPress={() => setAciklamaAcik(!aciklamaAcik)}
+              >
+                <Text style={styles.aciklamaButonYazi}>
+                  {aciklamaAcik ? 'Daha az göster' : 'Devamını gör'}
+                </Text>
+
+                <Ionicons
+                  name={aciklamaAcik ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={renkler.anaRenk}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* YORUMLAR */}
         <View style={styles.yorumKart}>
           <YorumBolumu urunId={urunId} onDegisti={() => urunuGetir(true)} />
@@ -170,6 +238,53 @@ const stilOlustur = (renkler) => StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
+  },
+
+  // ⭐ YENİ — açıklama bölümü
+  //
+  // bilgiKart ile AYNI görsel kabuk (arka plan, kenarlık, yuvarlaklık,
+  // kenar boşlukları). Aynı ekranda iki farklı kart görünümü olmasın —
+  // "asimetrik boşluk bozuk, simetrik boşluk kasıtlı okunur."
+  aciklamaKart: {
+    backgroundColor: renkler.kartArka,
+    marginHorizontal: 12,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+  },
+
+  aciklamaBaslik: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: renkler.yaziKoyu,
+    marginBottom: 10,
+  },
+
+  aciklamaMetin: {
+    fontSize: 14,
+    // Uzun metinde satır aralığı okunabilirliğin yarısı.
+    // Varsayılan aralık paragraf metni için çok sıkışık.
+    lineHeight: 22,
+    color: renkler.yaziOrta,
+  },
+
+  aciklamaButon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+
+    // Dokunma hedefini büyüt: sadece yazı kadar olsaydı
+    // parmakla ıskalanırdı.
+    paddingVertical: 6,
+  },
+
+  aciklamaButonYazi: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: renkler.anaRenk,
   },
   urunAd: { fontSize: 22, fontWeight: 'bold', color: renkler.yaziKoyu, marginBottom: 8 },
   ortalamaSatir: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
