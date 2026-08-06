@@ -3,6 +3,18 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
+// ⭐ YENİ — ortak para biçimlendirici.
+//
+// ⭐ DEĞİŞTİ — bu ekran tutarları "toFixed(2) + ' ₺'" ile yazıyordu
+// ve sonuç "1234.50 ₺" oluyordu: ondalık ayracı NOKTA, binlik ayracı
+// hiç yok. Uygulamanın geri kalanı paraBicimle kullanıyor ve
+// "1.234,50 ₺" gösteriyor.
+//
+// Aynı siparişin tutarı sepette bir türlü, başarı ekranında başka
+// türlü görünüyordu. Para biçimi bir DETAY değil: müşteri iki sayının
+// aynı olup olmadığını gözle karşılaştırıyor ve farklı yazım
+// "acaba başka bir tutar mı?" sorusunu doğuruyor.
+import { paraBicimle } from '../utils/bicimlendir';
 
 export default function SiparisBasariliEkrani({ route, navigation }) {
   // ⭐ araToplam, indirim, kuponKodu → SiparisOnayEkrani'ndan geliyor.
@@ -53,7 +65,10 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
               ara toplam → indirim → kargo → ödenen. */}
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>Ara toplam</Text>
-            <Text style={styles.deger}>{Number(araToplam ?? 0).toFixed(2)} ₺</Text>
+            {/* ⭐ DEĞİŞTİ — toFixed yerine paraBicimle.
+                Number(... ?? 0) sarmalına gerek kalmadı: paraBicimle
+                içeride zaten Number(sayi) || 0 yapıyor. */}
+            <Text style={styles.deger}>{paraBicimle(araToplam)}</Text>
           </View>
 
           {indirimSayi > 0 && (
@@ -61,8 +76,9 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
               <Text style={styles.etiket}>
                 İndirim{kuponKodu ? ` (${kuponKodu})` : ''}
               </Text>
+              {/* ⭐ DEĞİŞTİ — biçimlendirme ortak fonksiyona geçti */}
               <Text style={styles.degerIndirim}>
-                −{indirimSayi.toFixed(2)} ₺
+                −{paraBicimle(indirimSayi)}
               </Text>
             </View>
           )}
@@ -72,7 +88,7 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             <Text style={styles.etiket}>Kargo</Text>
 
             {kargoSayi > 0 ? (
-              <Text style={styles.deger}>{kargoSayi.toFixed(2)} ₺</Text>
+              <Text style={styles.deger}>{paraBicimle(kargoSayi)}</Text>
             ) : (
               <Text style={styles.degerIndirim}>Ücretsiz</Text>
             )}
@@ -80,7 +96,8 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
 
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>{indirimSayi > 0 ? 'Ödenen' : 'Tutar'}</Text>
-            <Text style={styles.degerVurgu}>{Number(toplam).toFixed(2)} ₺</Text>
+            {/* ⭐ DEĞİŞTİ — biçimlendirme ortak fonksiyona geçti */}
+            <Text style={styles.degerVurgu}>{paraBicimle(toplam)}</Text>
           </View>
 
           <View style={styles.kutuSatir}>
@@ -94,8 +111,9 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             sefere kupon aramaya teşvik eder. */}
         {indirimSayi > 0 && (
           <View style={styles.tasarrufRozet}>
+            {/* ⭐ DEĞİŞTİ — biçimlendirme ortak fonksiyona geçti */}
             <Text style={styles.tasarrufYazi}>
-              🎉 Bu siparişte {indirimSayi.toFixed(2)} ₺ tasarruf ettin!
+              🎉 Bu siparişte {paraBicimle(indirimSayi)} tasarruf ettin!
             </Text>
           </View>
         )}
