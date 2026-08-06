@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
+// ⭐ DEĞİŞTİ — SecureStore web'i desteklemiyor, guvenliDepo platforma
+// göre doğru olanı seçiyor (bkz. services/guvenliDepo.js).
+import { deoyaYaz, depodanOku } from '../services/guvenliDepo';
 import { temalar, acikTema } from '../theme/tema';
 
 const TEMA_KEY = 'secilenTema';
@@ -14,7 +16,7 @@ export function TemaProvider({ children }) {
   useEffect(() => {
     async function temayiYukle() {
       try {
-        const kayitli = await SecureStore.getItemAsync(TEMA_KEY);
+        const kayitli = await depodanOku(TEMA_KEY);
         if (kayitli && temalar[kayitli]) {
           setTemaAdi(kayitli);
         }
@@ -31,7 +33,7 @@ export function TemaProvider({ children }) {
   async function temaDegistir(yeniAd) {
     if (!temalar[yeniAd]) return;
     setTemaAdi(yeniAd);
-    await SecureStore.setItemAsync(TEMA_KEY, yeniAd);
+    await deoyaYaz(TEMA_KEY, yeniAd);
   }
 
   const renkler = temalar[temaAdi] || acikTema;

@@ -1,43 +1,52 @@
-import * as SecureStore from 'expo-secure-store';
+// ⭐ DEĞİŞTİ — doğrudan SecureStore yerine guvenliDepo.
+//
+// SecureStore web'i desteklemiyor ve web'de çağrıldığında hata
+// fırlatıyordu. guvenliDepo platforma göre doğru olanı seçiyor:
+// native'de SecureStore (şifreli kasa), web'de localStorage
+// (yalnızca geliştirme önizlemesi için — gerekçesi o dosyada).
+//
+// Bu dosyanın API'si HİÇ DEĞİŞMEDİ; çağıran hiçbir yer
+// güncellenmek zorunda kalmadı.
+import { deoyaYaz, depodanOku, depodanSil } from './guvenliDepo';
 
 // Kasadaki "anahtar" isimleri (etiket gibi düşün)
 const TOKEN_KEY = 'userToken';
 const KULLANICI_KEY = 'kullaniciBilgi';
-const REFRESH_KEY = 'refreshToken'; // ⭐ YENİ
+const REFRESH_KEY = 'refreshToken';
 
 // --- TOKEN ---
 export async function tokenKaydet(token) {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await deoyaYaz(TOKEN_KEY, token);
 }
 export async function tokenAl() {
-  return await SecureStore.getItemAsync(TOKEN_KEY); // token yoksa null döner
+  return await depodanOku(TOKEN_KEY); // token yoksa null döner
 }
 export async function tokenSil() {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await depodanSil(TOKEN_KEY);
 }
 
 
-// --- REFRESH TOKEN --- ⭐ YENİ
-// Uzun ömürlü (30 gün) "yeni access ver" bileti. O da SecureStore'da (şifreli kasa).
+// --- REFRESH TOKEN ---
+// Uzun ömürlü (30 gün) "yeni access ver" bileti.
 export async function refreshTokenKaydet(token) {
-  await SecureStore.setItemAsync(REFRESH_KEY, token);
+  await deoyaYaz(REFRESH_KEY, token);
 }
 export async function refreshTokenAl() {
-  return await SecureStore.getItemAsync(REFRESH_KEY);
+  return await depodanOku(REFRESH_KEY);
 }
 export async function refreshTokenSil() {
-  await SecureStore.deleteItemAsync(REFRESH_KEY);
+  await depodanSil(REFRESH_KEY);
 }
 
 // --- KULLANICI (ad soyad + rol) ---
-// SecureStore sadece metin saklar, o yüzden objeyi JSON metnine çeviriyoruz
+// Depo sadece metin saklar, o yüzden objeyi JSON metnine çeviriyoruz
 export async function kullaniciKaydet(kullanici) {
-  await SecureStore.setItemAsync(KULLANICI_KEY, JSON.stringify(kullanici));
+  await deoyaYaz(KULLANICI_KEY, JSON.stringify(kullanici));
 }
 export async function kullaniciAl() {
-  const metin = await SecureStore.getItemAsync(KULLANICI_KEY);
+  const metin = await depodanOku(KULLANICI_KEY);
   return metin ? JSON.parse(metin) : null;
 }
 export async function kullaniciSil() {
-  await SecureStore.deleteItemAsync(KULLANICI_KEY);
+  await depodanSil(KULLANICI_KEY);
 }
