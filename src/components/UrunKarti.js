@@ -7,6 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ — tasarım sistemi
+import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+import Rozet from './Rozet';
 
 export default function UrunKarti({ urun, onPress }) {
   const { favoriMi, favoriDegistir } = useFavorite();
@@ -49,11 +52,19 @@ export default function UrunKarti({ urun, onPress }) {
           </View>
         )}
 
+        {/* ⭐ DEĞİŞTİ — kalp artık YARI SAYDAM BEYAZ DAİRE DEĞİL.
+
+            Eski hali rgba(255,255,255,0.9) sabit bir daireydi ve
+            koyu temada da beyaz kalıyordu — koyu bir ekranda parlak
+            beyaz bir nokta gibi duruyordu.
+
+            Artık tema zeminini kullanıyor. Ayrıca ikon rengi de
+            sabit '#555' değil; o renk koyu temada görünmüyordu. */}
         <TouchableOpacity style={styles.kalpButon} onPress={kalbeBasildi} hitSlop={8}>
           <Ionicons
             name={favori ? 'heart' : 'heart-outline'}
-            size={20}
-            color={favori ? renkler.favoriRenk : '#555'}
+            size={18}
+            color={favori ? renkler.favoriRenk : renkler.yaziOrta}
           />
         </TouchableOpacity>
       </View>
@@ -73,34 +84,49 @@ export default function UrunKarti({ urun, onPress }) {
 
         <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
 
-        <View style={styles.stokSatir}>
-          <View
-            style={[styles.stokNokta, { backgroundColor: tukendi ? renkler.yaziGri : renkler.basari }]}
-          />
-          <Text style={[styles.stokYazi, { color: tukendi ? renkler.yaziGri : renkler.basari }]}>
-            {tukendi ? 'Tükendi' : 'Stokta var'}
-          </Text>
-        </View>
+        {/* ⭐ DEĞİŞTİ — elle kurulan "nokta + yazı" yerine ortak Rozet.
+
+            Eski hali her kartta bir View + bir Text + iki koşullu
+            renk hesabı kuruyordu. Aynı desen sipariş durumlarında da
+            tekrarlanıyor; ortak bileşene çıkarınca ikisi de tek
+            yerden değişiyor.
+
+            ⚠️ Renk artık koşullu HESAPLANMIYOR, TİP seçiliyor.
+            "tukendi ? renkler.yaziGri : renkler.basari" yazmak,
+            rengin ne anlama geldiğini çağrı yerinde saklıyordu.
+            Tip adı ("notr" / "basari") niyeti okunur kılıyor. */}
+        <Rozet
+          tip={tukendi ? 'notr' : 'basari'}
+          yazi={tukendi ? 'Tükendi' : 'Stokta var'}
+        />
       </View>
     </TouchableOpacity>
   );
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
+  /* ⭐ DEĞİŞTİ (Aşama 4.5) — kenarlık kaldırıldı, gölge geldi.
+
+     Referans tasarımlarda ürün kartlarının çerçevesi yok; kart
+     zeminden gölgeyle ayrılıyor ve görsel alanı kendi açık gri
+     karosuyla belli oluyor. 1px kenarlık kartları "kutu" gibi
+     gösteriyor ve grid'i kafes gibi okutuyordu.
+
+     ⚠️ elevation: 2 yerine tema gölgesi kullanılıyor. elevation
+     sadece Android'de çalışıyordu; iOS'ta kartlar tamamen düz
+     görünüyordu. Tema gölgesi iki platformu birden veriyor. */
   kart: {
     width: '48%',
     backgroundColor: renkler.kartArka,
-    borderRadius: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
+    borderRadius: kose.buyuk,
+    marginBottom: bosluk.normal,
     overflow: 'hidden',
-    elevation: 2,
+    ...renkler.golgeSm,
   },
   resimAlan: {
     width: '100%',
-    height: 200,            // ⭐ 150 → 200 (kartın ~%65'i). Ayar düğmesi burası.
-    backgroundColor: renkler.acikGri,
+    height: 200,            // kartın ~%65'i. Ayar düğmesi burası.
+    backgroundColor: renkler.acikKart,
     position: 'relative',
   },
   resim: {
@@ -133,60 +159,66 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   kalpButon: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    top: bosluk.kucuk,
+    right: bosluk.kucuk,
+
+    // ⭐ DEĞİŞTİ — sabit yarı saydam beyaz yerine tema zemini.
+    // Eski değer koyu temada da beyaz kalıyordu.
+    backgroundColor: renkler.kartArka,
+
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: kose.tam,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 3,
+    ...renkler.golgeSm,
   },
   bilgi: {
-    padding: 10,
+    padding: bosluk.orta,
   },
   urunAd: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     color: renkler.yaziKoyu,
+
+    // İki satırlık yer ayrılıyor ki kısa ve uzun adlı kartların
+    // fiyat satırı aynı hizada kalsın. Grid'de hizasız fiyatlar
+    // gözü yoruyor.
     minHeight: 36,
-    marginBottom: 4,
+    marginBottom: bosluk.mikro,
   },
   puanSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: bosluk.mikro,
   },
   puanYazi: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.kalin,
     color: renkler.yaziKoyu,
     marginLeft: 3,
   },
   puanAdet: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
     marginLeft: 3,
   },
+
+  /* ⭐ DEĞİŞTİ — fiyat büyüdü ve renk değişti.
+
+     17 → 18px: fiyat, kartın en çok bakılan bilgisi; ürün adıyla
+     neredeyse aynı puntodaydı.
+
+     ⚠️ RENK anaRenk (mavi) DEĞİL, yaziKoyu.
+
+     Mavi bu uygulamada "tıklanabilir" demek (butonlar, bağlantılar).
+     Fiyatı mavi yazmak, tıklanabilir bir şey olduğunu ima ediyordu.
+     Referans tasarımlarda da fiyat nötr ve koyu; dikkati punto ve
+     kalınlık çekiyor, renk değil. */
   fiyat: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: renkler.anaRenk,
-    marginBottom: 6,
-  },
-  stokSatir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stokNokta: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 5,
-  },
-  stokYazi: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    color: renkler.yaziKoyu,
+    marginBottom: bosluk.kucuk,
   },
 });
