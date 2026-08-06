@@ -275,35 +275,54 @@ export default function SiparisDetayEkrani({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.altBar}>
-        {/* ⭐ İndirim varsa dökümü göster.
-            
+        {/* ⭐ DEĞİŞTİ — döküm artık indirim olmasa da çiziliyor.
+
+            Eskiden tüm blok "indirim varsa" koşuluna bağlıydı. Kargo
+            satırı eklenince o koşul yanlış hale geldi: kargo, kupon
+            olsun olmasın her siparişte var.
+
             ⚠️ Bu değerler DONDURULMUŞ alanlardan geliyor:
-            subTotal, couponCode, discountAmount — hepsi sipariş
-            anında Order tablosuna yazıldı. Kuponun bugünkü haline
-            BAKMIYORUZ. Admin kuponu silse, oranını değiştirse veya
-            pasifleştirse bile bu sipariş aynı görünür.
-            
+            subTotal, couponCode, discountAmount, shippingCost —
+            hepsi sipariş anında Order tablosuna yazıldı. Kuponun ya
+            da mağaza kargo ücretinin BUGÜNKÜ haline BAKMIYORUZ.
+            Mağaza yarın kargoyu 79,90'a çıkarsa bu sipariş yine
+            ödendiği tutarı gösterir.
+
             Aynı desen adres (ShippingFullName vb.) ve birim fiyat
             (UnitPrice) için de geçerli — projedeki tutarlı yaklaşım. */}
+        <View style={styles.ozetSatir}>
+          <Text style={styles.ozetEtiket}>Ara toplam</Text>
+          <Text style={styles.ozetDeger}>{paraBicimle(siparis.subTotal)}</Text>
+        </View>
+
         {siparis.discountAmount > 0 && (
-          <>
-            <View style={styles.ozetSatir}>
-              <Text style={styles.ozetEtiket}>Ara toplam</Text>
-              <Text style={styles.ozetDeger}>{paraBicimle(siparis.subTotal)}</Text>
-            </View>
-
-            <View style={styles.ozetSatir}>
-              <Text style={styles.ozetEtiket}>
-                İndirim{siparis.couponCode ? ` (${siparis.couponCode})` : ''}
-              </Text>
-              <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
-                −{paraBicimle(siparis.discountAmount)}
-              </Text>
-            </View>
-
-            <View style={styles.ozetAyirac} />
-          </>
+          <View style={styles.ozetSatir}>
+            <Text style={styles.ozetEtiket}>
+              İndirim{siparis.couponCode ? ` (${siparis.couponCode})` : ''}
+            </Text>
+            <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
+              −{paraBicimle(siparis.discountAmount)}
+            </Text>
+          </View>
         )}
+
+        {/* ⭐ YENİ — KARGO SATIRI
+
+            0 ise "Ücretsiz" yazıyoruz. Bu iki farklı sebepten olabilir
+            (eşik aşıldı ya da mağaza hiç kargo almıyor) ama müşteri
+            açısından ikisi de aynı: ödemedi. Ayırt etmeye çalışmak
+            ekrana bilgi değil gürültü katardı. */}
+        <View style={styles.ozetSatir}>
+          <Text style={styles.ozetEtiket}>Kargo</Text>
+
+          {siparis.shippingCost > 0 ? (
+            <Text style={styles.ozetDeger}>{paraBicimle(siparis.shippingCost)}</Text>
+          ) : (
+            <Text style={[styles.ozetDeger, { color: renkler.basari }]}>Ücretsiz</Text>
+          )}
+        </View>
+
+        <View style={styles.ozetAyirac} />
 
         <View style={styles.toplamSatir}>
           <Text style={styles.toplamEtiket}>

@@ -9,7 +9,7 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
   //    Bunlar SUNUCUNUN döndürdüğü değerler; kendi hesabımız değil.
   //    Böylece ekranda gösterilen sayı ile veritabanına yazılan
   //    sayı birebir aynı oluyor.
-  const { siparisId, siparisNo, toplam, araToplam, indirim, kuponKodu } = route.params;
+  const { siparisId, siparisNo, toplam, araToplam, indirim, kuponKodu, kargoUcreti } = route.params;
 
   // Number(...) ile sarmalıyoruz çünkü JSON'dan gelen decimal
   // bazen sayı bazen metin olabilir; toplama/karşılaştırma yaparken
@@ -18,6 +18,9 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
   // ?? 0 → alan hiç gelmemişse (eski bir gezinme kaydı gibi) 0 say.
   // || yerine ?? kullanıyoruz: 0 geçerli bir değer, onu ezmemeli.
   const indirimSayi = Number(indirim ?? 0);
+
+  // ⭐ YENİ — kargo ücreti (aynı Number/?? gerekçesiyle sarmalı).
+  const kargoSayi = Number(kargoUcreti ?? 0);
 
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
@@ -38,25 +41,42 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             <Text style={styles.deger}>{siparisNo}</Text>
           </View>
 
-          {/* ⭐ İndirim varsa dökümü göster.
-              Yoksa sadece "Tutar" satırı kalır — eskisi gibi. */}
-          {indirimSayi > 0 && (
-            <>
-              <View style={styles.kutuSatir}>
-                <Text style={styles.etiket}>Ara toplam</Text>
-                <Text style={styles.deger}>{Number(araToplam).toFixed(2)} ₺</Text>
-              </View>
+          {/* ⭐ DEĞİŞTİ — döküm artık indirim yokken de çiziliyor.
 
-              <View style={styles.kutuSatir}>
-                <Text style={styles.etiket}>
-                  İndirim{kuponKodu ? ` (${kuponKodu})` : ''}
-                </Text>
-                <Text style={styles.degerIndirim}>
-                  −{indirimSayi.toFixed(2)} ₺
-                </Text>
-              </View>
-            </>
+              Eskiden blok tamamen "indirim varsa" koşuluna bağlıydı ve
+              indirim yoksa tek satır "Tutar" kalıyordu. Kargo eklenince
+              bu yetmez oldu: ara toplam eksi indirim artık ödenen
+              tutarı VERMİYOR, aradaki fark kargo. Dökümü göstermezsek
+              müşteri "sepette 450 yazıyordu, 499,90 ödedim" der.
+
+              Satırlar sepet ve onay ekranındakiyle aynı sırada:
+              ara toplam → indirim → kargo → ödenen. */}
+          <View style={styles.kutuSatir}>
+            <Text style={styles.etiket}>Ara toplam</Text>
+            <Text style={styles.deger}>{Number(araToplam ?? 0).toFixed(2)} ₺</Text>
+          </View>
+
+          {indirimSayi > 0 && (
+            <View style={styles.kutuSatir}>
+              <Text style={styles.etiket}>
+                İndirim{kuponKodu ? ` (${kuponKodu})` : ''}
+              </Text>
+              <Text style={styles.degerIndirim}>
+                −{indirimSayi.toFixed(2)} ₺
+              </Text>
+            </View>
           )}
+
+          {/* ⭐ YENİ — kargo satırı. 0 ise "Ücretsiz". */}
+          <View style={styles.kutuSatir}>
+            <Text style={styles.etiket}>Kargo</Text>
+
+            {kargoSayi > 0 ? (
+              <Text style={styles.deger}>{kargoSayi.toFixed(2)} ₺</Text>
+            ) : (
+              <Text style={styles.degerIndirim}>Ücretsiz</Text>
+            )}
+          </View>
 
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>{indirimSayi > 0 ? 'Ödenen' : 'Tutar'}</Text>

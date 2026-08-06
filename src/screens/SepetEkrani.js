@@ -34,7 +34,6 @@ export default function SepetEkrani({ navigation }) {
   const {
     sepet,
     yukleniyor,
-    toplamTutar,
     pasifUrunSayisi,     // ⭐ YENİ
     sepetiYukle,
     adetGuncelle,
@@ -45,10 +44,12 @@ export default function SepetEkrani({ navigation }) {
     kuponYukleniyor,
     kuponUyari,
     indirimTutari,
-    odenecekTutar,
     kuponUygula,
     kuponuKaldir,
     kuponUyariyiTemizle,
+
+    // ⭐ YENİ — kargo dahil özet (sunucudan geliyor)
+    ozet,
   } = useSepet();
 
   const [aramaMetni, setAramaMetni] = useState('');
@@ -111,6 +112,32 @@ export default function SepetEkrani({ navigation }) {
   const filtreliSepet = aramaMetni
     ? sepet.filter((s) => s.productName.toLowerCase().includes(aramaMetni.toLowerCase()))
     : sepet;
+
+
+  // ⭐ YENİ — ÜCRETSİZ KARGO İLERLEMESİ
+  //
+  // ⚠️ EŞİĞİ AYRI BİR İSTEKLE SORMUYORUZ.
+  //
+  // Sunucu "kaç TL kaldı"yı zaten söylüyor ve "şu an ne kadarlık
+  // sepetin var"ı da biliyoruz. İkisinin toplamı eşiğin ta kendisi:
+  //     kalan = eşik − mevcut   →   eşik = kalan + mevcut
+  //
+  // Eşiği ayrıca sormak, ilerleme çubuğunun paydası ile payının
+  // FARKLI ANLARIN verisi olması riskini getirirdi. Aynı cevaptan
+  // türettiğimiz için çubuk her zaman kendi içinde tutarlı.
+  //
+  // ⚠️ Mevcut tutar olarak İNDİRİMLİ tutarı alıyoruz, ara toplamı
+  // değil — sunucudaki eşik kuralı da indirimli tutara bakıyor
+  // (bkz. SepetHesaplayici). Ara toplamı kullansaydık çubuk dolu
+  // görünürken kargo ücretli çıkardı.
+  const indirimliTutar = ozet ? ozet.araToplam - indirimTutari : 0;
+  const kargoEsigi = ozet ? ozet.ucretsizKargoyaKalan + indirimliTutar : 0;
+
+  // Math.min(1, ...): eşik aşıldığında çubuk taşmasın. Bu durumda
+  // zaten "kazanıldı" rozeti çiziliyor ama savunmacı olmak bedava.
+  const kargoOrani = kargoEsigi > 0
+    ? Math.min(1, indirimliTutar / kargoEsigi)
+    : 0;
 
 
   // 🔒 MİSAFİR KAPISI — tüm hook'lardan SONRA, ilk return'den ÖNCE
@@ -297,11 +324,60 @@ export default function SepetEkrani({ navigation }) {
                 </Text>
               )}
 
+              {/* ⭐ YENİ — ÜCRETSİZ KARGO ŞERİDİ
+
+                  Toplamın ÜSTÜNDE duruyor: müşteri tutarı görmeden
+                  önce "biraz daha eklersem kargo bedava" bilgisini
+                  almalı. Toplamın altında olsaydı karar verildikten
+                  sonra gelen bir bilgi olurdu.
+
+                  İki hal birbirini dışlıyor: ya hedefe kalan var ya da
+                  kazanılmış. Aynı anda ikisi birden olamaz, o yüzden
+                  tek bir if/else — iki ayrı koşul yazsaydık sunucudan
+                  beklenmedik bir kombinasyon gelirse ikisi birden
+                  çizilirdi. */}
+              {ozet && ozet.ucretsizKargoyaKalan > 0 ? (
+                <View style={styles.kargoSerit}>
+                  <Text style={styles.kargoSeritYazi}>
+                    {paraBicimle(ozet.ucretsizKargoyaKalan)} daha ekle, kargo bedava!
+                  </Text>
+
+                  {/* İlerleme çubuğu: dıştaki View ray, içteki dolgu.
+                      Yüzdeyi string olarak veriyoruz — RN'de genişliğin
+                      yüzde olarak verilmesinin yolu bu. */}
+                  <View style={styles.kargoRay}>
+                    <View
+                      style={[
+                        styles.kargoDolgu,
+                        { width: `${Math.round(kargoOrani * 100)}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ) : ozet && ozet.ucretsizKargoKazanildi ? (
+                <View style={styles.kargoRozet}>
+                  <Ionicons name="gift" size={16} color={renkler.basari} />
+                  <Text style={styles.kargoRozetYazi}>Kargo bedava kazandın 🎉</Text>
+                </View>
+              ) : null}
+
               {/* ---- ÖZET ---- */}
+              {/* ⭐ DEĞİŞTİ — tutarlar artık sunucudan gelen özetten.
+
+                  Eskiden ara toplam sepetten reduce ile, ödenecek de
+                  "toplam − indirim" ile HESAPLANIYORDU. Kargo eşiği
+                  girince o formül yetmez oldu ve elde tutmanın anlamı
+                  kalmadı: sipariş anında tahsil edilecek tutarı üreten
+                  kod sunucuda, biz de artık onun sonucunu gösteriyoruz.
+
+                  Hesap sırası: ara toplam → indirim → kargo → toplam.
+                  Kargo indirimden SONRA çünkü kupon kargoya inmiyor. */}
               <View style={styles.ozet}>
                 <View style={styles.ozetSatir}>
                   <Text style={styles.ozetEtiket}>Ara toplam</Text>
-                  <Text style={styles.ozetDeger}>{paraBicimle(toplamTutar)}</Text>
+                  <Text style={styles.ozetDeger}>
+                    {paraBicimle(ozet?.araToplam ?? 0)}
+                  </Text>
                 </View>
 
                 {/* İndirim satırı SADECE indirim varsa görünür.
@@ -316,11 +392,34 @@ export default function SepetEkrani({ navigation }) {
                   </View>
                 )}
 
+                {/* ⭐ YENİ — KARGO SATIRI
+
+                    İndirim satırının aksine bu KOŞULSUZ görünüyor.
+                    Kargo 0 olduğunda satırı gizlemek cazip ama yanlış:
+                    "kargo yazmıyor, demek ki sonradan eklenecek"
+                    endişesi yaratır. "Ücretsiz" yazmak bir bilgidir,
+                    hiç yazmamak boşluktur. */}
+                <View style={styles.ozetSatir}>
+                  <Text style={styles.ozetEtiket}>Kargo</Text>
+
+                  {ozet && ozet.kargoUcreti > 0 ? (
+                    <Text style={styles.ozetDeger}>
+                      {paraBicimle(ozet.kargoUcreti)}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
+                      Ücretsiz
+                    </Text>
+                  )}
+                </View>
+
                 <View style={styles.ayirac} />
 
                 <View style={styles.ozetSatir}>
-                  <Text style={styles.odenecekEtiket}>Ödenecek</Text>
-                  <Text style={styles.odenecekTutar}>{paraBicimle(odenecekTutar)}</Text>
+                  <Text style={styles.odenecekEtiket}>Toplam</Text>
+                  <Text style={styles.odenecekTutar}>
+                    {paraBicimle(ozet?.toplam ?? 0)}
+                  </Text>
                 </View>
               </View>
 
@@ -534,6 +633,62 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
     lineHeight: 17,
+  },
+
+
+  /* ---------- ⭐ ÜCRETSİZ KARGO ŞERİDİ ---------- */
+
+  /* Kupon/pasif uyarı kutularıyla aynı iskelet ama sol kenar çizgisi
+     YOK: onlar bir sorunu bildiriyor, bu bir fırsatı. Aynı görsel dili
+     kullansaydı müşteri bir an için "yine mi hata" diye bakardı. */
+  kargoSerit: {
+    backgroundColor: renkler.acikKart,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 14,
+  },
+  kargoSeritYazi: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: renkler.yaziKoyu,
+    marginBottom: 8,
+  },
+
+  /* İlerleme rayı. Sabit yükseklik + yarım yükseklik borderRadius =
+     iki ucu tam yuvarlak. overflow hidden olmasa dolgu köşelerden
+     taşardı. */
+  kargoRay: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: renkler.kenarlik,
+    overflow: 'hidden',
+  },
+  kargoDolgu: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: renkler.anaRenk,
+  },
+
+  /* Kazanıldı hali: çubuk yok, çünkü ilerleme kavramı bitti.
+     Dolu bir çubuk göstermek "hâlâ bir hedef var" izlenimi verirdi. */
+  kargoRozet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: renkler.acikKart,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: renkler.basari,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 14,
+  },
+  kargoRozetYazi: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: renkler.basari,
   },
 
 

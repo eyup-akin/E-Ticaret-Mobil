@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { apiGet, apiPost, apiPut, apiDelete } from '../services/api';
 import { useAuth } from './AuthContext';
 
@@ -20,19 +20,92 @@ const SepetContext = createContext({
   kuponYukleniyor: false,
   kuponUyari: '',
   indirimTutari: 0,
-  odenecekTutar: 0,
   kuponUygula: async () => {},
   kuponuKaldir: () => {},
   kuponUyariyiTemizle: () => {},
+
+  // ⭐ YENİ — KARGO DAHİL SEPET ÖZETİ
+  //
+  // Şekli: { araToplam, kargoUcreti, toplam,
+  //          ucretsizKargoyaKalan, ucretsizKargoKazanildi }
+  // veya sepet henüz yüklenmediyse null.
+  //
+  // ⚠️ "odenecekTutar" KALDIRILDI, yerine bu geldi.
+  //
+  // O değer ürünler − indirim idi; kargo eklenince YANLIŞ oldu.
+  // Kargoyu ona eklemek yerine tamamen sildik: iki farklı "toplam"
+  // kavramı bırakmak, ekranlardan birinin yanlışını alması demekti.
+  // Tek toplam var ve sunucudan geliyor.
+  ozet: null,
+
+  // ⭐ YENİ — kupon uygulanınca ücretsiz kargo kaybedildi mi?
+  kuponKargoyuUcretliYapti: false,
 });
+
+// ⭐ YENİ — /coupons/dogrula cevabını kupon state'ine çevirir.
+//
+// Neden ayrı fonksiyon? Bu dönüşüm İKİ yerde yapılıyor: kupon ilk
+// uygulandığında ve sepet değişince yeniden doğrulandığında. Kopya
+// olsaydı buraya bir alan eklenip diğerine eklenmediğinde, kupon
+// tazelendiği anda kargo bilgisi undefined'a düşerdi — ve bu ancak
+// müşteri sepette adet değiştirince ortaya çıkardı.
+//
+// ⚠️ "toplam" alanı sunucudaki "yeniToplam"dan geliyor. Sunucu tarafı
+// o adı bilerek değiştirmedi (eski mobil sürümler okuyor); biz
+// burada, sınırın bu tarafında anlamlı isme çeviriyoruz.
+function kuponaCevir(veri) {
+  return {
+    kod: veri.kod,
+    aciklama: veri.aciklama,
+    indirim: veri.indirim,
+
+    // ⭐ YENİ — kargo dahil özet alanları.
+    // Hiçbirini biz hesaplamıyoruz; sipariş anında tahsil edilecek
+    // tutarı üreten AYNI servisten geliyorlar.
+    araToplam: veri.araToplam,
+    kargoUcreti: veri.kargoUcreti,
+    toplam: veri.yeniToplam,
+    ucretsizKargoyaKalan: veri.ucretsizKargoyaKalan,
+    ucretsizKargoKazanildi: veri.ucretsizKargoKazanildi,
+  };
+}
 
 export function SepetProvider({ children }) {
   const [sepet, setSepet] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
 
+  // ⭐ YENİ — GET /cart'tan gelen özet (kuponsuz hali).
+  //
+  // Kupon uygulanınca bu değer BAYATLAR — indirimsiz hesaba göre
+  // üretildi. Bayat haliyle de saklıyoruz çünkü "kupon gelmeden önce
+  // kargo bedava mıydı?" sorusunun cevabı burada; onay ekranındaki
+  // bilgilendirme buna dayanıyor.
+  const [sunucuOzeti, setSunucuOzeti] = useState(null);
+
+  // ⭐ YENİ — SEPET İSTEĞİ SIRA NUMARASI
+  //
+  // Adet değiştirme artık her seferinde sepeti yeniden çekiyor
+  // (özet sunucudan geliyor, elde hesaplanamaz). Müşteri "+"ya hızlı
+  // basarsa birden fazla istek yolda olur ve cevaplar SIRASIZ
+  // dönebilir. Eski cevap sonra gelirse ekrana bayat sepet yazardı.
+  //
+  // Her istek kendi sırasını alıyor; cevap döndüğünde hâlâ en güncel
+  // istek miyiz diye bakıyoruz. Kupon doğrulamadaki "iptal" bayrağının
+  // aynı fikri, sayaç biçiminde — orada tek bir effect var, burada
+  // birbirinden bağımsız çağrılar olduğu için sayaç gerekiyor.
+  const yuklemeSirasiRef = useRef(0);
+
   // ⭐ YENİ — UYGULANMIŞ KUPON
   //
-  // Şekli: { kod, aciklama, indirim } veya null
+  // ⭐ DEĞİŞTİ — şekli artık kuponaCevir'in döndürdüğü nesne:
+  // { kod, aciklama, indirim, araToplam, kargoUcreti, toplam,
+  //   ucretsizKargoyaKalan, ucretsizKargoKazanildi } veya null.
+  //
+  // Yani bu nesne sadece "hangi kupon" değil, "kupon uygulanmış
+  // haliyle sepet ne durumda" sorusunun da cevabı. Kargo bilgisini
+  // ayrı bir state'te tutmak da olurdu ama ikisi HER ZAMAN aynı
+  // istekten geliyor ve birlikte değişiyor — ayırsaydık birinin
+  // güncellenip diğerinin unutulması mümkün hale gelirdi.
   //
   // ⚠️ "indirim" alanını BİZ HESAPLAMIYORUZ — sunucudan geliyor.
   //    /api/coupons/dogrula endpoint'i sepeti kendi veritabanından
@@ -58,6 +131,7 @@ export function SepetProvider({ children }) {
       // Kuponu temizlemezsek başka bir kullanıcı giriş yaptığında
       // öncekinin kuponu ekranda kalırdı.
       setSepet([]);
+      setSunucuOzeti(null);   // ⭐ YENİ — özet de öncekine ait
       setKupon(null);
       setKuponUyari('');
     }
@@ -67,10 +141,30 @@ export function SepetProvider({ children }) {
   // ---------- SEPET İŞLEMLERİ ----------
 
   // Sepeti backend'den çek
+  //
+  // ⭐ DEĞİŞTİ — cevap artık düz dizi değil, { kalemler, ozet } nesnesi.
+  //
+  // Özet ayrı bir uçtan da gelebilirdi ama o zaman kalemler ile özet
+  // FARKLI ANLARIN verisi olurdu: arada adet değişirse ekranda 3 ürün
+  // görünürken toplam 2 ürünün olurdu. Tek istek, tek an.
   async function sepetiYukle() {
+    const sira = ++yuklemeSirasiRef.current;
+
     try {
       const veri = await apiGet('/cart');
-      setSepet(veri);
+
+      // Biz cevabı beklerken daha yeni bir istek yola çıktıysa bu
+      // cevap bayat — yok say.
+      if (sira !== yuklemeSirasiRef.current) {
+        return;
+      }
+
+      // ?? ile savunuyoruz: cevap beklenmedik bir şekilde eski
+      // (dizi) formatta gelirse kalemler undefined olur ve ekran
+      // "sepet.map is not a function" ile çöker. Boş sepet göstermek
+      // çökmekten iyidir.
+      setSepet(veri.kalemler ?? []);
+      setSunucuOzeti(veri.ozet ?? null);
     } catch (hata) {
       console.log('Sepet alınamadı:', hata.message);
     } finally {
@@ -97,6 +191,21 @@ export function SepetProvider({ children }) {
         productId: item.productId,
         quantity: yeniAdet,
       });
+
+      // ⭐ YENİ — başarıda da sepeti yeniden çekiyoruz.
+      //
+      // ⚠️ İYİMSER GÜNCELLEME KORUNDU: yukarıdaki setSepet ekranı
+      // ANINDA değiştirdi, kullanıcı beklemiyor. Buradaki çağrı
+      // arkadan gelip ÖZETİ tazeliyor.
+      //
+      // Neden şart? Kargo eşiği artık toplama bağlı ve o hesap
+      // sunucuda. Adet düşünce "kargo bedava" rozeti sessizce
+      // yanlışa dönerdi — müşteri bedava kargo görüp ücretli öderdi.
+      //
+      // Özeti burada elle düzeltmek (kargoyu kendimiz hesaplamak)
+      // seçenek değildi: aynı formülün ikinci bir kopyası olurdu ve
+      // eşik kuralı değiştiğinde biri güncellenip diğeri unutulurdu.
+      await sepetiYukle();
     } catch (hata) {
       console.log('Adet güncellenemedi:', hata.message);
       await sepetiYukle(); // hata olursa gerçek durumu geri yükle
@@ -108,6 +217,10 @@ export function SepetProvider({ children }) {
     setSepet((onceki) => onceki.filter((s) => s.id !== item.id));
     try {
       await apiDelete('/cart/' + item.id);
+
+      // ⭐ YENİ — adet güncellemedeki sebebin aynısı: ürün çıkınca
+      // tutar düşer ve kargo ücretli hale gelmiş olabilir.
+      await sepetiYukle();
     } catch (hata) {
       console.log('Silinemedi:', hata.message);
       await sepetiYukle();
@@ -117,6 +230,7 @@ export function SepetProvider({ children }) {
   // Sipariş sonrası sepeti temizle (backend zaten temizliyor, biz ekranı senkronlarız)
   function sepetiSifirla() {
     setSepet([]);
+    setSunucuOzeti(null);   // ⭐ YENİ — boş sepetin özeti de yok
 
     // ⭐ YENİ — kuponu da bırak.
     // Sipariş verildi, kupon TÜKETİLDİ. Bırakmasaydık bir sonraki
@@ -161,10 +275,48 @@ export function SepetProvider({ children }) {
   //    0'ı geçerli bir değer olarak kabul eder.
   const indirimTutari = kupon?.indirim ?? 0;
 
-  // Math.max ile 0'ın altına inmesini engelliyoruz.
-  // Sunucu zaten indirimin sepeti aşmasına izin vermiyor ama
-  // ekranda negatif tutar görünmesi ihtimalini tamamen kapatıyoruz.
-  const odenecekTutar = Math.max(0, toplamTutar - indirimTutari);
+  // ⭐ YENİ — EKRANLARIN KULLANACAĞI GEÇERLİ ÖZET
+  //
+  // İki kaynak var ve hangisinin geçerli olduğu kuponun varlığına
+  // bağlı:
+  //   • kupon YOKSA  → GET /cart özeti (indirim 0 ile hesaplandı)
+  //   • kupon VARSA  → /coupons/dogrula özeti (indirim dahil)
+  //
+  // ⚠️ İkisini KARIŞTIRMIYORUZ. "Ara toplamı sepetten, kargoyu
+  // kupondan al" gibi bir birleştirme cazip ama yanlış: değerler
+  // birbirine bağlı (kargo, indirimli tutara bakıyor). Farklı
+  // anlardan gelen parçaları birleştirmek, hiçbir isteğin
+  // döndürmediği bir toplam üretirdi.
+  //
+  // Türetilmiş değer — ayrı state yok, kaynaklar değişince
+  // kendiliğinden tazeleniyor.
+  const ozet = kupon
+    ? {
+        araToplam: kupon.araToplam,
+        kargoUcreti: kupon.kargoUcreti,
+        toplam: kupon.toplam,
+        ucretsizKargoyaKalan: kupon.ucretsizKargoyaKalan,
+        ucretsizKargoKazanildi: kupon.ucretsizKargoKazanildi,
+      }
+    : sunucuOzeti;
+
+  // ⭐ YENİ — kupon, ücretsiz kargoyu ELİNDEN ALDI MI?
+  //
+  // Sepet 550 TL, eşik 500 TL → kargo bedava. Müşteri 100 TL'lik
+  // kupon uygularsa indirimli tutar 450'ye düşer ve kargo geri gelir.
+  // İndirim 100, kargo 49,90 → net kazanç yine var ama beklenen
+  // tutar tutmaz.
+  //
+  // Bunu söylemezsek müşteri "indirim uyguladım, toplam neden
+  // düştüğü kadar düşmedi?" der. Sürpriz fiyat, sepet terk etmenin
+  // bir numaralı sebebi.
+  //
+  // ⚠️ UYARI DEĞİL BİLGİ: müşteri yanlış bir şey yapmadı, kupon
+  // geçerli ve hâlâ kârlı. Sadece ne olduğunu açıklıyoruz.
+  const kuponKargoyuUcretliYapti =
+    kupon !== null &&
+    sunucuOzeti?.ucretsizKargoKazanildi === true &&
+    kupon.kargoUcreti > 0;
 
 
   // ---------- KUPON İŞLEMLERİ ----------
@@ -191,11 +343,8 @@ export function SepetProvider({ children }) {
       // Sepet tutarını göndermiyoruz — sunucu kendi DB'sinden okuyor.
       const veri = await apiPost('/coupons/dogrula', { code: temizKod });
 
-      setKupon({
-        kod: veri.kod,
-        aciklama: veri.aciklama,
-        indirim: veri.indirim,
-      });
+      // ⭐ DEĞİŞTİ — artık kargo alanlarını da saklıyoruz.
+      setKupon(kuponaCevir(veri));
 
       return { basarili: true, mesaj: veri.mesaj };
     } catch (hata) {
@@ -281,12 +430,13 @@ export function SepetProvider({ children }) {
         // Cevap geldi ama bu arada effect temizlendiyse yok say
         if (iptal) return;
 
-        // Hâlâ geçerli — indirim tutarını tazele
-        setKupon({
-          kod: veri.kod,
-          aciklama: veri.aciklama,
-          indirim: veri.indirim,
-        });
+        // Hâlâ geçerli — indirimi VE kargo özetini tazele.
+        //
+        // ⭐ Bu çağrı artık ikinci bir iş daha yapıyor: sepet
+        // değiştiğinde kuponlu özeti de güncelliyor. Kupon varken
+        // ayrıca /cart'a gitmemizi gereksiz kılıyor — zaten bu cevap
+        // indirimli ve kargolu nihai tutarı taşıyor.
+        setKupon(kuponaCevir(veri));
       } catch (hata) {
         if (iptal) return;
 
@@ -336,10 +486,13 @@ export function SepetProvider({ children }) {
         kuponYukleniyor,
         kuponUyari,
         indirimTutari,
-        odenecekTutar,
         kuponUygula,
         kuponuKaldir,
         kuponUyariyiTemizle,
+
+        // ⭐ YENİ — kargo dahil özet
+        ozet,
+        kuponKargoyuUcretliYapti,
       }}
     >
       {children}

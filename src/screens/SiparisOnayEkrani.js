@@ -44,14 +44,21 @@ export default function SiparisOnayEkrani({ route, navigation }) {
 
   const {
     sepet,
-    toplamTutar,
     sepetiSifirla,
 
     // ⭐ YENİ — kupon bilgileri
     kupon,
     indirimTutari,
-    odenecekTutar,
     kuponuKaldir,
+
+    // ⭐ YENİ — kargo dahil özet.
+    //
+    // Kupon uygulanmışsa bu değerler /coupons/dogrula cevabından
+    // geliyor (kargoUcreti + yeniToplam), uygulanmamışsa /cart
+    // cevabından. İkisi de sunucu hesabı — bu ekranda hiçbir para
+    // aritmetiği yapmıyoruz.
+    ozet,
+    kuponKargoyuUcretliYapti,
   } = useSepet();
 
   const styles = stilOlustur(renkler);
@@ -194,6 +201,14 @@ export default function SiparisOnayEkrani({ route, navigation }) {
         araToplam: sonuc.araToplam,
         indirim: sonuc.indirim,
         kuponKodu: sonuc.kuponKodu,
+
+        // ⭐ YENİ — kargo ücreti.
+        //
+        // Olmadan başarı ekranındaki döküm TUTMUYOR: ara toplam
+        // eksi indirim, ödenen tutarı vermiyor. Müşteri sipariş
+        // verdikten sonra hesabın tutmadığını görürse, doğru olsa
+        // bile güveni sarsılır.
+        kargoUcreti: sonuc.kargoUcreti,
       });
     } catch (hata) {
       setGonderiliyor(false);
@@ -369,31 +384,69 @@ export default function SiparisOnayEkrani({ route, navigation }) {
       </ScrollView>
 
       <View style={styles.altBar}>
-        {/* ⭐ YENİ — İndirim varsa döküm göster, yoksa tek satır.
-            "İndirim: 0,00 ₺" yazmak gereksiz gürültü olurdu. */}
-        {indirimTutari > 0 && (
-          <>
-            <View style={styles.ozetSatir}>
-              <Text style={styles.ozetEtiket}>Ara toplam</Text>
-              <Text style={styles.ozetDeger}>{paraBicimle(toplamTutar)}</Text>
-            </View>
+        {/* ⭐ YENİ — KUPON KARGOYU ÜCRETLİ YAPTIYSA BİLGİ
 
-            <View style={styles.ozetSatir}>
-              <Text style={styles.ozetEtiket}>İndirim</Text>
-              <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
-                −{paraBicimle(indirimTutari)}
-              </Text>
-            </View>
+            ⚠️ UYARI DEĞİL, BİLGİ. Renk olarak "uyari" değil "yaziOrta"
+            kullanıyoruz ve ünlem ikonu yok — müşteri yanlış bir şey
+            yapmadı, kupon geçerli ve hâlâ kârlı. Turuncu bir uyarı
+            kutusu "bir sorun var, kuponu kaldırayım mı?" dedirtirdi.
 
-            <View style={styles.ayirac} />
-          </>
+            Ama sessiz de kalamayız: müşteri 100 TL indirim uygulayıp
+            toplamın 50 TL düştüğünü görürse hesabın yanlış olduğunu
+            düşünür. Sebebini söylemek güveni koruyor.
+
+            Özetin ÜSTÜNDE duruyor ki rakamlar okunmadan önce bağlam
+            verilmiş olsun. */}
+        {kuponKargoyuUcretliYapti && (
+          <View style={styles.kargoBilgi}>
+            <Ionicons name="information-circle-outline" size={16} color={renkler.yaziOrta} />
+            <Text style={styles.kargoBilgiYazi}>
+              Kupon sonrası tutar ücretsiz kargo limitinin altında kaldı.
+            </Text>
+          </View>
         )}
+
+        {/* ⭐ DEĞİŞTİ — SEPET EKRANIYLA AYNI ÜÇ SATIRLIK ÖZET.
+
+            Eskiden döküm sadece indirim varken açılıyor, yoksa tek
+            satır toplam gösteriliyordu. Kargo girince o kısayol
+            kullanılamaz oldu: kargo indirimden bağımsız olarak her
+            siparişte var ve gösterilmesi gerekiyor.
+
+            İki ekranın AYNI satırları göstermesi bilinçli. Müşteri
+            sepette gördüğü dökümü burada da görmezse "arada bir şey
+            mi değişti?" diye düşünür. */}
+        <View style={styles.ozetSatir}>
+          <Text style={styles.ozetEtiket}>Ara toplam</Text>
+          <Text style={styles.ozetDeger}>{paraBicimle(ozet?.araToplam ?? 0)}</Text>
+        </View>
+
+        {indirimTutari > 0 && (
+          <View style={styles.ozetSatir}>
+            <Text style={styles.ozetEtiket}>İndirim</Text>
+            <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
+              −{paraBicimle(indirimTutari)}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.ozetSatir}>
+          <Text style={styles.ozetEtiket}>Kargo</Text>
+
+          {ozet && ozet.kargoUcreti > 0 ? (
+            <Text style={styles.ozetDeger}>{paraBicimle(ozet.kargoUcreti)}</Text>
+          ) : (
+            <Text style={[styles.ozetDeger, { color: renkler.basari }]}>Ücretsiz</Text>
+          )}
+        </View>
+
+        <View style={styles.ayirac} />
 
         <View style={styles.toplamSatir}>
           <Text style={styles.toplamEtiket}>
             {indirimTutari > 0 ? 'Ödenecek' : 'Toplam'}
           </Text>
-          <Text style={styles.toplamTutar}>{paraBicimle(odenecekTutar)}</Text>
+          <Text style={styles.toplamTutar}>{paraBicimle(ozet?.toplam ?? 0)}</Text>
         </View>
 
         <TouchableOpacity
@@ -535,6 +588,28 @@ const stilOlustur = (renkler) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+  },
+
+  /* ⭐ YENİ — kupon sonrası kargo bilgisi.
+
+     Kenarlık ve dolgu rengi YOK, sadece hafif bir arka plan. Uyarı
+     kutularındaki sol kenar çizgisini bilerek kullanmadık: o çizgi
+     bu projede "dikkat et" demek, buradaki mesaj ise sadece açıklama. */
+  kargoBilgi: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: renkler.acikKart,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  kargoBilgiYazi: {
+    flex: 1,
+    fontSize: 12,
+    color: renkler.yaziOrta,
+    lineHeight: 17,
   },
   ozetEtiket: {
     fontSize: 14,
