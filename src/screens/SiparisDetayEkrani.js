@@ -330,6 +330,53 @@ export default function SiparisDetayEkrani({ route, navigation }) {
           </Text>
           <Text style={styles.toplamTutar}>{paraBicimle(siparis.total)}</Text>
         </View>
+
+        {/* ⭐ YENİ — KDV KIRILIMI
+
+            ⚠️ TOPLAMIN ALTINDA — bilinçli, admin panelindekiyle aynı
+            sebep. Yukarıdaki satırlar toplama GİDEN adımlar; KDV ise
+            toplama hiçbir şey EKLEMİYOR. Fiyatlar KDV dahil olduğu için
+            vergi zaten ödenen rakamın içinde.
+
+            Üste koysaydık müşteri onu da eklenen bir kalem sanar,
+            "ürünler + kargo + KDV mi ödedim?" diye düşünürdü. Sürpriz
+            fiyat algısı, gerçek bir fiyat artışı kadar zarar verir.
+
+            ⚠️ hasVatBreakdown false ise blok HİÇ çizilmiyor. Bu özellik
+            eklenmeden önceki siparişlerde oran bilinmiyor; "KDV: 0,00 ₺"
+            yazmak eksik değil YANLIŞ bilgi olurdu — o siparişte vergi
+            alınmadığını iddia ederdi.
+
+            ⚠️ Sunucunun gönderdiği bayrağa bakıyoruz, "vatLines.length"e
+            değil. Karar sunucuda veriliyor ki üç ekran aynı koşulu ayrı
+            ayrı yazıp birinde yanlış yapmasın. */}
+        {siparis.hasVatBreakdown && (
+          <View style={styles.kdvBlok}>
+            <Text style={styles.kdvBaslik}>KDV dahil</Text>
+
+            {siparis.vatLines.map((s) => (
+              <View style={styles.kdvSatir} key={s.rate}>
+                <Text style={styles.kdvEtiket}>
+                  KDV %{s.rate} (matrah {paraBicimle(s.netAmount)})
+                </Text>
+                <Text style={styles.kdvDeger}>{paraBicimle(s.vatAmount)}</Text>
+              </View>
+            ))}
+
+            {/* Toplam satırı SADECE birden fazla oran varsa.
+                Tek oranda üstteki satırla birebir aynı sayı olurdu —
+                aynı bilgiyi iki kez göstermek okuyanı "acaba farklı bir
+                şey mi?" diye durdurur. */}
+            {siparis.vatLines.length > 1 && (
+              <View style={styles.kdvSatir}>
+                <Text style={styles.kdvEtiket}>Toplam KDV</Text>
+                <Text style={styles.kdvDeger}>
+                  {paraBicimle(siparis.totalVat)}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -532,5 +579,52 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: renkler.anaRenk
+  },
+
+  /* ⭐ YENİ — KDV kırılımı.
+
+     Toplamın altında ve belirgin şekilde daha silik: bu bir
+     bilgilendirme, ödenen tutara giren bir kalem değil. Aynı punto ve
+     renkte olsaydı toplanan bir satır gibi okunurdu.
+
+     Üstteki ayraç kesikli DEĞİL çünkü React Native'de borderStyle
+     'dashed' Android'de güvenilir çalışmıyor (yuvarlatılmış köşelerle
+     birlikte hiç çizilmiyor). Aynı ayrımı incelik ve boşlukla
+     veriyoruz — admin panelde kesikli çizgi kullanabildik, burada
+     platform izin vermiyor. */
+  kdvBlok: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: renkler.kenarlik
+  },
+
+  kdvBaslik: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: renkler.yaziGri,
+    marginBottom: 6,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase'
+  },
+
+  kdvSatir: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+
+  kdvEtiket: {
+    flex: 1,
+    fontSize: 12,
+    color: renkler.yaziGri,
+    marginRight: 8
+  },
+
+  kdvDeger: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: renkler.yaziOrta
   }
 });
