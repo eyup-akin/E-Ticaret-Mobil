@@ -8,6 +8,8 @@ import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
 import { useAuth } from '../context/AuthContext';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ (5.1) — ortak adet kontrolü
+import AdetKontrolu from '../components/AdetKontrolu';
 import UrunGaleri from '../components/UrunGaleri';
 import YorumBolumu from '../components/YorumBolumu';
 import Yildizlar from '../components/Yildizlar';
@@ -29,13 +31,17 @@ export default function UrunDetayEkrani({ route, navigation }) {
   const { favoriMi, favoriDegistir } = useFavorite();
   const { token } = useAuth();
   const { renkler } = useTema();
-  const { sepeteEkle } = useSepet();
+  const { sepet, sepeteEkle } = useSepet();
   const styles = stilOlustur(renkler);
 
   const [urun, setUrun] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
-  const [islemde, setIslemde] = useState(false);
-  const [eklendi, setEklendi] = useState(false);
+  // ⭐ DEĞİŞTİ — "islemde" ve "eklendi" kaldırıldı.
+  // O ikisi eski tek butonun durumuydu; sepete ekleme artık
+  // AdetKontrolu bileşeninin içinde ve kendi durumunu kendi
+  // tutuyor. Burada bırakmak, hiçbir şeyi kontrol etmeyen iki
+  // state demekti.
+  const [simdiAlIslemde, setSimdiAlIslemde] = useState(false);
 
   // ⭐ YENİ — açıklama tamamen açık mı?
   //
@@ -58,17 +64,44 @@ export default function UrunDetayEkrani({ route, navigation }) {
 
   useEffect(() => { urunuGetir(); }, [urunId]);
 
-  async function sepeteEkleButonu() {
-    if (!token) { navigation.navigate('Giris'); return; }
+  // ⭐ YENİ (5.2) — ŞİMDİ AL
+  //
+  // Sepete ekler ve sepet ekranına gider. Ayrı bir ödeme akışı
+  // DEĞİL — stok/kupon/toplam mantığının ikinci kopyası olurdu.
+  //
+  // ⚠️ Ürün SEPETTE ZATEN VARSA tekrar eklemiyoruz, doğrudan
+  // sepete gidiyoruz. Eklemek adedi sessizce artırırdı ve
+  // kullanıcı "1 tane istemiştim, 2 oldu" derdi.
+  async function simdiAl() {
+    if (!token) {
+      navigation.navigate('Giris');
+      return;
+    }
+
     try {
-      setIslemde(true);
-      await sepeteEkle(urun.id, 1);
-      setEklendi(true);
-      setTimeout(() => setEklendi(false), 2000);
+      setSimdiAlIslemde(true);
+
+      // ⚠️ Buton zaten sepetteyken görünmüyor ama kontrolü
+      // burada da tutuyoruz: iki hızlı dokunuş arasında sepet
+      // değişmiş olabilir ve ikinci dokunuş adedi sessizce
+      // artırırdı.
+      if (!sepetteVar) {
+        await sepeteEkle(urun.id, 1);
+      }
+
+      // ⚠️ SEKME ADI 'Sepet', 'Sepetim' DEĞİL.
+      //
+      // 'Sepetim' ekranda GÖRÜNEN başlık (Tab.Screen options.title);
+      // gezinme ise ROTA ADIYLA yapılır. İkisini karıştırınca
+      // React Navigation "böyle bir ekran yok" diyor.
+      //
+      // İç içe gezinme: önce sekme, sonra o sekmenin içindeki ekran.
+      // Sepet sekmesi bir stack ve ilk ekranı SepetMain.
+      navigation.navigate('Sepet', { screen: 'SepetMain' });
     } catch (hata) {
       Alert.alert('Hata', hata.message);
     } finally {
-      setIslemde(false);
+      setSimdiAlIslemde(false);
     }
   }
 
@@ -85,6 +118,27 @@ export default function UrunDetayEkrani({ route, navigation }) {
   }
 
   const favori = favoriMi(urun.id);
+
+  // ⭐ YENİ — sunucudan gelen stok DURUMU (ham sayı artık gelmiyor).
+  //
+  // ⚠️ "=== 'yok'" yazıyoruz, "!== 'var'" değil.
+  // Alan hiç gelmezse (eski API sürümü) undefined olur; "!== 'var'"
+  // yazsaydık ürün tükenmiş görünür ve "Sepete Ekle" butonu kilitli
+  // kalırdı. Açıkça "yok" denmedikçe ürün satılabilir sayılıyor —
+  // asıl stok kilidi zaten sunucuda, sipariş anındaki atomik UPDATE'te.
+  const tukendi = urun.stokDurumu === 'yok';
+  const azKaldi = urun.stokDurumu === 'az';
+
+  // ⭐ YENİ — ürün sepette mi?
+  //
+  // "Şimdi Al" yalnızca ürün HENÜZ SEPETTE DEĞİLKEN anlamlı: işi
+  // "sepete at ve sepete git". Ürün zaten sepetteyse o buton
+  // "sadece sepete git" demek olurdu ve alt sekmedeki Sepetim ile
+  // aynı işi yapardı — aynı işi yapan iki düğme koymuyoruz.
+  //
+  // Türetilmiş değer, ayrı state yok: sepet değişince kendiliğinden
+  // yeniden hesaplanıyor.
+  const sepetteVar = sepet.some((s) => s.productId === urun.id);
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
@@ -130,8 +184,23 @@ export default function UrunDetayEkrani({ route, navigation }) {
             </View>
           </View>
 
-          <Text style={urun.stock > 0 ? styles.stokVar : styles.stokYok}>
-            {urun.stock > 0 ? 'Stokta ' + urun.stock + ' adet var' : 'Tükendi'}
+          {/* ⭐ DEĞİŞTİ — ham stok sayısı yerine üç durumlu metin.
+
+              Eskiden "Stokta 847 adet var" yazıyordu. İki sorun:
+              rakip stok takibi yapabiliyordu ve büyük sayı aciliyeti
+              öldürüyordu. Artık sunucu üç durumdan birini gönderiyor
+              ve tam sayı yalnızca eşiğin altındayken (kalanAdet)
+              geliyor. */}
+          <Text
+            style={
+              tukendi ? styles.stokYok : azKaldi ? styles.stokAz : styles.stokVar
+            }
+          >
+            {tukendi
+              ? 'Tükendi'
+              : azKaldi
+              ? `Son ${urun.kalanAdet} ürün`
+              : 'Stokta var'}
           </Text>
         </View>
 
@@ -197,25 +266,49 @@ export default function UrunDetayEkrani({ route, navigation }) {
           <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.sepetButon, urun.stock === 0 && styles.sepetButonPasif, eklendi && styles.sepetButonEklendi]}
-          onPress={sepeteEkleButonu}
-          disabled={islemde || urun.stock === 0 || eklendi}
-        >
-          {islemde ? (
-            <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-          ) : eklendi ? (
-            <View style={styles.eklendiKutu}>
-              <Ionicons name="checkmark" size={20} color={renkler.anaRenkUstuYazi} />
-              <Text style={styles.sepetYazi}>  Eklendi</Text>
-            </View>
-          ) : (
-            <>
-              <Ionicons name="cart-outline" size={20} color={renkler.anaRenkUstuYazi} />
-              <Text style={styles.sepetYazi}>  {urun.stock === 0 ? 'Stokta Yok' : 'Sepete Ekle'}</Text>
-            </>
+        {/* ⭐ DEĞİŞTİ (5.1 + 5.2) — tek buton yerine iki eylem.
+
+            ÜSTTE  : Şimdi Al   → sepete ekler + sepete gider
+            ALTTA  : AdetKontrolu → sepete ekle / − [n] +
+
+            ⚠️ "Şimdi Al" AYRI BİR ÖDEME AKIŞI DEĞİL.
+            Sepete ekleyip sepet ekranına gidiyor. Ayrı bir akış
+            yazmak stok, kupon ve toplam mantığının ikinci bir
+            kopyası olurdu — üçü de zaten sepet üzerinden çalışıyor
+            ve ikiye ayrılan her kural er ya da geç ayrışıyor. */}
+        <View style={styles.eylemler}>
+          {/* ⭐ DEĞİŞTİ — "Şimdi Al" ÖNE alındı.
+
+              Sıra: kestirme yol solda, asıl eylem sağda. Türkiye'deki
+              e-ticaret uygulamalarında sepete ekleme sağdaki baskın
+              buton; kullanıcı baş parmağıyla oraya uzanıyor. */}
+          {!tukendi && !sepetteVar && (
+            <TouchableOpacity
+              style={styles.simdiAlButon}
+              onPress={simdiAl}
+              disabled={simdiAlIslemde}
+              activeOpacity={0.85}
+            >
+              {simdiAlIslemde ? (
+                <ActivityIndicator size="small" color={renkler.anaRenk} />
+              ) : (
+                <Text style={styles.simdiAlYazi}>Şimdi Al</Text>
+              )}
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+
+          {/* ⭐ DEĞİŞTİ — sarmalayıcıya flex: 1.
+
+              AdetKontrolu'nun kendi kökü içeriğe göre boyutlanıyor;
+              esneme kararını KULLANAN taraf veriyor. Bileşenin
+              içine flex koysaydık, onu dar bir yerde kullanmak
+              istediğimizde (ürün kartı) orayı da zorlardı.
+
+              Bu satır olmadan sağda boş alan kalıyordu. */}
+          <View style={styles.adetSarmal}>
+            <AdetKontrolu urun={urun} boyut="buyuk" />
+          </View>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -298,6 +391,50 @@ const stilOlustur = (renkler) => StyleSheet.create({
   stokVar: { fontSize: 15, color: renkler.basari, fontWeight: '600' },
   stokYok: { fontSize: 15, color: renkler.yaziGri, fontWeight: '600' },
 
+  /* ⭐ YENİ — az kaldı hali. Turuncu "acele et" der; yeşil (rahat ol)
+     ile gri (yok) arasındaki üçüncü durum. */
+  stokAz: { fontSize: 15, color: renkler.uyari, fontWeight: '600' },
+
+  /* ⭐ YENİ (5.1/5.2) — alt bardaki iki eylem.
+
+     AdetKontrolu esneyerek genişliyor (flex: 1 alt bileşenden
+     gelmiyor, buradaki sarmalayıcı veriyor), "Şimdi Al" sabit
+     genişlikte kalıyor. Böylece adet 2 haneye çıkınca kontrol
+     büyümüyor, düzen zıplamıyor. */
+  eylemler: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  /* Sepete ekleme / adet kontrolü kalan alanı doldursun.
+     Şimdi Al sabit genişlikte kalıyor. */
+  adetSarmal: {
+    flex: 1,
+  },
+
+  /* "Şimdi Al" İKİNCİL görünümde: çerçeveli, dolgusuz.
+
+     ⚠️ İki dolu buton yan yana durursa hangisinin asıl eylem
+     olduğu belirsizleşir. Sepete ekleme birincil (dolu mavi),
+     "Şimdi Al" ise kestirme yol — ikincil. */
+  simdiAlButon: {
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: renkler.anaRenk,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  simdiAlYazi: {
+    color: renkler.anaRenk,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
   yorumKart: {
     backgroundColor: renkler.kartArka,
     marginHorizontal: 12,
@@ -319,17 +456,4 @@ const stilOlustur = (renkler) => StyleSheet.create({
   fiyatKutu: { marginRight: 14 },
   fiyatEtiket: { fontSize: 12, color: renkler.yaziGri },
   fiyat: { fontSize: 20, fontWeight: 'bold', color: renkler.anaRenk },
-  sepetButon: {
-    flex: 1,
-    height: 52,
-    borderRadius: 12,
-    backgroundColor: renkler.anaRenk,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sepetButonPasif: { backgroundColor: renkler.pasif },
-  sepetButonEklendi: { backgroundColor: renkler.basari },
-  eklendiKutu: { flexDirection: 'row', alignItems: 'center' },
-  sepetYazi: { color: renkler.anaRenkUstuYazi, fontSize: 16, fontWeight: 'bold' },
 });

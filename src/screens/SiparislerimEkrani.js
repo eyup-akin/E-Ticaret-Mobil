@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Platform, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,27 @@ import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 import AramaCubugu from '../components/AramaCubugu';
 import { durumYazisi, durumRengi, odemeYazisi, odemeRengi } from '../utils/durum';   // ⭐
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';                     // ⭐
+// ⭐ YENİ — tasarım sistemi ölçüleri. Bu dosyanın ESKİ stilleri hâlâ ham
+// sayı kullanıyor; sadece yeni eklenen durum şeridi token'a bağlandı.
+import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+
+// ⭐ YENİ — DURUM ŞERİDİNİN SIRASI VE ETİKETLERİ
+//
+// ⚠️ Sipariş yaşam döngüsü sırasında: hazırlanıyor → kargoda →
+// teslim edildi, sonra iptal. Alfabetik veya sayıya göre sıralamak
+// müşterinin zihnindeki akışı bozardı.
+//
+// ⚠️ Anahtarlar sunucunun döndürdüğü alan adları; Order.Status
+// kodlarıyla (durum.js) birebir aynı olmak ZORUNDA değil çünkü
+// sunucu camelCase'e çeviriyor (teslim_edildi → teslimEdildi).
+// O yüzden ikisini burada AÇIKÇA eşleştiriyoruz — birini değiştirip
+// diğerini unutmak, sayacın hep 0 görünmesine yol açardı.
+const DURUMLAR = [
+  { ozetAnahtari: 'hazirlaniyor', durumKodu: 'hazirlaniyor', etiket: 'Hazırlanıyor' },
+  { ozetAnahtari: 'kargoda', durumKodu: 'kargoda', etiket: 'Kargoda' },
+  { ozetAnahtari: 'teslimEdildi', durumKodu: 'teslim_edildi', etiket: 'Teslim Edildi' },
+  { ozetAnahtari: 'iptal', durumKodu: 'iptal', etiket: 'İptal' },
+];
 
 export default function SiparislerimEkrani({ navigation }) {
   const { token } = useAuth();
@@ -20,12 +41,48 @@ export default function SiparislerimEkrani({ navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
 
+  // ⭐ YENİ — durum sayaçları (sunucudan) ve seçili filtre.
+  //
+  // ⚠️ SAYILAR SUNUCUDAN GELİYOR, LİSTEDEN SAYILMIYOR.
+  // Sipariş listesi ileride sayfalanacak; elimizdeki diziyi
+  // gruplayıp saysaydık yalnızca YÜKLENMİŞ sayfayı sayardık ve
+  // "Teslim Edildi (5)" yazarken gerçekte 40 tane olurdu. Rakam
+  // patlamaz, sessizce yanlış çıkardı.
+  const [ozet, setOzet] = useState(null);
+
+  // null = "Tümü". Durum kodu tutuluyor (teslim_edildi gibi).
+  const [seciliDurum, setSeciliDurum] = useState(null);
+
   async function siparisleriGetir() {
     try {
-      const veri = await apiGet('/orders');
-      setSiparisler(veri);
-    } catch (hata) {
-      console.log('Siparişler alınamadı:', hata.message);
+      // ⚠️ İki istek PARALEL, arka arkaya değil — aralarında
+      // bağımlılık yok, sıralı yapsaydık ekran toplam süre kadar
+      // beklerdi.
+      //
+      // ⚠️ allSettled, all DEĞİL.
+      //
+      // Promise.all kullansaydık özet ucu patladığında SİPARİŞ
+      // LİSTESİ DE düşerdi — müşteri, tamamen çalışan siparişlerini
+      // sırf sayaç şeridi yüzünden göremezdi. Özet bir SÜStür, liste
+      // asıl içeriktir; süsün hatası içeriği götürmemeli.
+      //
+      // Özet gelmezse ozet null kalıyor ve şerit hiç çizilmiyor.
+      const [listeSonuc, ozetSonuc] = await Promise.allSettled([
+        apiGet('/orders'),
+        apiGet('/orders/durum-ozeti'),
+      ]);
+
+      if (listeSonuc.status === 'fulfilled') {
+        setSiparisler(listeSonuc.value);
+      } else {
+        console.log('Siparişler alınamadı:', listeSonuc.reason?.message);
+      }
+
+      if (ozetSonuc.status === 'fulfilled') {
+        setOzet(ozetSonuc.value);
+      } else {
+        console.log('Durum özeti alınamadı:', ozetSonuc.reason?.message);
+      }
     } finally {
       setYukleniyor(false);
     }
@@ -38,8 +95,17 @@ export default function SiparislerimEkrani({ navigation }) {
     }, [token])
   );
 
+  // ⭐ YENİ — önce durum filtresi, sonra arama.
+  //
+  // İkisi BİRLİKTE çalışıyor: "Kargoda" seçiliyken arama yapmak
+  // yalnızca kargodakiler içinde arar. Arama seçili durumu sıfırlasaydı
+  // müşteri neden farklı sonuç gördüğünü anlamazdı.
+  const durumFiltreli = seciliDurum
+    ? siparisler.filter((s) => s.status === seciliDurum)
+    : siparisler;
+
   const filtreliSiparisler = aramaMetni
-    ? siparisler.filter((s) => {
+    ? durumFiltreli.filter((s) => {
         const kelime = aramaMetni.toLowerCase();
         // Numara harf içeriyor (SP-260724-4821), o yüzden karşılaştırmadan
         // önce küçük harfe çeviriyoruz. Kullanıcı "sp-2607" de yazsa,
@@ -50,7 +116,7 @@ export default function SiparislerimEkrani({ navigation }) {
         const urunEslesme = s.items.some((u) => u.productName.toLowerCase().includes(kelime));
         return noEslesme || urunEslesme;
       })
-    : siparisler;
+    : durumFiltreli;
 
   function siparisKarti({ item }) {
     const rozetR = durumRengi(item.status, renkler);
@@ -112,6 +178,64 @@ export default function SiparislerimEkrani({ navigation }) {
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <Text style={styles.baslik}>Siparişlerim</Text>
 
+      {/* ⭐ YENİ — DURUM ŞERİDİ
+
+          ⚠️ Yol haritasında bu "her durum bir satır" olarak
+          tasarlanmıştı. Referansta ayrı bir ekrandı; bizde sipariş
+          listesiyle AYNI ekranda. Dikey liste, asıl içeriği (siparişleri)
+          ekranın altına iterdi. Yatay çip şeridi aynı sayıları
+          gösteriyor ve üstüne FİLTRE işlevi kazandırıyor.
+
+          ⚠️ SAYISI 0 OLAN DURUM DA ÇİZİLİYOR ama basılamıyor.
+          "İptal (0)" görmek müşteriye "iptalim yok" der; satırın hiç
+          olmaması "burada iptal diye bir şey yok mu?" sorusunu
+          doğurur. Basılabilir bırakmak ise boş listeye götüren bir
+          çıkmaz olurdu.
+
+          Özet gelmediyse (eski API, ağ hatası) şerit hiç çizilmiyor —
+          sipariş listesi normal çalışmaya devam ediyor. */}
+      {ozet && siparisler.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.durumSerit}
+        >
+          {/* "Tümü" çipi — seçili durumdan çıkış yolu.
+              Olmasaydı müşteri bir durumu seçtikten sonra tüm
+              listeye dönmek için aynı çipe tekrar basmayı tahmin
+              etmek zorunda kalırdı. */}
+          <TouchableOpacity
+            style={[styles.cip, seciliDurum === null && styles.cipSecili]}
+            onPress={() => setSeciliDurum(null)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.cipYazi, seciliDurum === null && styles.cipYaziSecili]}>
+              Tümü ({ozet.toplam ?? 0})
+            </Text>
+          </TouchableOpacity>
+
+          {DURUMLAR.map((d) => {
+            const adet = ozet[d.ozetAnahtari] ?? 0;
+            const secili = seciliDurum === d.durumKodu;
+            const bos = adet === 0;
+
+            return (
+              <TouchableOpacity
+                key={d.durumKodu}
+                style={[styles.cip, secili && styles.cipSecili, bos && styles.cipBos]}
+                onPress={() => setSeciliDurum(d.durumKodu)}
+                disabled={bos}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.cipYazi, secili && styles.cipYaziSecili]}>
+                  {d.etiket} ({adet})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {siparisler.length > 0 && (
         <AramaCubugu
           value={aramaMetni}
@@ -159,6 +283,50 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   liste: {
     padding: 12
+  },
+
+  /* ⭐ YENİ — DURUM FİLTRE ŞERİDİ
+
+     ⚠️ Bu çipler ortak bir Chip bileşenine ÇIKARILMADI — bilerek.
+     Yol haritası Chip'i Aşama 6/7 için planlıyor ve projenin kuralı
+     şu: "kural tek yerde kullanılıyorsa orada durur, İKİNCİ tüketici
+     çıktığı an ortak yere taşınır." Bugün tek tüketici burası.
+     Filtre paneli (6.3) yazılırken buradan çıkarılacak. */
+  durumSerit: {
+    paddingHorizontal: bosluk.orta,
+    paddingTop: bosluk.orta,
+    gap: bosluk.kucuk
+  },
+  cip: {
+    paddingHorizontal: bosluk.orta,
+    paddingVertical: bosluk.kucuk,
+    borderRadius: kose.tam,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    backgroundColor: renkler.kartArka
+  },
+
+  /* Seçili çip: dolu zemin.
+     Sadece kenarlık rengini değiştirmek yetmezdi — güneş altında ve
+     küçük ekranda 1px'lik renk farkı seçilebilir bir sinyal değil. */
+  cipSecili: {
+    backgroundColor: renkler.anaRenk,
+    borderColor: renkler.anaRenk
+  },
+
+  /* Sayısı 0 olan çip: görünür ama soluk ve basılamaz.
+     Görünmesi bilgi ("iptalin yok"), soluk olması da o bilginin
+     tıklanacak bir şey OLMADIĞINI söylüyor. */
+  cipBos: {
+    opacity: 0.4
+  },
+  cipYazi: {
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
+    color: renkler.yaziOrta
+  },
+  cipYaziSecili: {
+    color: renkler.anaRenkUstuYazi
   },
   kart: {
     backgroundColor: renkler.kartArka,

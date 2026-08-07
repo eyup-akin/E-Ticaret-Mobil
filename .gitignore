@@ -43,3 +43,16 @@ yarn-error.*
 
 # Ortam değişkenleri (IP vb.) — herkesin makinesi farklı
 .env
+
+# Claude Code yapılandırması
+#
+# ⚠️ .claude/ KLASÖRÜNÜN TAMAMI YOKSAYILMAZ — bilinçli.
+#
+# Bu klasörde paylaşılması GEREKEN şeyler var:
+#   • skills/   → tasarım sistemi kuralları, token adları, "yapma"
+#                 listesi. Amacı kalıcı olmak; yoksayılırsa sadece
+#                 tek bir makinede yaşar ve temiz bir klonda kaybolur.
+#   • settings.json → takımca ortak ayarlar (eklentiler vb.)
+#
+# Yoksayılması gereken tek şey kişisel/makineye özel dosyadır:
+.claude/settings.local.json

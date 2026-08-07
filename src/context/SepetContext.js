@@ -40,6 +40,15 @@ const SepetContext = createContext({
 
   // ⭐ YENİ — kupon uygulanınca ücretsiz kargo kaybedildi mi?
   kuponKargoyuUcretliYapti: false,
+
+  // ⭐ YENİ (5.4) — sepette fiyatı değişen ürün var mı?
+  //
+  // ⚠️ BU DEĞER İSTEMCİDE HESAPLANMIYOR, SUNUCUDAN GELİYOR.
+  // "Fiyat değişti mi?" kuralı (eklenme fiyatı ile güncel fiyatın
+  // karşılaştırılması) yalnızca sunucuda yazılı. Burada ikinci kez
+  // yazsaydık biri "!=", diğeri ">" olur ve sepet ekranı ile sipariş
+  // onayı farklı şeyler söyleyebilirdi.
+  fiyatDegisenVar: false,
 });
 
 // ⭐ YENİ — /coupons/dogrula cevabını kupon state'ine çevirir.
@@ -81,6 +90,13 @@ export function SepetProvider({ children }) {
   // kargo bedava mıydı?" sorusunun cevabı burada; onay ekranındaki
   // bilgilendirme buna dayanıyor.
   const [sunucuOzeti, setSunucuOzeti] = useState(null);
+
+  // ⭐ YENİ (5.4) — GET /cart'ın "fiyatı değişen ürün var mı?" cevabı.
+  //
+  // Kalemlerle AYNI istekten geliyor; ayrı bir uçtan çekseydik liste
+  // ile bayrak farklı anların verisi olur ve "uyarı şeridi var ama
+  // hiçbir satırda uyarı yok" gibi bir ekran çıkabilirdi.
+  const [fiyatDegisenVar, setFiyatDegisenVar] = useState(false);
 
   // ⭐ YENİ — SEPET İSTEĞİ SIRA NUMARASI
   //
@@ -132,6 +148,7 @@ export function SepetProvider({ children }) {
       // öncekinin kuponu ekranda kalırdı.
       setSepet([]);
       setSunucuOzeti(null);   // ⭐ YENİ — özet de öncekine ait
+      setFiyatDegisenVar(false);  // ⭐ YENİ (5.4) — uyarı da öncekine ait
       setKupon(null);
       setKuponUyari('');
     }
@@ -165,6 +182,14 @@ export function SepetProvider({ children }) {
       // çökmekten iyidir.
       setSepet(veri.kalemler ?? []);
       setSunucuOzeti(veri.ozet ?? null);
+
+      // ⭐ YENİ (5.4)
+      //
+      // ⚠️ "=== true" yazıyoruz, doğrudan atama yapmıyoruz.
+      // Alan hiç gelmezse (eski API sürümü) undefined olur; state'e
+      // undefined koymak bileşenlerde "false mu, henüz bilinmiyor mu"
+      // ayrımını bulanıklaştırırdı. Açıkça true denmedikçe uyarı yok.
+      setFiyatDegisenVar(veri.fiyatDegisenVar === true);
     } catch (hata) {
       console.log('Sepet alınamadı:', hata.message);
     } finally {
@@ -231,6 +256,7 @@ export function SepetProvider({ children }) {
   function sepetiSifirla() {
     setSepet([]);
     setSunucuOzeti(null);   // ⭐ YENİ — boş sepetin özeti de yok
+    setFiyatDegisenVar(false);  // ⭐ YENİ (5.4) — boş sepette uyarı olmaz
 
     // ⭐ YENİ — kuponu da bırak.
     // Sipariş verildi, kupon TÜKETİLDİ. Bırakmasaydık bir sonraki
@@ -493,6 +519,9 @@ export function SepetProvider({ children }) {
         // ⭐ YENİ — kargo dahil özet
         ozet,
         kuponKargoyuUcretliYapti,
+
+        // ⭐ YENİ (5.4)
+        fiyatDegisenVar,
       }}
     >
       {children}

@@ -52,7 +52,14 @@ export default function FavorilerimEkrani({ navigation }) {
       id: item.productId,
       name: item.productName,
       price: item.productPrice,
-      stock: item.stock,
+
+      // ⭐ DEĞİŞTİ — ham stok yerine türetilmiş alanlar.
+      // Sunucu FavoriteDto'da da ProductDto ile AYNI iki alanı
+      // gönderiyor; böylece favori listesindeki kart ile ana
+      // sayfadaki kart aynı bilgiyi aynı biçimde alıyor.
+      stokDurumu: item.stokDurumu,
+      kalanAdet: item.kalanAdet,
+
       mainImageUrl: item.productImageUrl,
     };
 

@@ -6,6 +6,9 @@ import { apiGet, apiPost } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ (5.4) — tasarım sistemi ölçüleri. Bu dosyanın eski stilleri
+// ham sayı kullanıyor; yalnızca yeni eklenenler token'a bağlandı.
+import { bosluk, kose, yazi, agirlik, satir } from '../theme/olculer';
 
 
 // ⭐ YENİ — ÇİFT SİPARİŞ KORUMASI ANAHTARI ÜRETİCİSİ
@@ -59,6 +62,9 @@ export default function SiparisOnayEkrani({ route, navigation }) {
     // aritmetiği yapmıyoruz.
     ozet,
     kuponKargoyuUcretliYapti,
+
+    // ⭐ YENİ (5.4) — sepette fiyatı değişen ürün var mı?
+    fiyatDegisenVar,
   } = useSepet();
 
   const styles = stilOlustur(renkler);
@@ -80,6 +86,36 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   // yere yukarı taşımak, o veriyi ne zaman temizleyeceğin sorusunu
   // da beraberinde getirir.
   const [not, setNot] = useState('');
+
+  // ⭐ YENİ (5.4) — "yeni fiyatları kabul ediyorum" onayı.
+  //
+  // ⚠️ NEDEN SUNUCUDA DEĞİL, EKRANDA TUTULUYOR?
+  //
+  // Bu onay bir VERİ değil, bir GÖRME beyanı: "değişikliği gördüm,
+  // yine de devam ediyorum". Sunucuya yazsaydık (örneğin
+  // EklenmeFiyati'nı güncel fiyata çekerek) iki sorun çıkardı:
+  //
+  //   1) Onaydan sonra fiyat TEKRAR değişirse, müşterinin görmediği
+  //      yeni fiyat "kabul edilmiş" sayılırdı.
+  //   2) Sipariş zaten güncel fiyattan oluşuyor; sunucunun bu onaya
+  //      dayanarak alacağı farklı bir karar yok.
+  //
+  // Ekran ömrü kadar yaşıyor — sipariş verilince ekran zaten yok
+  // ediliyor (navigation.replace).
+  const [fiyatlariKabul, setFiyatlariKabul] = useState(false);
+
+  // ⚠️ ONAY, UYARI YENİDEN DOĞDUĞUNDA SIFIRLANIYOR.
+  //
+  // Müşteri onayı verdikten sonra bu ekranda beklerken sepet
+  // tazelenip fiyat bir kez daha değişebilir. Onayı taşısaydık,
+  // müşterinin HİÇ GÖRMEDİĞİ bir fiyat için verilmiş bir onayla
+  // sipariş geçerdi — onayın tek anlamı "gördüm" olduğu için bu
+  // onu tamamen değersizleştirirdi.
+  useEffect(() => {
+    if (fiyatDegisenVar) {
+      setFiyatlariKabul(false);
+    }
+  }, [fiyatDegisenVar]);
 
   // ⭐ YENİ — bu sipariş denemesinin kimliği.
   //
@@ -146,6 +182,24 @@ export default function SiparisOnayEkrani({ route, navigation }) {
     // Gerçek garanti backend'deki unique index. Ön yüz doğrulaması
     // atlanabilir (Postman), sunucu doğrulaması atlanamaz.
     if (gonderiliyor) {
+      return;
+    }
+
+    // ⭐ YENİ (5.4) — onay verilmeden sipariş geçmesin.
+    //
+    // Buton zaten disabled; bu ikinci savunma yukarıdaki çift
+    // dokunuş korumasıyla aynı sebeple var. Onay, sepet tazelenip
+    // fiyat yeniden değiştiğinde sıfırlanıyor — o sıfırlamanın
+    // render'ı ile müşterinin dokunuşu aynı ana denk gelirse
+    // dokunuş hâlâ eski (etkin) butonu görür.
+    //
+    // ⚠️ Sessizce dönmüyoruz: buton basılmış ama hiçbir şey olmamış
+    // gibi görünürse müşteri uygulamanın donduğunu sanar.
+    if (fiyatDegisenVar && !fiyatlariKabul) {
+      Alert.alert(
+        'Onay gerekli',
+        'Sepetinizdeki bazı ürünlerin fiyatı değişti. Devam etmek için yeni fiyatları kabul etmeniz gerekiyor.'
+      );
       return;
     }
 
@@ -449,10 +503,59 @@ export default function SiparisOnayEkrani({ route, navigation }) {
           <Text style={styles.toplamTutar}>{paraBicimle(ozet?.toplam ?? 0)}</Text>
         </View>
 
+        {/* ⭐ YENİ (5.4) — FİYAT DEĞİŞİKLİĞİ ONAYI
+
+            ⚠️ Neden TOPLAMIN ALTINDA, ekranın tepesinde değil?
+            Onayın konusu ödenecek tutar. Müşterinin sıralaması şu
+            olmalı: rakamı gör → değiştiğini öğren → kabul et → bas.
+            Tepeye koysaydık müşteri uyarıyı toplamı görmeden okur,
+            sonra aşağı inip rakama bakar ve uyarıyı unuturdu.
+
+            ⚠️ Bu bir Alert DEĞİL. Açılır pencere refleksle kapatılır;
+            ekranda duran ve butonu kilitleyen bir onay, kapatılamadığı
+            için okunur. */}
+        {fiyatDegisenVar && (
+          <View style={styles.fiyatUyariKutu}>
+            <View style={styles.fiyatUyariBaslikSatir}>
+              <Ionicons name="pricetag-outline" size={16} color={renkler.uyari} />
+              <Text style={styles.fiyatUyariBaslik}>
+                Sepetinizdeki bazı ürünlerin fiyatı değişti
+              </Text>
+            </View>
+
+            <Text style={styles.fiyatUyariAciklama}>
+              Sipariş yukarıdaki güncel fiyatlar üzerinden oluşturulacak.
+              Hangi ürünlerin değiştiğini sepet ekranında görebilirsiniz.
+            </Text>
+
+            {/* Onay kutusu — dokunma hedefi tüm satır.
+                Yalnızca küçük kareyi tıklanabilir yapmak, kutuyu
+                ıskalayan her dokunuşu sessizce yutardı. */}
+            <TouchableOpacity
+              style={styles.onaySatir}
+              onPress={() => setFiyatlariKabul((o) => !o)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={fiyatlariKabul ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={fiyatlariKabul ? renkler.anaRenk : renkler.yaziOrta}
+              />
+              <Text style={styles.onayYazi}>Yeni fiyatları kabul ediyorum</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ⭐ DEĞİŞTİ (5.4) — buton onay verilmeden basılamıyor.
+            Fiyat değişmemişse (fiyatDegisenVar false) koşul hiç
+            devreye girmiyor; olağan akış aynen eskisi gibi. */}
         <TouchableOpacity
-          style={styles.tamamlaButon}
+          style={[
+            styles.tamamlaButon,
+            fiyatDegisenVar && !fiyatlariKabul && styles.tamamlaButonPasif,
+          ]}
           onPress={() => siparisiTamamla(false)}
-          disabled={gonderiliyor}
+          disabled={gonderiliyor || (fiyatDegisenVar && !fiyatlariKabul)}
         >
           {gonderiliyor
             ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
@@ -645,6 +748,62 @@ const stilOlustur = (renkler) => StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+
+  /* ⭐ YENİ (5.4) — onay verilmemişken butonun hali.
+
+     ⚠️ Butonu GİZLEMİYORUZ, soluklaştırıyoruz. Gizleseydik müşteri
+     "siparişi tamamla butonu nerede?" diye arardı; soluk buton
+     "burada ama önce bir şey yapman lazım" diyor — ve yapılacak şey
+     hemen üstünde duruyor. */
+  tamamlaButonPasif: {
+    opacity: 0.45,
+  },
+
+  /* ⭐ YENİ (5.4) — fiyat değişikliği uyarı + onay kutusu.
+
+     Kenarlık uyarı renginde ama zemin nötr: kutu dikkat çekmeli,
+     bağırmamalı. Müşteri hata yapmadı — sadece bilgilendiriliyor. */
+  fiyatUyariKutu: {
+    backgroundColor: renkler.acikKart,
+    borderWidth: 1,
+    borderColor: renkler.uyari,
+    borderRadius: kose.orta,
+    padding: bosluk.orta,
+    marginBottom: bosluk.orta,
+  },
+  fiyatUyariBaslikSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+  },
+  fiyatUyariBaslik: {
+    flex: 1,
+    fontSize: yazi.normal,
+    fontWeight: agirlik.kalin,
+    color: renkler.yaziKoyu,
+  },
+  fiyatUyariAciklama: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziOrta,
+    lineHeight: satir.kucuk,
+    marginTop: bosluk.kucuk,
+  },
+
+  /* Onay satırı: dokunma hedefi tüm satır olduğu için dikey iç
+     boşluk cömert — 22px'lik kutucuk tek başına küçük bir hedef. */
+  onaySatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    marginTop: bosluk.kucuk,
+    paddingVertical: bosluk.mikro,
+  },
+  onayYazi: {
+    flex: 1,
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    color: renkler.yaziKoyu,
   },
   tamamlaYazi: {
     color: renkler.anaRenkUstuYazi,

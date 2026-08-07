@@ -10,6 +10,10 @@ import { paraBicimle } from '../utils/bicimlendir';
 // ⭐ YENİ — tasarım sistemi
 import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
 import Rozet from './Rozet';
+// ⭐ YENİ — puan şeridi için ortak bileşen (yorum ekranında da kullanılıyor).
+import Yildizlar from './Yildizlar';
+// ⭐ YENİ (5.1) — karttan doğrudan sepete ekleme
+import AdetKontrolu from './AdetKontrolu';
 
 export default function UrunKarti({ urun, onPress }) {
   const { favoriMi, favoriDegistir } = useFavorite();
@@ -20,7 +24,22 @@ export default function UrunKarti({ urun, onPress }) {
 
   const favori = favoriMi(urun.id);
   const resim = resimUrl(urun.mainImageUrl);
-  const tukendi = urun.stock <= 0;
+
+  // ⭐ DEĞİŞTİ — ham stok yerine sunucunun verdiği DURUM.
+  //
+  // ⚠️ "urun.stock" ARTIK MÜŞTERİYE GÖNDERİLMİYOR.
+  //
+  // Sunucu üç durumdan birini gönderiyor: yok / az / var. Ham sayı
+  // iki sebeple kaldırıldı: rakip stok takibi yapabiliyordu ve
+  // "Stokta 847 adet var" aciliyeti öldürüyordu.
+  //
+  // ⚠️ "=== 'yok'" yazıyoruz, "!== 'var'" değil.
+  // Alan hiç gelmezse (eski API sürümü) undefined olur; "!== 'var'"
+  // yazsaydık BÜTÜN ürünler tükenmiş görünür ve hiçbiri satın
+  // alınamazdı. Açıkça "yok" denmedikçe ürün satılabilir sayılıyor —
+  // asıl kilit zaten sunucuda.
+  const tukendi = urun.stokDurumu === 'yok';
+  const azKaldi = urun.stokDurumu === 'az';
 
   // ⭐ Puan satırı: backend averageRating + reviewCount gönderince yanacak.
   //    Şu an yorum sistemi yokken bu değerler undefined → satır görünmez.
@@ -73,32 +92,84 @@ export default function UrunKarti({ urun, onPress }) {
       <View style={styles.bilgi}>
         <Text style={styles.urunAd} numberOfLines={2}>{urun.name}</Text>
 
-        {/* ⭐ Puan satırı — sadece yorum varsa */}
-        {puanVar && (
-          <View style={styles.puanSatir}>
-            <Ionicons name="star" size={13} color="#f5a623" />
-            <Text style={styles.puanYazi}>{Number(urun.averageRating).toFixed(1)}</Text>
-            <Text style={styles.puanAdet}>({urun.reviewCount})</Text>
-          </View>
-        )}
+        {/* ⭐ DEĞİŞTİ — PUAN SATIRI ARTIK HER KARTTA VAR.
+
+            Eskiden yalnızca yorumu olan üründe çiziliyordu. Sonuç:
+            grid'de kartların bir kısmında satır var, bir kısmında
+            yok — ürün adları ve fiyatlar farklı yüksekliklerde
+            hizalanıyordu. Ayrıca puan, müşterinin karttan en çok
+            beklediği ikinci bilgi (fiyattan sonra); yokluğu
+            "bu üründe puan diye bir şey yok mu?" sorusunu doğuruyor.
+
+            ⚠️ YORUMU OLMAYAN ÜRÜNDE "0,0" YAZMIYORUZ.
+            Boş yıldızlar + "(0)" gösteriliyor. "0,0" bir PUAN
+            iddiasıdır ve ürünün kötü puan aldığını söyler; oysa
+            gerçek şu: henüz kimse puanlamamış. Aynı ayrımı KDV
+            oranında ve EklenmeFiyati'nda da yaptık — yanlış sayı,
+            eksik sayıdan tehlikelidir.
+
+            ⚠️ Tek yıldız + rakam yerine BEŞ yıldız: kullanıcı 4,5'in
+            beş üzerinden olduğunu okumak zorunda kalmıyor.
+
+            Ortak Yildizlar bileşeni kullanılıyor — buradaki eski
+            elle çizim sabit '#f5a623' rengini kartın içine
+            gömüyordu. */}
+        <View style={styles.puanSatir}>
+          <Yildizlar deger={puanVar ? urun.averageRating : 0} boyut={12} />
+
+          {puanVar && (
+            <Text style={styles.puanYazi}>
+              {Number(urun.averageRating).toFixed(1)}
+            </Text>
+          )}
+
+          <Text style={styles.puanAdet}>({urun.reviewCount ?? 0})</Text>
+        </View>
 
         <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
 
-        {/* ⭐ DEĞİŞTİ — elle kurulan "nokta + yazı" yerine ortak Rozet.
+        {/* ---------- STOK ROZETİ + SEPET BUTONU ----------
 
-            Eski hali her kartta bir View + bir Text + iki koşullu
-            renk hesabı kuruyordu. Aynı desen sipariş durumlarında da
-            tekrarlanıyor; ortak bileşene çıkarınca ikisi de tek
-            yerden değişiyor.
+            ⚠️ ROZET ARTIK İKİ DURUMLU, ÜÇ DEĞİL.
+            "Stokta var" (yeşil) hali KALDIRILDI; geriye "Son X ürün"
+            (turuncu) ve "Tükendi" (nötr) kaldı.
 
-            ⚠️ Renk artık koşullu HESAPLANMIYOR, TİP seçiliyor.
-            "tukendi ? renkler.yaziGri : renkler.basari" yazmak,
-            rengin ne anlama geldiğini çağrı yerinde saklıyordu.
-            Tip adı ("notr" / "basari") niyeti okunur kılıyor. */}
-        <Rozet
-          tip={tukendi ? 'notr' : 'basari'}
-          yazi={tukendi ? 'Tükendi' : 'Stokta var'}
-        />
+            Sebep: yeşil rozet neredeyse HER kartta çıkıyordu. Her
+            yerde görünen bir işaret hiçbir şey söylemez — göz onu
+            birkaç saniyede filtrelemeyi öğrenir ve o andan itibaren
+            AYNI yerdeki "Son 3 ürün" uyarısını da görmez olur.
+            Kıtlık sinyalini değersizleştiren şey bolluk sinyaliydi.
+
+            Ayrıca "stokta var" zaten varsayılan durum: ürün kartta
+            görünüyor ve sepete eklenebiliyorsa stoktadır. Aynı
+            bilgiyi iki kez söylüyorduk.
+
+            Kalan iki rozet varsayılandan SAPMA bildiriyor — ikisi de
+            gerçek haber değeri taşıyor. Renk hâlâ bilgi: turuncu
+            "acele et", nötr "bu bir hata değil, sadece bir durum".
+
+            ⚠️ Renk koşullu HESAPLANMIYOR, Rozet'e TİP veriliyor.
+            "tukendi ? renkler.yaziGri : renkler.uyari" yazmak,
+            rengin ne anlama geldiğini çağrı yerinde saklardı.
+
+            Sepet butonu da bu satırda: eskiden ürün görselinin sağ
+            alt köşesinde yüzüyor ve fotoğrafı kapatıyordu. Genişlik
+            hesabı ve sarmalayıcının gerekçesi altSatir / rozetSar
+            stillerinde. */}
+        <View style={styles.altSatir}>
+          <View style={styles.rozetSar}>
+            {(tukendi || azKaldi) && (
+              <Rozet
+                tip={tukendi ? 'notr' : 'uyari'}
+                yazi={tukendi ? 'Tükendi' : `Son ${urun.kalanAdet} ürün`}
+              />
+            )}
+          </View>
+
+          {/* Tükenmiş üründe bileşen null dönüyor; satırda yalnızca
+              "Tükendi" rozeti kalıyor. */}
+          <AdetKontrolu urun={urun} boyut="kart" />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -196,12 +267,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: yazi.kucuk,
     fontWeight: agirlik.kalin,
     color: renkler.yaziKoyu,
-    marginLeft: 3,
+    marginLeft: bosluk.mikro,
   },
   puanAdet: {
     fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginLeft: 3,
+    marginLeft: bosluk.mikro,
   },
 
   /* ⭐ DEĞİŞTİ — fiyat büyüdü ve renk değişti.
@@ -220,5 +291,39 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     color: renkler.yaziKoyu,
     marginBottom: bosluk.kucuk,
+  },
+
+  /* ⭐ YENİ — stok rozeti + sepet butonu satırı.
+
+     ⚠️ FİYAT BU SATIRA ALINMADI, ÜSTTE TEK BAŞINA KALDI.
+     Kart 165dp, iç boşluklar düşünce ~141dp kullanılabilir alan
+     var. "₺1.799,50" 18px kalın puntoda ~90dp, sayaç hapı ~68dp:
+     yan yana koysaydık 158dp ederdi ve taşardı. Taşmayı flex ile
+     çözseydik daralan taraf fiyat olur, karttaki en kritik bilgi
+     "₺1.799,5…" diye kırpılırdı.
+
+     Rozet ise ~72dp — hapla birlikte 140dp, sınırın içinde. */
+  altSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: bosluk.kucuk,
+  },
+
+  /* Rozetin yeri — rozet çizilmese bile duruyor.
+
+     ⚠️ flexShrink DEĞİL flex: 1.
+     "Stokta var" kaldırıldıktan sonra bu sarmalayıcı çoğu kartta
+     BOŞ kalıyor. Sadece flexShrink olsaydı boş kutu 0 genişlik alır,
+     justifyContent: 'space-between' tek çocuk (buton) ile onu SOLA
+     yaslardı. flex: 1 boşluğu doldurup butonu sağda tutuyor.
+
+     ⚠️ minWidth: 0 ŞART. Flex çocukları varsayılan olarak kendi
+     içeriklerinin altına inmeyi reddeder; bu olmadan uzun rozet
+     metni ("Son 12 ürün") sarmalayıcıyı şişirip butonu kartın
+     dışına iter. */
+  rozetSar: {
+    flex: 1,
+    minWidth: 0,
   },
 });

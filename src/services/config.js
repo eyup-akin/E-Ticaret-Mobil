@@ -15,7 +15,7 @@
 //
 // EXPO_PUBLIC_ önekli değişkenler Expo tarafından otomatik okunur.
 // .env okunamazsa (nadiren) sağdaki yedek IP devreye girer.
-const IP = process.env.EXPO_PUBLIC_API_IP || '10.242.83.204';
+const IP = process.env.EXPO_PUBLIC_API_IP || '192.168.1.199';
 
 // SUNUCU_URL → resimler için:   http://10.242.83.204:5289/uploads/urunler/a3f9.jpg
 export const SUNUCU_URL = 'http://' + IP + ':5289';

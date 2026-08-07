@@ -4,6 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ (5.4) — tasarım sistemi ölçüleri.
+//
+// ⚠️ Bu dosyanın ESKİ stilleri hâlâ ham sayı kullanıyor (fontSize: 15,
+// borderRadius: 14 ...). Onları bu turda topluca token'a çevirmedik —
+// fiyat uyarısıyla ilgisi olmayan 20 satırı değiştirmek, değişikliği
+// gözden geçirilemez hale getirirdi. Yeni eklenen stiller token
+// kullanıyor; dosyanın tamamı Aşama 4.7'de elden geçecek.
+import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
 
 // Sepetteki TEK bir satırın görünümü. Veri işi yok, sadece çizim + tıklama.
 export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
@@ -17,6 +25,28 @@ export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
   // "=== false" tercihinin sebebi SepetContext'te uzun uzun yazıldı:
   // alan hiç gelmediyse (undefined) ürünü satıştaymış gibi kabul ediyoruz.
   const pasif = item.isActive === false;
+
+  // ⭐ YENİ (5.4) — sepete eklendiğinden beri fiyat değişti mi?
+  //
+  // ⚠️ KARŞILAŞTIRMA BURADA YAPILMIYOR.
+  // "fiyatDegisti" sunucudan gelen hazır bir cevap. Burada
+  // "item.eklenmeFiyati !== item.productPrice" yazsaydık aynı kural
+  // ikinci kez tanımlanmış olurdu; kuruş yuvarlama gibi bir ayrıntıda
+  // ikisi ayrışır ve satır uyarı gösterirken sipariş onayı
+  // göstermezdi.
+  //
+  // "=== true": alan hiç gelmezse (eski API) undefined olur, uyarı
+  // çizilmez. Emin olmadığımız bir şey için müşteriyi telaşlandırmayız.
+  //
+  // ⚠️ Pasif üründe gösterilmiyor: o satırda zaten "Satıştan
+  // kaldırıldı" yazıyor ve müşterinin yapacağı tek şey silmek.
+  // Satın alınamayan bir ürünün fiyatının değişmesi bilgi değil,
+  // gürültü.
+  const fiyatDegisti = item.fiyatDegisti === true && !pasif;
+
+  // Pozitif fark = fiyat arttı (müşteri aleyhine).
+  // İşaret zaten yönü söylüyor; ayrı bir "arttiMi" alanı istemedik.
+  const fiyatArtti = fiyatDegisti && item.fiyatFarki > 0;
 
   return (
     <TouchableOpacity
@@ -51,9 +81,57 @@ export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
           {item.productName}
         </Text>
 
-        <Text style={[styles.birimFiyat, pasif && styles.soluk]}>
-          {paraBicimle(item.productPrice)}
-        </Text>
+        {/* ⭐ DEĞİŞTİ (5.4) — fiyat değiştiyse ESKİ fiyat da gösteriliyor.
+
+            Üstü çizili eski fiyat + güncel fiyat yan yana. Sadece
+            "fiyat değişti" yazmak müşteriye ne kadar değiştiğini
+            söylemezdi; iki sayıyı yan yana koymak farkı tek bakışta
+            anlatıyor.
+
+            ⚠️ Güncel fiyat SAĞDA ve normal renkte — ödenecek olan o.
+            Eski fiyat soluk ve üstü çizili: bilgi veriyor ama
+            "geçersiz" olduğunu da söylüyor. */}
+        <View style={[styles.fiyatSatir, !fiyatDegisti && styles.fiyatSatirTekBasina]}>
+          {fiyatDegisti && (
+            <Text style={styles.eskiFiyat}>
+              {paraBicimle(item.eklenmeFiyati)}
+            </Text>
+          )}
+
+          <Text style={[styles.birimFiyat, pasif && styles.soluk]}>
+            {paraBicimle(item.productPrice)}
+          </Text>
+        </View>
+
+        {/* ⭐ YENİ (5.4) — fiyat değişikliği rozeti.
+
+            ⚠️ DÜŞÜŞ DE GÖSTERİLİYOR, SADECE ARTIŞ DEĞİL.
+            Yalnızca artışı gösterseydik uyarı bir "kötü haber
+            bildirimi" olurdu; müşteri fiyat düştüğünde bunu hiç
+            öğrenmezdi. Aynı mekanizma iyi haberi de taşıyor —
+            ve rozetin rengi hangisi olduğunu söylüyor. */}
+        {fiyatDegisti && (
+          <View
+            style={[
+              styles.fiyatRozet,
+              { borderColor: fiyatArtti ? renkler.uyari : renkler.basari },
+            ]}
+          >
+            <Ionicons
+              name={fiyatArtti ? 'arrow-up' : 'arrow-down'}
+              size={12}
+              color={fiyatArtti ? renkler.uyari : renkler.basari}
+            />
+            <Text
+              style={[
+                styles.fiyatRozetYazi,
+                { color: fiyatArtti ? renkler.uyari : renkler.basari },
+              ]}
+            >
+              {fiyatArtti ? 'Fiyat arttı' : 'Fiyat düştü'}
+            </Text>
+          </View>
+        )}
 
         {/* ⭐ YENİ — pasifse adet kontrolü yerine uyarı rozeti.
             
@@ -171,8 +249,58 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   birimFiyat: {
     fontSize: 13,
-    color: renkler.yaziGri,
+    color: renkler.yaziGri
+  },
+
+  /* ⭐ YENİ (5.4) — eski fiyat + güncel fiyat aynı satırda.
+
+     ⚠️ Alt boşluk buradan KALKTI (eskiden birimFiyat'taydı) çünkü
+     artık iki farklı durum var: rozet varsa boşluğu rozet veriyor,
+     yoksa fiyatSatirTekBasina veriyor. Boşluğu fiyat metninin
+     üstünde bırakırsak rozetli durumda 10 + 8 = 18px'lik bir
+     kopukluk oluşurdu. */
+  fiyatSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.mikro
+  },
+
+  /* Rozet çizilmediğinde satırın eski alt boşluğu korunuyor —
+     fiyat değişmeyen satırların yerleşimi hiç değişmesin diye. */
+  fiyatSatirTekBasina: {
     marginBottom: 10
+  },
+
+  /* Eski fiyat: soluk + üstü çizili.
+     Ürün adındaki pasif stilin aynı mantığı — renk tek başına bilgi
+     taşımamalı, çizgi renkten bağımsız olarak "bu geçersiz" diyor. */
+  eskiFiyat: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    opacity: 0.7,
+    textDecorationLine: 'line-through'
+  },
+
+  /* ⭐ YENİ (5.4) — fiyat değişikliği rozeti.
+
+     Kenarlık rengi çağrı yerinden geliyor (artış turuncu, düşüş
+     yeşil); burada yalnızca renkten BAĞIMSIZ olan ölçüler duruyor.
+     Rengi buraya sabitleseydik iki ayrı stil objesi gerekirdi. */
+  fiyatRozet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.mikro,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: kose.kucuk,
+    paddingVertical: 3,
+    paddingHorizontal: bosluk.kucuk,
+    marginBottom: 10
+  },
+  fiyatRozetYazi: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.yari
   },
 
   /* ⭐ YENİ — "Satıştan kaldırıldı" rozeti.
