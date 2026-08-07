@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiGet } from '../services/api';
+import { apiGet, apiPost, apiDelete } from '../services/api';
 import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
@@ -49,6 +49,51 @@ export default function UrunDetayEkrani({ route, navigation }) {
   // useState. Görsel olmayan veriler için useRef kullanıyorduk —
   // sipariş anahtarı gibi.
   const [aciklamaAcik, setAciklamaAcik] = useState(false);
+
+  // ⭐ YENİ (5.5) — stok bildirimi isteği gönderiliyor mu?
+  //
+  // Talebin VAR OLUP OLMADIĞI ayrı bir state'te tutulmuyor;
+  // urun.stokBildirimiVar'dan okunuyor. Ayrı state tutsaydık aynı
+  // gerçek iki yerde yaşardı ve ürün yeniden çekildiğinde ikisi
+  // ayrışabilirdi. "Türetilmiş değer ayrı state'te tutulmaz."
+  const [bildirimIslemde, setBildirimIslemde] = useState(false);
+
+  // ---------- STOK BİLDİRİMİ: AÇ / KAPAT ----------
+  async function stokBildirimiDegistir() {
+    // ⚠️ Misafir kontrolü ÖNCE. İstek atsaydık sunucu 401 döner ve
+    // müşteri anlamsız bir hata görürdü; giriş ekranına götürmek
+    // ona ne yapması gerektiğini söylüyor. Sepete eklemede de
+    // aynı desen var.
+    if (!token) {
+      navigation.navigate('Giris');
+      return;
+    }
+
+    const talepVar = urun.stokBildirimiVar === true;
+
+    try {
+      setBildirimIslemde(true);
+
+      if (talepVar) {
+        await apiDelete('/products/' + urunId + '/stok-bildirimi');
+      } else {
+        await apiPost('/products/' + urunId + '/stok-bildirimi', {});
+      }
+
+      // ⚠️ Ürünü SUNUCUDAN yeniden çekiyoruz, yerelde bayrağı elle
+      // çevirmiyoruz. Elle çevirmek, sunucunun gerçekte ne yaptığını
+      // varsaymak olurdu; sessiz kalan bir hata durumunda ekran
+      // "talebin var" derken sunucuda hiçbir kayıt olmayabilirdi.
+      //
+      // sessiz=true: tam ekran yükleniyor göstergesi çıkmasın,
+      // sayfa yerinde kalsın.
+      await urunuGetir(true);
+    } catch (hata) {
+      Alert.alert('Hata', hata.message);
+    } finally {
+      setBildirimIslemde(false);
+    }
+  }
 
   async function urunuGetir(sessiz = false) {
     try {
@@ -305,8 +350,54 @@ export default function UrunDetayEkrani({ route, navigation }) {
               istediğimizde (ürün kartı) orayı da zorlardı.
 
               Bu satır olmadan sağda boş alan kalıyordu. */}
+          {/* ⭐ YENİ (5.5) — TÜKENDİYSE "HABER VER", DEĞİLSE ADET KONTROLÜ
+
+              ⚠️ AdetKontrolu tükenmiş üründe soluk bir "Stokta Yok"
+              butonu gösteriyordu. O buton hiçbir işe yaramıyordu:
+              müşteriye durumu söylüyor ama YAPABİLECEĞİ bir şey
+              sunmuyordu. Yerine gerçek bir eylem koyduk.
+
+              Tükenmiş ürün, müşterinin ilgilendiği ama alamadığı
+              ürün demek — mağaza için en değerli sinyallerden biri.
+              Eskiden o ilgi kayboluyordu. */}
           <View style={styles.adetSarmal}>
-            <AdetKontrolu urun={urun} boyut="buyuk" />
+            {tukendi ? (
+              <TouchableOpacity
+                style={[
+                  styles.bildirimButon,
+                  urun.stokBildirimiVar === true && styles.bildirimButonAktif,
+                ]}
+                onPress={stokBildirimiDegistir}
+                disabled={bildirimIslemde}
+                activeOpacity={0.85}
+              >
+                {bildirimIslemde ? (
+                  <ActivityIndicator size="small" color={renkler.anaRenk} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={
+                        urun.stokBildirimiVar === true
+                          ? 'notifications'
+                          : 'notifications-outline'
+                      }
+                      size={18}
+                      color={renkler.anaRenk}
+                    />
+                    {/* İki metin de NE OLACAĞINI söylüyor, durumu değil.
+                        "Bildirim açık" yazsaydık müşteri basınca ne
+                        olacağını tahmin etmek zorunda kalırdı. */}
+                    <Text style={styles.bildirimYazi}>
+                      {urun.stokBildirimiVar === true
+                        ? 'Haber vermeyi bırak'
+                        : 'Stoka gelince haber ver'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <AdetKontrolu urun={urun} boyut="buyuk" />
+            )}
           </View>
         </View>
       </View>
@@ -432,6 +523,42 @@ const stilOlustur = (renkler) => StyleSheet.create({
   simdiAlYazi: {
     color: renkler.anaRenk,
     fontSize: 16,
+    fontWeight: '700',
+  },
+
+  /* ⭐ YENİ (5.5) — "Stoka gelince haber ver" butonu.
+
+     ⚠️ ÇERÇEVELİ (ikincil), dolu değil.
+     Dolu mavi bu ekranda "sepete ekle" demek. Haber verme talebi bir
+     satın alma değil, bir hatırlatma isteği — aynı görsel ağırlığı
+     vermek, müşteriye satın aldığını düşündürebilirdi.
+
+     Tükenmiş üründe zaten tek eylem bu olduğu için dikkat çekmek
+     için doluya ihtiyacı yok; rakibi yok. */
+  bildirimButon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: renkler.anaRenk,
+  },
+
+  /* Talep AKTİFKEN yumuşak zemin.
+
+     Kenarlık aynı kalıyor, sadece içi doluyor — buton "basılmış"
+     görünüyor ama hâlâ basılabilir olduğu belli. Tamamen dolu maviye
+     çevirseydik birincil eyleme benzerdi. */
+  bildirimButonAktif: {
+    backgroundColor: renkler.yumusakVurgu,
+  },
+
+  bildirimYazi: {
+    color: renkler.anaRenk,
+    fontSize: 14,
     fontWeight: '700',
   },
 

@@ -123,35 +123,80 @@ export default function HesabimEkrani({ navigation }) {
         {token ? (
           /* ============ ÜYE GÖRÜNÜMÜ ============ */
           <>
-            <View style={styles.kart}>
-              <Text style={styles.ad}>{kullanici?.fullName}</Text>
+            {/* ⭐ DEĞİŞTİ — KULLANICI KARTI ARTIK TIKLANABİLİR.
 
-              {profil?.email ? (
-                <Text style={styles.eposta}>{profil.email}</Text>
-              ) : null}
+                Kart zaten ad, e-posta ve üyelik bilgisini gösteriyordu
+                ama basılamıyordu. Referans tasarımlarda bu kart profile
+                giden ana kapı; kullanıcının ilk dokunma refleksi kendi
+                adına basmak oluyor ve hiçbir şey olmaması "bozuk mu?"
+                hissi veriyordu.
 
-              <View style={styles.kartAlt}>
-                <Text style={styles.rol}>Rol: {profil?.role || kullanici?.role}</Text>
+                ⚠️ Sağdaki chevron sadece süs değil — bir öğenin
+                tıklanabilir olduğunu söyleyen tek görsel işaret o.
+                Menü satırlarıyla aynı işaret kullanılıyor ki aynı
+                anlam aynı sembolle anlatılsın. */}
+            <TouchableOpacity
+              style={styles.kart}
+              onPress={() =>
+                navigation.navigate('ProfilDuzenle', { eposta: profil?.email })
+              }
+              activeOpacity={0.7}
+            >
+              <View style={styles.kartIcerik}>
+                <Text style={styles.ad}>{kullanici?.fullName}</Text>
 
-                {profil?.createdAt ? (
-                  <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>
+                {profil?.email ? (
+                  <Text style={styles.eposta}>{profil.email}</Text>
                 ) : null}
-              </View>
-            </View>
 
+                <View style={styles.kartAlt}>
+                  <Text style={styles.rol}>Rol: {profil?.role || kullanici?.role}</Text>
+
+                  {profil?.createdAt ? (
+                    <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
+            </TouchableOpacity>
+
+            {/* ⭐ DEĞİŞTİ — MENÜ ARTIK BAŞLIKLI GRUPLARDA.
+
+                Eskiden alışveriş satırları başlıksız bir blok, hesap
+                satırları "Hesap Ayarları" başlıklı ikinci bir bloktu.
+                İlk grubun başlığı olmayınca ikinci başlık, listenin
+                tamamının başlığıymış gibi okunabiliyordu.
+
+                Göz bir listeyi gruplara göre tarar; her grubun adı
+                olmadan gruplama işe yaramaz. */}
+            <Text style={styles.grupBaslik}>HESABIM</Text>
             <View style={styles.menu}>
               {menuSatiri('receipt-outline', 'Siparişlerim', 'Siparislerim')}
+
+              {/* ⭐ YENİ — Favorilerim menüye eklendi.
+
+                  ⚠️ Rota adı 'Favoriler', ekranda görünen başlık
+                  'Favorilerim'. Gezinme BAŞLIKLA değil ROTA ADIYLA
+                  yapılır — bu ikisi bir kez karıştırıldı ve "Şimdi Al"
+                  butonu çöktü ('Sepetim' yazılmıştı, doğrusu 'Sepet').
+
+                  Favoriler alt sekmede zaten var; buraya da koyuyoruz
+                  çünkü kullanıcı "hesabımla ilgili her şey" ararken
+                  buraya bakıyor. İki giriş noktası olması tekrar değil,
+                  farklı iki arama yolunun aynı yere çıkması. */}
+              {menuSatiri('heart-outline', 'Favorilerim', 'Favoriler')}
+
               {menuSatiri('location-outline', 'Adreslerim', 'Adreslerim')}
               {menuSatiri('card-outline', 'Kartlarım', 'Kartlarim')}
               {menuSatiri('wallet-outline', 'Ödemelerim', 'Odemelerim')}
             </View>
 
-            {/* ⭐ YENİ — HESAP AYARLARI
-                Alışveriş menüsünden AYRI bir grup olarak duruyor.
-                Sebebi: "Siparişlerim" ve "Adreslerim" alışverişe dair,
-                "Şifre Değiştir" hesaba dair. Farklı amaçları aynı listede
-                karıştırmak kullanıcıyı yavaşlatır — göz gruplara göre tarar. */}
-            <Text style={styles.bolumBaslik}>Hesap Ayarları</Text>
+            {/* ⚠️ "GÜVENLİK" başlığı, eski "Hesap Ayarları"nın yerine.
+                Bu üç satırın ortak paydası hesap değil GÜVENLİK: kimlik
+                bilgisi, şifre ve oturumlar. "Ayarlar" adı, tema seçici
+                gibi zararsız tercihlerle aynı kefeye koyuyordu. */}
+            <Text style={styles.grupBaslik}>GÜVENLİK</Text>
             <View style={styles.menu}>
               {/* Profil ekranı e-postayı KİLİTLİ göstermek için biliyor
                   olmalı; parametre olarak geçiyoruz. Orada ayrıca
@@ -241,7 +286,7 @@ export default function HesabimEkrani({ navigation }) {
         )}
 
         {/* ============ ORTAK: GÖRÜNÜM (TEMA) ============ */}
-        <Text style={styles.bolumBaslik}>Görünüm</Text>
+        <Text style={styles.grupBaslik}>GÖRÜNÜM</Text>
         <View style={styles.temaSatir}>
           <TouchableOpacity
             style={[styles.temaButon, temaAdi === 'acik' && styles.temaButonSecili]}
@@ -319,11 +364,20 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   /* --- ÜYE GÖRÜNÜMÜ --- */
+  /* ⭐ DEĞİŞTİ — kart artık satır düzeninde (metin bloğu + chevron). */
   kart: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: renkler.acikKart,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20
+  },
+
+  /* Metin bloğu chevron'u sağa itiyor.
+     flex: 1 olmasaydı uzun bir e-posta chevron'u karttan taşırırdı. */
+  kartIcerik: {
+    flex: 1
   },
   ad: {
     fontSize: 18,
@@ -453,12 +507,22 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginBottom: 24
   },
 
-  /* --- ORTAK: TEMA --- */
-  bolumBaslik: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: renkler.yaziKoyu,
-    marginBottom: 10
+  /* ⭐ YENİ — GRUP BAŞLIĞI
+
+     ⚠️ Eski "bolumBaslik" 16px, kalın ve KOYU renkti — menü
+     satırlarıyla (16px) aynı puntodaydı ve onlarla yarışıyordu.
+     Başlık bir AYRAÇ, bir eylem değil; satırlardan geri planda
+     durmalı.
+
+     Küçük + silik + BÜYÜK HARF + harf aralığı: punto düşse de büyük
+     harf ve aralık okunurluğu koruyor, renk ise onu satırların bir
+     adım gerisine itiyor. */
+  grupBaslik: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: renkler.yaziGri,
+    letterSpacing: 0.8,
+    marginBottom: 8
   },
   temaSatir: {
     flexDirection: 'row',
@@ -486,15 +550,33 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: 'bold'
   },
 
-  /* --- ÇIKIŞ --- */
+  /* --- ÇIKIŞ ---
+
+     ⭐ DEĞİŞTİ — dolu mavi buton yerine kırmızı çerçeveli buton.
+
+     ⚠️ Mavi bu uygulamada "asıl eylem" demek (sepete ekle, siparişi
+     tamamla). Çıkış bu ekranın asıl eylemi DEĞİL — kullanıcı buraya
+     genelde profilini görmeye ya da siparişlerine gitmeye geliyor.
+     Ekrandaki tek dolu mavi butonun çıkış olması, gözü yanlış yere
+     çekiyordu.
+
+     ⚠️ DOLU kırmızı da yapmadık. Dolu kırmızı "yıkıcı" demek ve o
+     ağırlık hesap kapatmaya ait. Çıkış geri alınabilir bir işlem:
+     uyarı rengi evet, yıkıcı ağırlık hayır. Çerçeveli hal ikisinin
+     arasında duruyor.
+
+     Hesabımı Kapat ise buton bile değil, ince bir metin bağlantısı —
+     üç seviye net biçimde ayrışıyor. */
   cikisButon: {
-    backgroundColor: renkler.anaRenk,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: renkler.hata,
     padding: 14,
     borderRadius: 8,
     alignItems: 'center'
   },
   cikisYazi: {
-    color: renkler.anaRenkUstuYazi,
+    color: renkler.hata,
     fontSize: 16,
     fontWeight: 'bold'
   },
