@@ -115,6 +115,20 @@ export const acikTema = {
 
   favoriRenk: '#e74c3c',   // kalp her zaman kırmızı — temadan bağımsız
 
+  // ⭐ YENİ (GV/Faz 2.9) — YILDIZ RENGİ
+  //
+  // Daha önce Yildizlar.js içine elle yazılmıştı ('#f5a623'):
+  // koyu temada da aynı kalıyordu ve tasarım sisteminin "sabit renk
+  // yazma" yasağını çiğniyordu.
+  //
+  // ⚠️ NEDEN TURUNCU DEĞİL, KEHRİBAR?
+  // Tasarımda yıldızlar turuncuydu ama bu uygulamada turuncu EYLEM
+  // demek. Yıldız tıklanabilir bir şey değil, bir ölçüm. Aynı rengi
+  // paylaşsalardı müşteri neye basabileceğini renkten ayırt
+  // edemezdi. Kehribar yeterince yakın bir sıcaklıkta ama
+  // turuncunun anlamını çalmıyor.
+  yildizRengi: '#f59e0b',
+
   // ⭐ YENİ (GV/Faz 1) — LACİVERT DOLU YÜZEY
   //
   // Açık temada bile koyu kalan yüzeyler: giriş ekranının üst bandı,
@@ -267,6 +281,10 @@ export const koyuTema = {
   pasif: '#3d4f7a',
 
   favoriRenk: '#e74c3c',   // kalp her zaman kırmızı — temadan bağımsız
+
+  // ⚠️ Yıldız koyu temada bir tık AÇILIYOR: kehribar, koyu lacivert
+  // zeminde sönük kalıyor. (Gerekçenin tamamı açık temada yazılı.)
+  yildizRengi: '#fbbf24',
 
   // ⭐ YENİ (GV/Faz 1) — lacivert dolu yüzey, koyu tema karşılığı.
   //

@@ -24,6 +24,18 @@ import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 //  ⚠️ DOKUNMA ALANI: dikey padding rozetten (3) belirgin şekilde
 //  büyük. Parmak hedefinin en az ~44px olması gerekiyor; rozet
 //  ölçüsünde bir chip'e isabet ettirmek zor olurdu.
+//
+//  ⚠️ SEÇİLİ CHIP'TE ONAY ROZETİ YOK — denendi, kaldırıldı.
+//
+//  SecimKarosu'ndaki gibi köşeye küçük bir tik rozeti eklendi ve
+//  ekranda görüldü: Chip'in tek gerçek kullanım yeri sıralama
+//  şeridi ve orada BEŞ seçenekten biri zaten dolu turuncu duruyor.
+//  "Hangisi seçili" sorusu sorulmuyor bile; rozet yalnızca gürültü
+//  ekliyordu.
+//
+//  Ayrım şu: rozet, seçimin BELİRSİZ olduğu yerde işe yarar (çoklu
+//  seçim, seçilmemiş de olabilir). Tek seçimli bir şeritte seçim
+//  zaten kendini gösteriyor. Rozet SecimKarosu'nda kaldı.
 // ============================================================
 export default function Chip({ etiket, secili = false, onBas }) {
   const { renkler } = useTema();
@@ -42,6 +54,7 @@ export default function Chip({ etiket, secili = false, onBas }) {
       <Text style={[styles.yaziStil, secili && styles.yaziSecili]} numberOfLines={1}>
         {etiket}
       </Text>
+
     </TouchableOpacity>
   );
 }

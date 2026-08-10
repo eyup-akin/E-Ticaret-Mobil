@@ -19,33 +19,25 @@ export default function MainTabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        // ⭐ DEĞİŞTİ (GV/Faz 2.10) — SEKME ÇUBUĞU ARTIK LACİVERT.
+        // ⚠️ LACİVERT ÇUBUK DENENDİ VE GERİ ALINDI (2026-08-10).
         //
-        // Eskiden kart zemini (açık temada beyaz) kullanıyordu ve
-        // çubuk sayfadan ayrılmıyordu. Açık temada lacivert bir
-        // çubuk, uygulamanın marka renginin ekranda GÖRÜNMESİNİ
-        // sağlayan tek yer — lacivert şu ana kadar yalnızca metin
-        // rengiydi ve gözle fark edilmiyordu.
+        // Açık temada sekme çubuğu `lacivertYuzey` ile koyu yapıldı,
+        // ekranda görüldü ve beğenilmedi: ferah, kırık-beyaz bir
+        // sayfanın altına oturan koyu blok, ekranı ikiye bölüyor ve
+        // uygulamanın hafif hissini bozuyordu.
         //
-        // ⚠️ Renk kartArka'dan DEĞİL lacivertYuzey'den geliyor.
-        // "Açık temada koyu kalan yüzey" ayrı bir rol; kartArka'yı
-        // koyultsaydık uygulamadaki bütün kartlar da kararırdı.
+        // Kayda geçiyor ki aynı fikir altı ay sonra "bir denesek mi"
+        // diye geri gelmesin: denendi, olmadı.
         //
-        // ⚠️ Pasif renk de ayrı token. yaziGri açık zemin için
-        // seçilmişti ve lacivert çubuk üstünde ~2,2:1 veriyor —
-        // pasif sekmeler okunmaz olurdu.
-        //
-        // ⚠️ Aktif renk turuncu kalıyor: sekme seçimi bir EYLEM
-        // sonucudur ve turuncu bu uygulamada eylemin rengi. Lacivert
-        // zemin üstünde turuncu ayrıca çok net ayrışıyor.
+        // ⚠️ `kartArka` iki temada da doğru cevabı veriyor — açık
+        // temada beyaz, koyu temada zaten lacivert (#182a54). Yani
+        // koyu temadaki lacivert çubuk duruyor; kaybettiğimiz tek
+        // şey açık temadaki koyu şerit.
         tabBarActiveTintColor: renkler.anaRenk,
-        tabBarInactiveTintColor: renkler.lacivertYuzeyPasif,
+        tabBarInactiveTintColor: renkler.yaziGri,
         tabBarStyle: {
-          backgroundColor: renkler.lacivertYuzey,
-
-          // Koyu çubukta açık bir çizgi ayrım yaratmaz; kenarlığı
-          // çubuğun kendi renginde bırakıp görünmez kılıyoruz.
-          borderTopColor: renkler.lacivertYuzey,
+          backgroundColor: renkler.kartArka,
+          borderTopColor: renkler.kenarlik,
         },
         tabBarIcon: ({ color, size }) => {
           // Rozetli sekmeler kendi bileşenlerini kullanıyor.
