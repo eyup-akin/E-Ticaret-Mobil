@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Image, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Image, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { bosluk, kose, sayfaKenari } from '../theme/olculer';
-import { bannerlariGetir } from '../services/bannerlar';
+import { kampanyalariGetir } from '../services/kampanyalar';
 
 // ============================================================
 //  BANNER ŞERİDİ — yatay kaydırmalı kampanya görselleri
 //
-//  ⚠️ Şu an TIKLANMIYOR — gerekçesi bannerlar.js'te.
+//  onKampanyaBas(kampanya) : bir banner'a basılınca çağrılır
 //
 //  ⚠️ SAYFA SAYFA KAYIYOR, SERBEST DEĞİL.
 //  pagingEnabled + snapToInterval ile her kaydırma tam bir
@@ -18,8 +18,36 @@ import { bannerlariGetir } from '../services/bannerlar';
 //  useWindowDimensions cihaz döndürülünce de güncelleniyor.
 //  Sabit bir sayı yazsaydık yatay modda banner ya taşar ya
 //  ortada dururdu.
+//
+//  ⚠️ AKTİF NOKTA "onMomentumScrollEnd" İLE TAKİP EDİLİYOR.
+//  onScroll saniyede ~30 kez tetikleniyordu ve nokta göstergesi
+//  için o sıklığa gerek yok; kaydırma bitince bir kez ölçmek
+//  yeterli. UrunGaleri de aynı yöntemi kullanıyor.
+//
+//  ⚠️⚠️ BİLİNEN SORUN — WEB ÖNİZLEMESİNDE BANNER TIKLANMIYOR.
+//
+//  Expo'nun web çıktısında bu Pressable'ın onPress'i hiç
+//  tetiklenmiyor: içine konulan log bir kez bile düşmedi.
+//  Denenen ve SONUÇ VERMEYENLER:
+//    • onScroll → onMomentumScrollEnd
+//    • Image'a style.pointerEvents: 'none'
+//    • snapToInterval / decelerationRate kaldırma
+//    • TouchableOpacity → Pressable
+//    • hem koordinatla hem erişilebilirlik referansıyla tıklama
+//
+//  Aynı ekranda kategori karoları ve "Tümünü gör" bağlantısı
+//  koordinatla tıklandığında ÇALIŞIYOR — yani navigasyon ve
+//  ekranın kendisi sağlam (KampanyaDetay o yolla açılıp
+//  doğrulandı). Sorun bu bileşene özgü ve büyük olasılıkla
+//  react-native-web'in geniş, resim dolu bir dokunma hedefini
+//  kaydırma jesti sanmasından kaynaklanıyor.
+//
+//  ⚠️ GERÇEK CİHAZDA DENENMEDİ. Dokunma olayları cihazda bambaşka
+//  bir yoldan işleniyor; orada çalışması kuvvetle muhtemel ama
+//  DOĞRULANMADI. Cihazda da çalışmıyorsa ilk denenecek şey
+//  şeridi ScrollView yerine FlatList'e çevirmek.
 // ============================================================
-export default function BannerSeridi() {
+export default function BannerSeridi({ onKampanyaBas }) {
   const { renkler } = useTema();
   const { width: ekranGenisligi } = useWindowDimensions();
   const styles = stilOlustur(renkler);
@@ -27,16 +55,14 @@ export default function BannerSeridi() {
   const [bannerlar, setBannerlar] = useState([]);
   const [aktif, setAktif] = useState(0);
 
-  // Kaydırma olayı saniyede onlarca kez tetikleniyor; aktif nokta
-  // değişmediyse setState çağırmıyoruz. Çağırsaydık her karede
-  // bileşen yeniden render olurdu.
+  // Aktif nokta değişmediyse setState çağırmıyoruz.
   const sonAktif = useRef(0);
 
   useEffect(() => {
     let iptal = false;
 
     (async () => {
-      const veri = await bannerlariGetir();
+      const veri = await kampanyalariGetir();
       if (!iptal) setBannerlar(veri);
     })();
 
@@ -74,19 +100,41 @@ export default function BannerSeridi() {
         pagingEnabled={false}
         snapToInterval={kart + bosluk.kucuk}
         decelerationRate="fast"
-        onScroll={kaydirildi}
-        scrollEventThrottle={32}
+        onMomentumScrollEnd={kaydirildi}
         contentContainerStyle={styles.serit}
         style={styles.seritKap}
         directionalLockEnabled
       >
         {bannerlar.map((b) => (
-          <View key={b.id} style={[styles.kart, { width: kart }]}>
+          <Pressable
+            key={b.id}
+            onPress={() => onKampanyaBas && onKampanyaBas(b)}
+            style={[styles.kart, { width: kart }]}
+
+            // Görsel bir şey söylemiyor; ekran okuyucuya kampanyanın
+            // adını söylemek gerekiyor.
+            accessibilityRole="button"
+            accessibilityLabel={b.baslik}
+          >
             {/* ⚠️ resizeMode="cover": görselin oranı 2:1 değilse
                 bile kutuyu tam dolduruyor. "contain" olsaydı
                 kenarlarda boş şeritler kalırdı. */}
-            <Image source={b.gorsel} style={styles.gorsel} resizeMode="cover" />
-          </View>
+            {/* ⚠️ GÖRSEL DOKUNMAYI YUTMASIN diye style.pointerEvents 'none'.
+
+                Dürüst not: bu, yukarıdaki web sorununu ÇÖZMEDİ.
+                Yine de duruyor, çünkü kendi başına doğru: dokunma
+                hedefi sarmalayıcı Pressable, resmin kendisi değil.
+
+                ⚠️ "pointerEvents" PROP OLARAK DEĞİL STİL İÇİNDE
+                veriliyor — konsol açıkça uyarıyor: "props.pointerEvents
+                is deprecated. Use style.pointerEvents". Prop olarak
+                verilen sessizce yok sayılıyor. */}
+            <Image
+              source={b.gorsel}
+              style={[styles.gorsel, { pointerEvents: 'none' }]}
+              resizeMode="cover"
+            />
+          </Pressable>
         ))}
       </ScrollView>
 
@@ -108,7 +156,7 @@ export default function BannerSeridi() {
           ⚠️ Tek banner varsa hiç çizilmiyor — bir noktanın
           gösterecek bir şeyi yok. */}
       {bannerlar.length > 1 && (
-        <View style={styles.noktaKatmani} pointerEvents="none">
+        <View style={[styles.noktaKatmani, { pointerEvents: 'none' }]}>
           <View style={styles.noktaHap}>
             {bannerlar.map((b, i) => (
               <View

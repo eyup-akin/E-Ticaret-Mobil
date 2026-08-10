@@ -185,7 +185,11 @@ export default function AnaSayfaEkrani({ navigation }) {
   // ---- ÜST BÖLÜMLER ----
   const basliklar = (
     <View>
-      <BannerSeridi />
+      <BannerSeridi
+        onKampanyaBas={(k) =>
+          navigation.navigate('KampanyaDetay', { kampanyaId: k.id })
+        }
+      />
 
       <View style={styles.bolum}>
         <BolumBasligi
