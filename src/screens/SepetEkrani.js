@@ -23,6 +23,7 @@ import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 
 import AramaCubugu from '../components/AramaCubugu';
 import SepetSatiri from '../components/SepetSatiri';
+import OnayPenceresi from '../components/OnayPenceresi';
 import { paraBicimle } from '../utils/bicimlendir';
 
 export default function SepetEkrani({ navigation }) {
@@ -74,17 +75,18 @@ export default function SepetEkrani({ navigation }) {
     }, [token])
   );
 
-  // Silmeden önce onay sor
-  function silmeyiOnayla(item) {
-    Alert.alert(
-      'Sepetten çıkar',
-      `"${item.productName}" sepetten çıkarılsın mı?`,
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Çıkar', style: 'destructive', onPress: () => sepettenCikar(item) },
-      ]
-    );
-  }
+  // ⭐ DEĞİŞTİ (GV) — Alert.alert yerine tema uyumlu OnayPenceresi.
+  //
+  // ⚠️ Alert.alert işletim sisteminin penceresini açıyordu: koyu
+  // temada bile beyaz, markanın turuncusu yerine sistemin mavisi,
+  // Android'de büyük harfli "VAZGEÇ / ÇIKAR". Uygulamanın geri
+  // kalanı yeni tasarım dilindeyken o pencere tek başına eski
+  // kalıyordu.
+  //
+  // ⚠️ Silinecek kalem STATE'TE tutuluyor, pencereye argüman olarak
+  // geçilmiyor: pencere kapanırken hangi ürünün silineceğini hâlâ
+  // bilmesi gerekiyor. null = pencere kapalı.
+  const [silinecek, setSilinecek] = useState(null);
 
   // ⭐ YENİ — kuponu dene
   async function kuponuDene() {
@@ -196,7 +198,7 @@ export default function SepetEkrani({ navigation }) {
                 <SepetSatiri
                   item={item}
                   onAdetDegistir={adetGuncelle}
-                  onSil={silmeyiOnayla}
+                  onSil={setSilinecek}
                   onBas={(it) =>
                     navigation.navigate('AnaSayfa', {
                       screen: 'UrunDetay',
@@ -457,6 +459,24 @@ export default function SepetEkrani({ navigation }) {
           </>
         )}
       </KeyboardAvoidingView>
+
+      {/* ⭐ YENİ (GV) — sepetten çıkarma onayı.
+          Yıkıcı: onay butonu kırmızı. Sepete ekleme turuncu, sepetten
+          çıkarma kırmızı — biri kazanç, diğeri kayıp. */}
+      <OnayPenceresi
+        acik={silinecek !== null}
+        ikon="trash-outline"
+        yikici
+        baslik="Sepetten çıkarılsın mı?"
+        mesaj={silinecek ? `"${silinecek.productName}" sepetinden kaldırılacak.` : ''}
+        onayYazisi="Çıkar"
+        onVazgec={() => setSilinecek(null)}
+        onOnayla={() => {
+          const kalem = silinecek;
+          setSilinecek(null);
+          if (kalem) sepettenCikar(kalem);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -735,11 +755,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
   },
+  /* ⭐ DEĞİŞTİ (GV) — TOPLAM ARTIK TURUNCU DEĞİL.
+     ⚠️ Ürün kartı ve ürün detayında düzeltilen kural ihlalinin
+     üçüncüsü. Sepette toplamın hemen altında turuncu "Sipariş Ver"
+     butonu var; ikisi aynı renkte olunca hangisinin basılabilir
+     olduğu renkten okunamıyordu.
+
+     Fiyatın dikkat çekmesini punto (22) ve kalınlık sağlıyor,
+     renk değil. */
   odenecekTutar: {
     fontSize: 22,
     fontWeight: 'bold',
     fontFamily: font.kalin,
-    color: renkler.anaRenk,
+    color: renkler.yaziKoyu,
   },
 
 

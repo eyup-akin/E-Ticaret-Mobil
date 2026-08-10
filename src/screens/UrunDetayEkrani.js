@@ -220,13 +220,7 @@ export default function UrunDetayEkrani({ route, navigation }) {
     <SafeAreaView style={styles.kapsayici} edges={[]}>
       <ScrollView contentContainerStyle={styles.icerik} showsVerticalScrollIndicator={false}>
         {/* GALERİ + FAVORİ KALBİ */}
-        <UrunGaleri
-          resimler={urun.images || []}
-          urunAdi={urun.name}
-          favori={favori}
-          onKalp={favoriBasildi}
-          favoriRenk={renkler.favoriRenk}
-        />
+        <UrunGaleri resimler={urun.images || []} urunAdi={urun.name} />
 
         {/* ⭐ DEĞİŞTİ (GV/Faz 5.2) — BİLGİ KARTI GALERİNİN ÜSTÜNE BİNİYOR.
 
@@ -352,11 +346,37 @@ export default function UrunDetayEkrani({ route, navigation }) {
           kalması gerekiyor; sabit bir sayı yazsaydık çentikli
           telefonlarda saatin üstüne binerdi. */}
       <TouchableOpacity
-        style={[styles.geriYuzen, { top: guvenliUst + bosluk.orta }]}
+        style={[styles.yuzenButon, styles.geriYuzen, { top: guvenliUst + bosluk.orta }]}
         onPress={() => navigation.goBack()}
         hitSlop={8}
       >
         <Ionicons name="arrow-back" size={22} color={renkler.yaziKoyu} />
+      </TouchableOpacity>
+
+      {/* ⭐ DEĞİŞTİ (GV/Faz 5.1 düzeltmesi) — FAVORİ KALBİ GALERİDEN
+          BURAYA TAŞINDI.
+
+          ⚠️ Cihazda görülen bir hatanın düzeltmesi: kalp galerinin
+          içindeyken üstten SABİT 12dp ile konumlanıyordu. Galeri tam
+          ekrana çıkınca o 12dp durum çubuğunun içine düştü ve kalp
+          saatin/pil ikonunun üstüne bindi.
+
+          Geri butonu güvenli alanı hesaba katıyordu, kalp katmıyordu
+          — yani ikisi zaten farklı hizadaydı ve biri yanlıştı.
+
+          Artık ikisi de AYNI değeri okuyor (guvenliUst + 12) ve aynı
+          stil temelini paylaşıyor. Biri değişince diğeri de değişir;
+          bir daha ayrışamazlar. */}
+      <TouchableOpacity
+        style={[styles.yuzenButon, styles.kalpYuzen, { top: guvenliUst + bosluk.orta }]}
+        onPress={favoriBasildi}
+        hitSlop={8}
+      >
+        <Ionicons
+          name={favori ? 'heart' : 'heart-outline'}
+          size={22}
+          color={favori ? renkler.favoriRenk : renkler.yaziKoyu}
+        />
       </TouchableOpacity>
 
       {/* ALT BAR: FİYAT + SEPETE EKLE */}
@@ -470,9 +490,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
      ⚠️ Zemin kartArka: fotoğrafın üstünde duruyor ve fotoğrafın
      rengi bilinmiyor. Saydam bıraksaydık açık bir fotoğrafta ok
      kaybolurdu. */
-  geriYuzen: {
+  /* ⚠️ ORTAK TEMEL — geri ve favori aynı görünümü paylaşıyor.
+     İkisini ayrı ayrı tanımlasaydık biri değişince diğeri geride
+     kalır ve simetri sessizce bozulurdu; zaten bir kez öyle oldu. */
+  yuzenButon: {
     position: 'absolute',
-    left: bosluk.orta,
     width: 40,
     height: 40,
     borderRadius: kose.tam,
@@ -481,6 +503,9 @@ const stilOlustur = (renkler) => StyleSheet.create({
     alignItems: 'center',
     ...renkler.golgeSm,
   },
+
+  geriYuzen: { left: bosluk.orta },
+  kalpYuzen: { right: bosluk.orta },
 
   icerik: { paddingBottom: bosluk.genis },
 

@@ -1,14 +1,13 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, Image, FlatList, TouchableOpacity, StyleSheet, useWindowDimensions,
+  View, Text, Image, FlatList, StyleSheet, useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { bosluk, kose, agirlik, font } from '../theme/olculer';
 
 // ============================================================
-//  ÜRÜN GALERİSİ — ürün detayının resim şeridi + favori kalbi
+//  ÜRÜN GALERİSİ — ürün detayının resim şeridi
 //
 //  ⭐ DEĞİŞTİ (GV/Faz 5.1) — ARTIK TAM GENİŞLİK.
 //
@@ -26,8 +25,18 @@ import { bosluk, kose, agirlik, font } from '../theme/olculer';
 //  Dimensions.get bir kereliğine okur; cihaz döndürülünce ya da
 //  katlanabilir bir ekran açılınca değer bayat kalır ve sayfalama
 //  hesabı (contentOffset / genislik) kayardı.
+//
+//  ⚠️ FAVORİ KALBİ ARTIK BURADA DEĞİL — ekranda.
+//  Kalp galerinin içindeyken üstten sabit 12dp ile konumlanıyordu
+//  ve galeri tam ekrana çıkınca DURUM ÇUBUĞUNUN ALTINA girdi;
+//  saatin üstüne bindi. Geri butonu ise güvenli alanı hesaba
+//  katıyordu, yani ikisi farklı hizadaydı.
+//
+//  İkisi de aynı şeye (ekranın üst güvenli alanı) bağlı olmalı;
+//  bu yüzden ikisi de ekranda, aynı değeri okuyarak duruyor.
+//  Galeri artık yalnızca resim şeridi çiziyor.
 // ============================================================
-export default function UrunGaleri({ resimler = [], urunAdi = '', favori, onKalp, favoriRenk }) {
+export default function UrunGaleri({ resimler = [], urunAdi = '' }) {
   const { renkler } = useTema();
   const { width: genislik } = useWindowDimensions();
   const styles = stilOlustur(renkler);
@@ -83,15 +92,6 @@ export default function UrunGaleri({ resimler = [], urunAdi = '', favori, onKalp
           <Text style={styles.resimHarf}>{urunAdi.charAt(0)}</Text>
         </View>
       )}
-
-      {/* Favori kalbi — sağ üstte yüzen daire */}
-      <TouchableOpacity style={styles.kalp} onPress={onKalp} hitSlop={8}>
-        <Ionicons
-          name={favori ? 'heart' : 'heart-outline'}
-          size={22}
-          color={favori ? favoriRenk : renkler.yaziOrta}
-        />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -152,22 +152,5 @@ const stilOlustur = (renkler) => StyleSheet.create({
   noktaAktif: {
     width: 18,
     backgroundColor: renkler.anaRenk,
-  },
-
-  /* ⭐ DEĞİŞTİ — sabit beyaz yerine tema zemini.
-     Eski hali rgba(255,255,255,0.92) idi ve koyu temada da beyaz
-     kalıyordu; ayrıca ikon rengi '#555' sabitti ve koyu temada
-     görünmüyordu. elevation de tek başınaydı (iOS'ta gölge yoktu). */
-  kalp: {
-    position: 'absolute',
-    top: bosluk.orta,
-    right: bosluk.orta,
-    backgroundColor: renkler.kartArka,
-    width: 40,
-    height: 40,
-    borderRadius: kose.tam,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...renkler.golgeSm,
   },
 });
