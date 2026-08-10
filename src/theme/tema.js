@@ -18,49 +18,82 @@
 export const acikTema = {
   ad: 'acik',
 
-  anaRenk: '#2563eb',        // mavi
-  anaRenkKoyu: '#1d4ed8',    // koyu mavi
+  // ⭐ DEĞİŞTİ (GV/Faz 1) — MAVİ GİTTİ, TURUNCU GELDİ.
+  //
+  // Değer Stitch tasarım sayfasındaki "Orange Primary" etiketinden
+  // geliyor. Prompt'ta #F26522 yazmıştık ama ekranlarda #FC6C29
+  // render edildi; onaylanan görsel bu olduğu için bu kazandı.
+  //
+  // ⚠️ TURUNCU YALNIZCA EYLEM RENGİDİR. Buton, aktif sekme, seçili
+  // karo, bağlantı. Fiyat turuncu yazılmaz (yaziKoyu), indirim
+  // turuncu değildir (basari/yeşil), dekorasyon için kullanılmaz.
+  // Her şey turuncu olursa hiçbir şey turuncu olmaz.
+  anaRenk: '#fc6c29',
+  anaRenkKoyu: '#e05a1d',       // basılı durum
   anaRenkUstuYazi: '#ffffff',   // ana renk butonun üstündeki yazı
 
-  // ⚠️ SAYFA ZEMİNİ BEYAZ KALIYOR — bilinçli.
+  // ⭐ DEĞİŞTİ (GV/Faz 1) — ZEMİN ARTIK BEYAZ DEĞİL.
   //
-  // Admin panelde zemin açık gri, kartlar beyaz. Mobilde referans
-  // tasarımların ikisi de beyaz zemin kullanıyor: ayrımı kartın
-  // kendisi değil, ürün görselinin arkasındaki açık gri karo
-  // (acikKart) yapıyor.
+  // ⚠️ BU, ÖNCEKİ BİLİNÇLİ BİR KARARIN GERİ ALINMASIDIR.
   //
-  // Zemini griye çevirseydik beyaz kartlar "kutu içinde kutu" gibi
-  // görünür ve mobilin ferah hissi kaybolurdu.
-  arkaPlan: '#ffffff',
+  // Eskiden burada "sayfa zemini beyaz kalıyor, ayrımı ürün
+  // görselinin arkasındaki gri karo yapıyor" yazıyordu. Yeni tasarım
+  // dili kart tabanlı: filtre panelinde her filtre ayrı beyaz kart,
+  // sepet özeti kart, hesap grupları kart. Beyaz zemin üstünde beyaz
+  // kart görünmez — kartların ayrımını tek başına 1px kenarlık
+  // taşımak zorunda kalırdı ve tasarımın yapısı çökerdi.
+  //
+  // Kırık-beyaz (#f8f9ff) saf griden farklı: içinde hafif lacivert
+  // var, o yüzden turuncu-lacivert paletle "kirli" değil "kâğıt"
+  // gibi duruyor.
+  arkaPlan: '#f8f9ff',
   kartArka: '#ffffff',
 
-  // ⭐ DEĞİŞTİ — nötr griye hafif mavi katıldı.
-  // Saf gri (#f8f8f8), mavi ana renkle birlikte "kirli" görünüyordu.
-  acikKart: '#f5f7fa',
-  acikGri: '#eef1f5',
-
-  // ⭐ DEĞİŞTİ — nötrler soğutuldu, kontrast artırıldı.
+  // ⭐ DEĞİŞTİ — nötrlerin mavisi laciverde çevrildi.
   //
-  // Eskiden saf gri idi (#333/#666/#999). Saf gri, mavi bir ana
-  // renkle birlikte solmuş görünür. Hafif mavi-gri tonlar hem daha
-  // okunaklı hem referanslardaki dile yakın.
+  // acikKart: ürün görselinin arkasındaki karo. Zeminden (#f8f9ff)
+  // ayrılması gerekiyor, yoksa görselin sınırı kaybolur.
+  // acikGri: input ve pasif chip zemini — bir tık daha koyu.
+  acikKart: '#f1f4fa',
+  acikGri: '#e8edf5',
+
+  // ⭐ DEĞİŞTİ — metin nötrleri tasarımdan alındı.
   //
   // ⚠️ Bu üç satır uygulamanın TAMAMINI etkiliyor — rol bazlı
   // token'ın anlamı bu. Değişikliğin riskini değil maliyetini
   // düşürüyor; sonucu her ekranda görmek yine gerekiyor.
-  yaziKoyu: '#1a1d23',
-  yaziOrta: '#5a6270',
-  yaziGri: '#8b93a1',
+  yaziKoyu: '#0b1c30',    // lacivert-900 — başlık, gövde VE FİYAT
+  yaziOrta: '#44474d',
+  yaziGri: '#75777e',
 
-  kenarlik: '#e6e9ee',
-  inputKenar: '#d7dce4',
+  kenarlik: '#d8e0ea',
+  inputKenar: '#d8e0ea',
 
-  basari: '#16a34a',
-  hata: '#dc2626',
-  uyari: '#d97706',
-  pasif: '#c9ced6',
+  // ⭐ DEĞİŞTİ — yeşil koyulaştı.
+  //
+  // ⚠️ basari aynı zamanda İNDİRİMLİ FİYAT rengi. Türk e-ticaretinde
+  // düşen fiyat yeşil yazılır ve bu, turuncuyu eylem için serbest
+  // bırakıyor. Eski açık yeşil (#16a34a) beyaz kart üstünde fiyat
+  // puntosunda cılız kalıyordu.
+  basari: '#166534',
+  hata: '#ba1a1a',
+  uyari: '#b45309',
+  pasif: '#c5c6ce',
 
   favoriRenk: '#e74c3c',   // kalp her zaman kırmızı — temadan bağımsız
+
+  // ⭐ YENİ (GV/Faz 1) — LACİVERT DOLU YÜZEY
+  //
+  // Açık temada bile koyu kalan yüzeyler: giriş ekranının üst bandı,
+  // baş harf avatarlarının zemini, kart görseli olmayan koyu bloklar.
+  //
+  // ⚠️ Neden yaziKoyu'yu zemin olarak kullanmıyoruz? İkisi bugün
+  // birbirine yakın ama FARKLI sorulara cevap veriyor: biri "metin
+  // hangi renk", diğeri "koyu yüzey hangi renk". Aynı token'ı
+  // paylaşsalardı, yarın metni bir tık açtığımızda giriş ekranının
+  // bandı da değişirdi.
+  lacivertYuzey: '#12294b',
+  lacivertYuzeyUstuYazi: '#eaf1ff',
 
   // ⭐ YENİ — YUMUŞAK ZEMİNLER
   //
@@ -70,21 +103,36 @@ export const acikTema = {
   //
   // rgba tercih edildi: altındaki zemin beyaz da olsa açık gri de
   // olsa doğal görünüyor.
-  yumusakBasari: 'rgba(22, 163, 74, 0.10)',
-  yumusakUyari: 'rgba(217, 119, 6, 0.10)',
-  yumusakHata: 'rgba(220, 38, 38, 0.10)',
-  yumusakVurgu: 'rgba(37, 99, 235, 0.10)',
+  yumusakBasari: 'rgba(22, 101, 52, 0.10)',
+  yumusakUyari: 'rgba(180, 83, 9, 0.10)',
+  yumusakHata: 'rgba(186, 26, 26, 0.10)',
+
+  // ⚠️ yumusakVurgu = seçili karo/chip zemini. Tasarım burada düz
+  // #FFF3EC kullanıyor; biz rgba bırakıyoruz çünkü bu zemin hem
+  // beyaz kart hem kırık-beyaz sayfa üstünde kullanılıyor ve düz
+  // renk ikisinden birinde tutmuyor. Beyaz üstünde sonuç zaten
+  // #fff2ea — tasarımdakiyle gözle ayırt edilemez.
+  yumusakVurgu: 'rgba(252, 108, 41, 0.10)',
 
   // ⭐ YENİ — indirim rozeti (referanstaki kırmızı hap).
   // hata renginden AYRI: aynı kırmızı ama anlamı farklı. Biri
   // "bir şey ters gitti", diğeri "fırsat". Aynı token'ı
   // paylaşsalardı, yarın hata rengini değiştirdiğimizde indirim
   // rozeti de değişirdi.
+  // ⚠️ İNDİRİM ROZETİ KIRMIZI KALIYOR — turuncu YAPILMADI.
+  //
+  // Yeni palette turuncu eylem rengi. İndirim rozetini turuncuya
+  // çevirseydik ürün kartında rozet, sepet butonu ve aktif sekme
+  // aynı renk olurdu; müşteri hangisine basabileceğini renkten
+  // ayırt edemezdi. Tasarımdaki "-%18" rozeti de kırmızı.
+  //
+  // ⚠️ Rozet kırmızı ama indirimli FİYAT yeşil (basari). İkisi
+  // farklı işler: rozet dikkat çeker, fiyat kazancı söyler.
   indirimArka: '#dc2626',
   indirimYazi: '#ffffff',
 
   // ⭐ YENİ — yükleme iskeleti zemini (Aşama 7)
-  iskeletArka: '#e9ecf1',
+  iskeletArka: '#e5eaf2',
 
   // ⭐ YENİ — GÖLGE
   //
@@ -124,48 +172,77 @@ export const acikTema = {
 export const koyuTema = {
   ad: 'koyu',
 
-  anaRenk: '#3b82f6',        // koyu temada biraz daha açık mavi (okunurluk için)
-  anaRenkKoyu: '#2563eb',
+  // ⭐ DEĞİŞTİ (GV/Faz 1)
+  //
+  // ⚠️ TURUNCU KOYU TEMADA AÇILMADI — mavide yaptığımızın tersi.
+  //
+  // Eski mavi koyu temada #2563eb'den #3b82f6'ya açılıyordu, çünkü
+  // koyu zeminde koyu mavi okunmuyordu. Turunucuda aynı şeyi
+  // yapamayız: turuncuyu açarsak (örn. #ff8a4c) BUTONUN ÜSTÜNDEKİ
+  // BEYAZ YAZI okunmaz hale gelir — zeminden değil, üstündeki
+  // metinden kaybederiz.
+  //
+  // #fc6c29 koyu lacivert (#0b1c30) üstünde zaten canlı duruyor.
+  // Aynı değeri iki temada da kullanmak ayrıca marka tutarlılığı
+  // sağlıyor: turuncu her yerde aynı turuncu.
+  anaRenk: '#fc6c29',
+  anaRenkKoyu: '#e05a1d',
   anaRenkUstuYazi: '#ffffff',
 
-  // ⭐ DEĞİŞTİ — saf siyah yerine hafif mavi-gri.
-  // #121212 saf nötr siyahtı ve beyaz metinle sert bir kontrast
-  // veriyordu. Hafif renkli koyu tonlar gözü daha az yoruyor.
-  arkaPlan: '#0f1218',
-  kartArka: '#171b22',
-  acikKart: '#1e232c',
-  acikGri: '#1e232c',
+  // ⭐ DEĞİŞTİ — nötr koyu gri yerine LACİVERT ailesi.
+  // Açık temanın laciverti koyu temada zemine dönüşüyor; iki tema
+  // aynı renk ailesinden konuşuyor.
+  arkaPlan: '#0b1c30',
+  kartArka: '#12294b',
+  acikKart: '#1b3a63',
+  acikGri: '#1b3a63',
 
-  yaziKoyu: '#f0f2f5',    // koyu temada "koyu yazı" aslında açık renk olur
-  yaziOrta: '#a8b0bd',
-  yaziGri: '#767f8c',
+  yaziKoyu: '#eaf1ff',    // koyu temada "koyu yazı" aslında açık renk olur
+  yaziOrta: '#a9bcd6',
+  yaziGri: '#7684a2',
 
-  kenarlik: '#272d38',
-  inputKenar: '#333b48',
+  // ⚠️ Kenarlık koyu temada RENK değil, ŞEFFAF BEYAZ.
+  // Sabit bir lacivert verseydik kartArka ile acikKart üstünde
+  // farklı kontrastlar üretirdi; şeffaf beyaz altındaki yüzey ne
+  // olursa olsun aynı oranda ayrım veriyor.
+  kenarlik: 'rgba(255, 255, 255, 0.08)',
+  inputKenar: 'rgba(255, 255, 255, 0.14)',
 
-  basari: '#2ecc71',
+  // ⚠️ Yeşil koyu temada AÇILIYOR — açık temadakinin tersi yönde.
+  // Açık temada #166534 (koyu yeşil) beyaz üstünde okunuyor; koyu
+  // lacivert üstünde ise neredeyse siyah görünürdü.
+  basari: '#4ade80',
   hata: '#ff6b6b',       // koyu zeminde okunsun diye açık kırmızı
-  uyari: '#fbbf24',      // koyu zeminde okunsun diye açık turuncu
-  pasif: '#4a515c',
+  uyari: '#fbbf24',
+  pasif: '#44546e',
 
   favoriRenk: '#e74c3c',   // kalp her zaman kırmızı — temadan bağımsız
+
+  // ⭐ YENİ (GV/Faz 1) — lacivert dolu yüzey, koyu tema karşılığı.
+  //
+  // ⚠️ Açık temadaki değer (#12294b) burada KULLANILAMAZ: koyu
+  // temada o değer zaten kartArka. Giriş ekranının bandı kartla
+  // aynı renk olsaydı band diye bir şey görünmezdi. Bir basamak
+  // açıldı.
+  lacivertYuzey: '#1b3a63',
+  lacivertYuzeyUstuYazi: '#eaf1ff',
 
   // ⭐ YENİ — yumuşak zeminler, koyu tema karşılıkları.
   //
   // Opaklık açık temadakinden YÜKSEK (0.16 vs 0.10) — bilinçli.
   // Koyu zeminde düşük opaklıklı bir renk neredeyse kaybolur;
   // aynı sayıyı kullansaydık rozetler koyu temada görünmez olurdu.
-  yumusakBasari: 'rgba(46, 204, 113, 0.16)',
+  yumusakBasari: 'rgba(74, 222, 128, 0.16)',
   yumusakUyari: 'rgba(251, 191, 36, 0.16)',
   yumusakHata: 'rgba(255, 107, 107, 0.16)',
-  yumusakVurgu: 'rgba(59, 130, 246, 0.16)',
+  yumusakVurgu: 'rgba(252, 108, 41, 0.18)',
 
   // İndirim rozeti koyu temada bir tık açık: koyu zeminde koyu
   // kırmızı okunmuyor.
   indirimArka: '#ef4444',
   indirimYazi: '#ffffff',
 
-  iskeletArka: '#232932',
+  iskeletArka: '#1b3a63',
 
   // ⭐ YENİ — gölge, koyu tema.
   //

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiPut } from '../services/api';
@@ -95,6 +96,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   acYazi: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: '#e74c3c'
   },
   form: {
@@ -105,6 +107,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   formBaslik: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 8
   },
@@ -135,6 +138,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   vazgecYazi: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziOrta
   },
   onaylaButon: {
@@ -148,6 +152,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   onaylaYazi: {
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: '#ffffff'
   }
 });

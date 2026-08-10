@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi, agirlik, satir } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 import { bosFiltre, puanEsikleri, filtreSorgusuKur, sinirdakiniBosalt } from '../services/urunFiltresi';
 import Chip from './Chip';
 import FiyatAraligi from './FiyatAraligi';
@@ -391,6 +391,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   baslik: {
     fontSize: yazi.buyuk,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     lineHeight: satir.buyuk,
     color: renkler.yaziKoyu,
   },
@@ -410,6 +411,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bolumBaslik: {
     fontSize: yazi.kucuk,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     lineHeight: satir.kucuk,
     color: renkler.yaziGri,
     textTransform: 'uppercase',
@@ -438,6 +440,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   anahtarYazi: {
     fontSize: yazi.orta,
     fontWeight: agirlik.orta,
+    fontFamily: font.orta,
     lineHeight: satir.orta,
     color: renkler.yaziKoyu,
   },
@@ -459,6 +462,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   temizleYazi: {
     fontSize: yazi.orta,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     lineHeight: satir.orta,
     color: renkler.yaziOrta,
   },
@@ -475,6 +479,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   uygulaYazi: {
     fontSize: yazi.orta,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     lineHeight: satir.orta,
     color: renkler.anaRenkUstuYazi,
   },

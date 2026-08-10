@@ -1,4 +1,5 @@
 import React from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -167,6 +168,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   baslik: {
     fontSize: 26,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     marginBottom: 8,
   },
@@ -193,16 +195,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
   deger: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   degerVurgu: {
     fontSize: 17,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk,
   },
   degerIndirim: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.basari,
   },
   tasarrufRozet: {
@@ -227,6 +232,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   tasarrufYazi: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.basari,
     textAlign: 'center',
   },
@@ -244,6 +250,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   anaButon: {
     padding: 16,
@@ -256,5 +263,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.yaziKoyu,
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: font.yari,
   },
 });

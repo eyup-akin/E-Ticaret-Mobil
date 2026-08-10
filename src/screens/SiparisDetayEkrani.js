@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -421,6 +422,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   icerik: {
@@ -448,7 +450,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     letterSpacing: 0.5,
     color: renkler.yaziKoyu,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: font.yari,
   },
 
   /* ⭐ YENİ — uzun basma ipucu / kopyalandı onayı */
@@ -471,7 +474,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   kopyaIpucuBasarili: {
     color: renkler.basari,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: font.yari,
   },
 
   /* ⭐ YENİ — müşteri notu metni.
@@ -489,6 +493,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bolumBaslik: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 8
   },
@@ -509,6 +514,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   deger: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   adresEtiket: {
@@ -531,19 +537,23 @@ const stilOlustur = (renkler) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8
   },
+  // ⭐ DEĞİŞTİ (GV/Faz 1) — ana renk zemin olmaktan çıkarıldı.
+  // Gerekçe UrunKarti.resimYok'ta yazılı: turuncu eylem rengi,
+  // resimsiz ürünün yer tutucusu bir eylem değil.
   harfKutu: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: renkler.anaRenk,
+    backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12
   },
   harfYazi: {
-    color: renkler.anaRenkUstuYazi,
+    color: renkler.yaziGri,
     fontSize: 18,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   urunOrta: {
     flex: 1
@@ -551,6 +561,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   urunAd: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   urunBirim: {
@@ -561,6 +572,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   urunToplam: {
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu
   },
   /* Artık birden fazla satır olabildiği için yatay dizilim
@@ -590,6 +602,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ozetDeger: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   ozetAyirac: {
@@ -604,6 +617,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   toplamTutar: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk
   },
 
@@ -628,6 +642,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kdvBaslik: {
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziGri,
     marginBottom: 6,
     letterSpacing: 0.4,
@@ -651,6 +666,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kdvDeger: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziOrta
   }
 });

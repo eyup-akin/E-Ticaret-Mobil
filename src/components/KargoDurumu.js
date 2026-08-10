@@ -1,4 +1,5 @@
 import React from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
@@ -129,7 +130,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   asamaYaziAktif: {
     color: renkler.yaziKoyu,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: font.yari,
   },
 
   /* ⭐ YENİ — aşama tarihi */
@@ -154,6 +156,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   iptalBaslik: {
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: '#e74c3c'
   },
   iptalTarih: {

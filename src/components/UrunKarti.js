@@ -8,7 +8,7 @@ import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
 // ⭐ YENİ — tasarım sistemi
-import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
 import Rozet from './Rozet';
 // ⭐ YENİ — puan şeridi için ortak bileşen (yorum ekranında da kullanılıyor).
 import Yildizlar from './Yildizlar';
@@ -204,17 +204,31 @@ const stilOlustur = (renkler) => StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  // ⭐ DEĞİŞTİ (GV/Faz 1) — YER TUTUCU ARTIK ANA RENKTE DEĞİL.
+  //
+  // ⚠️ Bu, palet değişiminin ORTAYA ÇIKARDIĞI bir hataydı.
+  //
+  // Resimsiz ürünün yer tutucusu ana rengi zemin olarak
+  // kullanıyordu. Mavideyken göze batmıyordu; turuncuya geçince
+  // resimsiz ürünlerin olduğu bir listede ekranın yarısı turuncu
+  // doldu ve "turuncu = eylem" kuralı görünür şekilde çöktü:
+  // müşteri hangisinin basılabilir olduğunu renkten ayırt
+  // edemiyordu.
+  //
+  // Ders: dekoratif amaçla kullanılan bir ANA RENK, palet
+  // değişene kadar sorun gibi görünmüyor.
   resimYok: {
     width: '100%',
     height: '100%',
-    backgroundColor: renkler.anaRenk,
+    backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
   },
   resimHarf: {
-    color: renkler.anaRenkUstuYazi,
+    color: renkler.yaziGri,
     fontSize: 56,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   tukendiOrtu: {
     ...StyleSheet.absoluteFillObject,
@@ -226,6 +240,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     letterSpacing: 1,
   },
   kalpButon: {
@@ -250,6 +265,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   urunAd: {
     fontSize: yazi.normal,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
 
     // İki satırlık yer ayrılıyor ki kısa ve uzun adlı kartların
@@ -266,6 +282,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   puanYazi: {
     fontSize: yazi.kucuk,
     fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     marginLeft: bosluk.mikro,
   },
@@ -289,6 +306,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   fiyat: {
     fontSize: yazi.buyuk,
     fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     marginBottom: bosluk.kucuk,
   },

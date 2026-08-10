@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -359,6 +360,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   baslik: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     marginBottom: 16,
     color: renkler.yaziKoyu
   },
@@ -382,6 +384,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ad: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   eposta: {
@@ -438,6 +441,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   sayacYazi: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: font.kalin,
     color: renkler.yaziOrta
   },
 
@@ -463,6 +467,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   misafirBaslik: {
     fontSize: 20,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     marginBottom: 8
   },
@@ -484,7 +489,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   anaButonYazi: {
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   ikincilButon: {
     backgroundColor: 'transparent',
@@ -498,7 +504,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ikincilButonYazi: {
     color: renkler.anaRenk,
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   misafirDipnot: {
     fontSize: 12,
@@ -520,6 +527,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   grupBaslik: {
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: font.kalin,
     color: renkler.yaziGri,
     letterSpacing: 0.8,
     marginBottom: 8
@@ -547,7 +555,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   temaYaziSecili: {
     color: renkler.anaRenkUstuYazi,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 
   /* --- ÇIKIŞ ---
@@ -578,7 +587,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   cikisYazi: {
     color: renkler.hata,
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 
   /* --- ⭐ YENİ: TEHLİKELİ BÖLGE --- */
@@ -598,7 +608,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   tehlikeSatirYazi: {
     fontSize: 15,
     color: renkler.hata,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: font.yari,
   },
   tehlikeAciklama: {
     fontSize: 12,

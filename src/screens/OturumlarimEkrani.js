@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { font } from '../theme/olculer';
 import {
   View,
   Text,
@@ -370,6 +371,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   icerik: {
@@ -417,6 +419,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   sayiYazi: {
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     marginBottom: 10,
   },
@@ -460,6 +463,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   cihazAd: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   detay: {
@@ -488,6 +492,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: font.kalin,
   },
 
   /* ---- BUTONLAR ---- */
@@ -503,6 +508,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kapatYazi: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.hata,
   },
   tehlikeButon: {
@@ -516,6 +522,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 
   /* ---- DİĞER ---- */

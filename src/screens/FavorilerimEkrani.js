@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -159,6 +160,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   liste: {

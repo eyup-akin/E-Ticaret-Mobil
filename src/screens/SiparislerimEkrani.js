@@ -12,7 +12,7 @@ import { durumYazisi, durumRengi, odemeYazisi, odemeRengi } from '../utils/durum
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';                     // ⭐
 // ⭐ YENİ — tasarım sistemi ölçüleri. Bu dosyanın ESKİ stilleri hâlâ ham
 // sayı kullanıyor; sadece yeni eklenen durum şeridi token'a bağlandı.
-import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
 
 // ⭐ YENİ — DURUM ŞERİDİNİN SIRASI VE ETİKETLERİ
 //
@@ -277,6 +277,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   baslik: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     paddingHorizontal: 16,
     paddingTop: 16
@@ -323,6 +324,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   cipYazi: {
     fontSize: yazi.kucuk,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     color: renkler.yaziOrta
   },
   cipYaziSecili: {
@@ -352,11 +354,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
     }),
     fontSize: 14,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu
   },
   tutar: {
     fontSize: 17,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk
   },
   tarih: {
@@ -382,6 +386,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   rozetYazi: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.anaRenkUstuYazi
   },
   rozetOdeme: {
@@ -395,7 +400,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   rozetOdemeYazi: {
     fontSize: 12,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: font.yari,
   },
   kartBilgi: {
     fontSize: 12,

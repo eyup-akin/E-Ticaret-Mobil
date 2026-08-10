@@ -89,6 +89,45 @@ export const agirlik = {
   kalin: '700',
 };
 
+// ---------- YAZI TİPİ AİLESİ ----------  ⭐ YENİ (GV/Faz 1)
+//
+// ⚠️⚠️ REACT NATIVE'İN EN SİNSİ TUZAĞI BURADA.
+//
+// ÖZEL BİR FONT YÜKLENDİĞİNDE `fontWeight` ARTIK ÇALIŞMAZ.
+//
+// Sistem fontunda `fontWeight: '700'` yazmak yeterliydi — platform
+// ailenin kalın kesimini kendisi buluyordu. Özel fontta öyle
+// olmuyor: her ağırlık AYRI BİR AİLE olarak yükleniyor
+// ('PlusJakartaSans_400Regular', '..._700Bold' gibi). Sadece
+// fontWeight verirsen Android o satırı sessizce yok sayar ve yazı
+// NORMAL ağırlıkta kalır. Hata yok, uyarı yok — sadece kalın
+// olması gereken başlık ince çıkar.
+//
+// Bu projede en çok kaçındığımız hata türü: patlamayan hata.
+//
+// ⚠️ KURAL: fontWeight yazdığın HER YERE fontFamily de yaz.
+//
+//     fontSize: yazi.buyuk,
+//     fontWeight: agirlik.kalin,      // iOS ve sistem fontu için
+//     fontFamily: font.kalin,         // Android ve özel font için
+//
+// İkisi birlikte veriliyor çünkü ikisi de gerekli: font henüz
+// yüklenmemişken (açılışın ilk anı) ya da yükleme başarısızsa
+// fontWeight devreye giriyor ve yazı yine de kalın çıkıyor.
+// Yalnızca fontFamily verseydik o durumda hiyerarşi tamamen
+// kaybolurdu.
+//
+// ⚠️ Bu isimler @expo-google-fonts/plus-jakarta-sans paketinin
+// export ettiği adların BİREBİR aynısı. Bir harf sapması sessiz
+// bir geri düşüşe yol açar — App.js'te yüklenen anahtarla aynı
+// olmak zorunda.
+export const font = {
+  normal: 'PlusJakartaSans_400Regular',
+  orta: 'PlusJakartaSans_500Medium',
+  yari: 'PlusJakartaSans_600SemiBold',
+  kalin: 'PlusJakartaSans_700Bold',
+};
+
 // ---------- SATIR YÜKSEKLİĞİ ----------
 //
 // ⚠️ React Native'de lineHeight MUTLAK bir sayıdır, çarpan değil.

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { font } from '../theme/olculer';
 import {
   View,
   Text,
@@ -171,6 +172,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   icerik: {
@@ -179,6 +181,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   etiket: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 6,
   },
@@ -251,5 +254,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 }); 

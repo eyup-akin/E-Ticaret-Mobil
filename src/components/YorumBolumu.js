@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { apiGet, apiPost } from '../services/api';
@@ -114,20 +115,20 @@ export default function YorumBolumu({ urunId, onDegisti }) {
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
-  bolumBaslik: { fontSize: 18, fontWeight: 'bold', color: renkler.yaziKoyu, marginBottom: 14 },
+  bolumBaslik: { fontSize: 18, fontWeight: 'bold', fontFamily: font.kalin, color: renkler.yaziKoyu, marginBottom: 14 },
   durumNot: { fontSize: 14, color: renkler.yaziOrta, backgroundColor: renkler.acikKart, padding: 12, borderRadius: 10, marginBottom: 16 },
   girisUyari: { backgroundColor: renkler.acikKart, padding: 12, borderRadius: 10, marginBottom: 16, alignItems: 'center' },
-  girisUyariYazi: { fontSize: 14, fontWeight: '600', color: renkler.anaRenk },
+  girisUyariYazi: { fontSize: 14, fontWeight: '600', fontFamily: font.yari, color: renkler.anaRenk },
   form: { backgroundColor: renkler.acikKart, padding: 14, borderRadius: 12, marginBottom: 16 },
-  formBaslik: { fontSize: 14, fontWeight: '600', color: renkler.yaziKoyu, marginBottom: 8 },
+  formBaslik: { fontSize: 14, fontWeight: '600', fontFamily: font.yari, color: renkler.yaziKoyu, marginBottom: 8 },
   formInput: { borderWidth: 1, borderColor: renkler.inputKenar, borderRadius: 8, padding: 10, marginTop: 12, marginBottom: 12, minHeight: 70, textAlignVertical: 'top', color: renkler.yaziKoyu, backgroundColor: renkler.kartArka },
   formButon: { backgroundColor: renkler.anaRenk, height: 46, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   formButonPasif: { backgroundColor: renkler.pasif },
-  formButonYazi: { color: renkler.anaRenkUstuYazi, fontSize: 15, fontWeight: 'bold' },
+  formButonYazi: { color: renkler.anaRenkUstuYazi, fontSize: 15, fontWeight: 'bold', fontFamily: font.kalin },
   yorumYok: { fontSize: 14, color: renkler.yaziGri, fontStyle: 'italic' },
   yorumKart: { backgroundColor: renkler.kartArka, borderWidth: 1, borderColor: renkler.kenarlik, borderRadius: 12, padding: 12, marginBottom: 10 },
   yorumUst: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  yorumKisi: { fontSize: 14, fontWeight: '600', color: renkler.yaziKoyu },
+  yorumKisi: { fontSize: 14, fontWeight: '600', fontFamily: font.yari, color: renkler.yaziKoyu },
   yorumTarih: { fontSize: 12, color: renkler.yaziGri },
   yorumMetin: { fontSize: 14, color: renkler.yaziOrta, marginTop: 6, lineHeight: 20 },
 });

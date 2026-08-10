@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSepet } from '../context/SepetContext';
 import { useAyarlar } from '../context/AyarlarContext';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
 
 // ============================================================
 //  ADET KONTROLÜ
@@ -323,6 +323,7 @@ const stilOlustur = (renkler, boyut) => {
       color: renkler.anaRenkUstuYazi,
       fontSize: buyuk ? yazi.orta : yazi.kucuk,
       fontWeight: agirlik.kalin,
+      fontFamily: font.kalin,
     },
 
     kontrol: {
@@ -351,6 +352,7 @@ const stilOlustur = (renkler, boyut) => {
       textAlign: 'center',
       fontSize: buyuk ? yazi.orta : yazi.normal,
       fontWeight: agirlik.kalin,
+      fontFamily: font.kalin,
       color: renkler.yaziKoyu,
     },
 
@@ -407,6 +409,7 @@ const stilOlustur = (renkler, boyut) => {
       color: renkler.anaRenkUstuYazi,
       fontSize: yazi.normal,
       fontWeight: agirlik.kalin,
+      fontFamily: font.kalin,
     },
   });
 };

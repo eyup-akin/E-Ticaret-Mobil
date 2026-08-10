@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -411,7 +412,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bosYazi: { fontSize: 16, color: renkler.yaziGri },
   ustBar: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: renkler.kenarlik },
   geriButon: { marginRight: 12 },
-  ustBaslik: { fontSize: 18, fontWeight: '600', color: renkler.yaziKoyu },
+  ustBaslik: { fontSize: 18, fontWeight: '600', fontFamily: font.yari, color: renkler.yaziKoyu },
   icerik: { paddingBottom: 24 },
 
   bilgiKart: {
@@ -441,7 +442,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   aciklamaBaslik: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600', fontFamily: font.yari,
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 10,
   },
@@ -467,24 +469,25 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   aciklamaButonYazi: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600', fontFamily: font.yari,
+    fontFamily: font.yari,
     color: renkler.anaRenk,
   },
-  urunAd: { fontSize: 22, fontWeight: 'bold', color: renkler.yaziKoyu, marginBottom: 8 },
+  urunAd: { fontSize: 22, fontWeight: 'bold', fontFamily: font.kalin, color: renkler.yaziKoyu, marginBottom: 8 },
   ortalamaSatir: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  ortalamaYazi: { fontSize: 15, fontWeight: '700', color: renkler.yaziKoyu, marginLeft: 6 },
+  ortalamaYazi: { fontSize: 15, fontWeight: '700', fontFamily: font.kalin, color: renkler.yaziKoyu, marginLeft: 6 },
 
   metaSatir: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   metaOge: { flexDirection: 'row', alignItems: 'center' },
   metaYazi: { fontSize: 13, color: renkler.yaziGri, marginLeft: 5 },
   metaNokta: { width: 3, height: 3, borderRadius: 2, backgroundColor: renkler.yaziGri, marginHorizontal: 10 },
 
-  stokVar: { fontSize: 15, color: renkler.basari, fontWeight: '600' },
-  stokYok: { fontSize: 15, color: renkler.yaziGri, fontWeight: '600' },
+  stokVar: { fontSize: 15, color: renkler.basari, fontWeight: '600', fontFamily: font.yari },
+  stokYok: { fontSize: 15, color: renkler.yaziGri, fontWeight: '600', fontFamily: font.yari },
 
   /* ⭐ YENİ — az kaldı hali. Turuncu "acele et" der; yeşil (rahat ol)
      ile gri (yok) arasındaki üçüncü durum. */
-  stokAz: { fontSize: 15, color: renkler.uyari, fontWeight: '600' },
+  stokAz: { fontSize: 15, color: renkler.uyari, fontWeight: '600', fontFamily: font.yari },
 
   /* ⭐ YENİ (5.1/5.2) — alt bardaki iki eylem.
 
@@ -523,7 +526,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   simdiAlYazi: {
     color: renkler.anaRenk,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '700', fontFamily: font.kalin,
+    fontFamily: font.kalin,
   },
 
   /* ⭐ YENİ (5.5) — "Stoka gelince haber ver" butonu.
@@ -559,7 +563,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bildirimYazi: {
     color: renkler.anaRenk,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '700', fontFamily: font.kalin,
+    fontFamily: font.kalin,
   },
 
   yorumKart: {
@@ -582,5 +587,5 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   fiyatKutu: { marginRight: 14 },
   fiyatEtiket: { fontSize: 12, color: renkler.yaziGri },
-  fiyat: { fontSize: 20, fontWeight: 'bold', color: renkler.anaRenk },
+  fiyat: { fontSize: 20, fontWeight: 'bold', fontFamily: font.kalin, color: renkler.anaRenk },
 });

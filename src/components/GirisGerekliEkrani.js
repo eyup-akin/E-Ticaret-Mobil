@@ -1,4 +1,5 @@
 import React from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -93,6 +94,7 @@ function stilOlustur(renkler) {
     baslik: {
       fontSize: 19,
       fontWeight: 'bold',
+      fontFamily: font.kalin,
       color: renkler.yaziKoyu,
       textAlign: 'center',
       marginBottom: 10,
@@ -116,6 +118,7 @@ function stilOlustur(renkler) {
       color: renkler.anaRenkUstuYazi,
       fontSize: 16,
       fontWeight: 'bold',
+      fontFamily: font.kalin,
     },
     ikincilButon: {
       backgroundColor: 'transparent',
@@ -131,6 +134,7 @@ function stilOlustur(renkler) {
       color: renkler.anaRenk,
       fontSize: 16,
       fontWeight: 'bold',
+      fontFamily: font.kalin,
     },
     dipnot: {
       fontSize: 12,

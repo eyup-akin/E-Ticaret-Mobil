@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -138,6 +139,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu
   },
   liste: {
@@ -162,6 +164,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ozetDeger: {
     fontSize: 18,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk
   },
   kart: {
@@ -181,11 +184,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
   siparisNo: {
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu
   },
   tutar: {
     fontSize: 17,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   tarih: {
     fontSize: 12,
@@ -204,7 +209,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   rozetYazi: {
     fontSize: 12,
-    fontWeight: '600'
+    fontWeight: '600',
+    fontFamily: font.yari,
   },
   kartBilgi: {
     fontSize: 12,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi, agirlik, satir } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
 // ============================================================
 //  CHIP — tıklanabilir seçim etiketi
@@ -68,6 +68,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   yaziStil: {
     fontSize: yazi.normal,
     fontWeight: agirlik.orta,
+    fontFamily: font.orta,
     color: renkler.yaziOrta,
 
     // ⚠️ lineHeight AÇIKÇA veriliyor: verilmezse React Native
@@ -80,5 +81,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
   yaziSecili: {
     color: renkler.anaRenk,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
   },
 });

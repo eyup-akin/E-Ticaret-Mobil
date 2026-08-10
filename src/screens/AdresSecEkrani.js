@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -275,6 +276,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   adimYazi: {
@@ -310,6 +312,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   adresBaslik: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 4,
   },
@@ -342,6 +345,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 15,
     color: renkler.anaRenk,
     fontWeight: '600',
+    fontFamily: font.yari,
     marginLeft: 6,
   },
   form: {
@@ -352,6 +356,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   formBaslik: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 12,
   },
@@ -397,6 +402,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   altBar: {
     padding: 16,
@@ -417,5 +423,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 });

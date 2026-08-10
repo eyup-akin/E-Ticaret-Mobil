@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
@@ -65,14 +66,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.acikGri,
     position: 'relative',
   },
+  // ⭐ DEĞİŞTİ (GV/Faz 1) — ana renk zemin olmaktan çıkarıldı.
+  // Gerekçe UrunKarti.resimYok'ta yazılı: dekoratif ana renk,
+  // turuncuya geçince ekranı ele geçiriyor.
   resimYok: {
     width: '100%',
     height: '100%',
-    backgroundColor: renkler.anaRenk,
+    backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  resimHarf: { color: renkler.anaRenkUstuYazi, fontSize: 100, fontWeight: 'bold' },
+  resimHarf: { color: renkler.yaziGri, fontSize: 100, fontWeight: 'bold', fontFamily: font.kalin },
   noktalar: {
     position: 'absolute',
     bottom: 12,

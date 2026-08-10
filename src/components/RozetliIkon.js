@@ -1,4 +1,5 @@
 import React from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
@@ -79,5 +80,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 10,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 });

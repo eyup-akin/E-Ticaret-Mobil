@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
 
 // ============================================================
 //  ROZET — küçük durum / bilgi etiketi
@@ -49,6 +49,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   yaziStil: {
     fontSize: yazi.mikro,
     fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
 
     // ⚠️ lineHeight AÇIKÇA veriliyor.
     // Verilmezse React Native platforma göre farklı satır

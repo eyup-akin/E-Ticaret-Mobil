@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { font } from '../theme/olculer';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -134,6 +135,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   baslik: {
     fontSize: 22,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -178,6 +180,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kategoriAd: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   urunSayisi: {

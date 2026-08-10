@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { font } from '../theme/olculer';
 import {
   View,
   Text,
@@ -474,6 +475,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   baslik: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -590,6 +592,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 
 
@@ -612,6 +615,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kuponKod: {
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     /* Kodlar karakter karakter okunur — eşit genişlikli font
        "1" ile "l", "0" ile "O" ayrımını kolaylaştırır */
@@ -630,6 +634,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kuponKaldirYazi: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.hata,
   },
 
@@ -655,6 +660,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kargoSeritYazi: {
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 8,
   },
@@ -692,6 +698,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.basari,
   },
 
@@ -714,6 +721,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ozetDeger: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   ayirac: {
@@ -724,11 +732,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
   odenecekEtiket: {
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
   },
   odenecekTutar: {
     fontSize: 22,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk,
   },
 
@@ -746,6 +756,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 
   /* ⭐ YENİ — kilitli sipariş butonu.

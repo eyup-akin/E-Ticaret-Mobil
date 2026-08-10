@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
-import { bosluk, yazi, agirlik, satir } from '../theme/olculer';
+import { bosluk, yazi, agirlik, satir, font } from '../theme/olculer';
 import {
   bosFiltre, varsayilanSiralama, filtreSorgusuKur, aktifFiltreSayisi,
 } from '../services/urunFiltresi';
@@ -139,6 +139,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     fontSize: yazi.buyuk,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     lineHeight: satir.buyuk,
     color: renkler.yaziKoyu,
   },

@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, PanResponder } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi, agirlik, satir } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
 // ============================================================
 //  FİYAT ARALIĞI — çift uçlu kaydırıcı
@@ -229,6 +229,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   deger: {
     fontSize: yazi.normal,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     lineHeight: satir.normal,
     color: renkler.yaziKoyu,
   },

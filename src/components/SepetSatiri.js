@@ -11,7 +11,7 @@ import { paraBicimle } from '../utils/bicimlendir';
 // fiyat uyarısıyla ilgisi olmayan 20 satırı değiştirmek, değişikliği
 // gözden geçirilemez hale getirirdi. Yeni eklenen stiller token
 // kullanıyor; dosyanın tamamı Aşama 4.7'de elden geçecek.
-import { bosluk, kose, yazi, agirlik } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
 
 // Sepetteki TEK bir satırın görünümü. Veri işi yok, sadece çizim + tıklama.
 export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
@@ -224,19 +224,22 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginRight: 12,
     backgroundColor: renkler.acikGri
   },
+  // ⭐ DEĞİŞTİ (GV/Faz 1) — ana renk zemin olmaktan çıkarıldı.
+  // Gerekçe UrunKarti.resimYok'ta yazılı.
   harfKutu: {
     width: 84,
     height: 84,
     borderRadius: 12,
-    backgroundColor: renkler.anaRenk,
+    backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12
   },
   harfYazi: {
-    color: renkler.anaRenkUstuYazi,
+    color: renkler.yaziGri,
     fontSize: 30,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
   orta: {
     flex: 1
@@ -244,6 +247,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   urunAd: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 4
   },
@@ -300,7 +304,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   fiyatRozetYazi: {
     fontSize: yazi.mikro,
-    fontWeight: agirlik.yari
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
   },
 
   /* ⭐ YENİ — "Satıştan kaldırıldı" rozeti.
@@ -322,6 +327,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   pasifRozetYazi: {
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.hata
   },
 
@@ -341,6 +347,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   adetYazi: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginHorizontal: 14,
     minWidth: 20,
@@ -358,6 +365,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   satirToplam: {
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk
   }
 });

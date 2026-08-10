@@ -8,7 +8,7 @@ import { useSepet } from '../context/SepetContext';
 import { paraBicimle } from '../utils/bicimlendir';
 // ⭐ YENİ (5.4) — tasarım sistemi ölçüleri. Bu dosyanın eski stilleri
 // ham sayı kullanıyor; yalnızca yeni eklenenler token'a bağlandı.
-import { bosluk, kose, yazi, agirlik, satir } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
 
 // ⭐ YENİ — ÇİFT SİPARİŞ KORUMASI ANAHTARI ÜRETİCİSİ
@@ -590,6 +590,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBaslik: {
     fontSize: 18,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   adimYazi: {
@@ -607,6 +608,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bolumBaslik: {
     fontSize: 15,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 8,
   },
@@ -618,6 +620,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kutuBaslik: {
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 4,
   },
@@ -644,6 +647,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   urunFiyat: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
 
@@ -663,6 +667,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kuponKod: {
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     letterSpacing: 0.5,
   },
@@ -674,6 +679,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kuponIndirim: {
     fontSize: 15,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.basari,
   },
 
@@ -721,6 +727,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ozetDeger: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   ayirac: {
@@ -741,6 +748,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   toplamTutar: {
     fontSize: 24,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
     color: renkler.anaRenk,
   },
   tamamlaButon: {
@@ -781,6 +789,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     fontSize: yazi.normal,
     fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
   },
   fiyatUyariAciklama: {
@@ -803,12 +812,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     fontSize: yazi.normal,
     fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   tamamlaYazi: {
     color: renkler.anaRenkUstuYazi,
     fontSize: 16,
     fontWeight: 'bold',
+    fontFamily: font.kalin,
   },
 
   /* ⭐ YENİ — sipariş notu girişi */
