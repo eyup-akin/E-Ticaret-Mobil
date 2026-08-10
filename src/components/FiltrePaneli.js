@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, Modal, Pressable, ScrollView,
-  TouchableOpacity, Switch, ActivityIndicator,
+  TouchableOpacity, Switch, ActivityIndicator, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
-import { bosFiltre, puanEsikleri, filtreSorgusuKur, sinirdakiniBosalt } from '../services/urunFiltresi';
-import Chip from './Chip';
+import {
+  bosFiltre, puanEsikleri, filtreSorgusuKur, sinirdakiniBosalt, aktifFiltreSayisi,
+} from '../services/urunFiltresi';
+import { kategoriIkonu } from '../services/kategoriIkon';
+import SecimKarosu from './SecimKarosu';
+import Yildizlar from './Yildizlar';
 import FiyatAraligi from './FiyatAraligi';
 
 // ============================================================
@@ -55,6 +59,20 @@ export default function FiltrePaneli({
   // ("sınır serbest"), kaydırıcı ise her zaman bir sayı ister.
   const [altFiyat, setAltFiyat] = useState(0);
   const [ustFiyat, setUstFiyat] = useState(0);
+
+  // ⭐ YENİ (GV/Faz 3) — SAYI KUTULARININ METİN HALİ.
+  //
+  // ⚠️ NEDEN AYRI STATE, NEDEN doğrudan altFiyat'ı yazdırmıyoruz?
+  //
+  // TextInput'un value'suna sayıyı verseydik kutuyu TEMİZLEMEK
+  // imkânsız olurdu: kullanıcı son rakamı silince metin "" olur,
+  // Number("") = 0, ve kutuya anında "0" geri yazılırdı. Kullanıcı
+  // "1500" yazmak için önce silmek zorunda ve silemiyor.
+  //
+  // Bu yüzden yazarken METİN serbest, sayıya çevirme yalnızca
+  // odak çıkışında (onBlur) yapılıyor.
+  const [altMetin, setAltMetin] = useState('');
+  const [ustMetin, setUstMetin] = useState('');
 
   // ⚠️ SIRA NUMARASI — YARIŞ KOŞULU KALKANI.
   //
@@ -141,6 +159,18 @@ export default function FiltrePaneli({
     setUstFiyat(filtre.maxFiyat ?? Math.ceil(sinirlar.enYuksek));
   }, [sinirlar, acik]);
 
+  // ---- KAYDIRICI OYNAYINCA KUTULARI TAZELE ----
+  //
+  // ⚠️ Tek yönlü: sayı → metin. Ters yön (metin → sayı) yalnızca
+  // odak çıkışında çalışıyor. İki yönü de anlık bağlasaydık
+  // kullanıcı "15" yazarken kutu "15" → sayı 15 → metin "15" diye
+  // dönüp durur, araya kaydırıcının sınırlaması girince yazdığı
+  // rakam elinden alınırdı.
+  useEffect(() => {
+    setAltMetin(String(altFiyat));
+    setUstMetin(String(ustFiyat));
+  }, [altFiyat, ustFiyat]);
+
   // ---- TASLAK DEĞİŞİNCE SAYACI TAZELE ----
   useEffect(() => {
     if (!acik) return;
@@ -207,6 +237,51 @@ export default function FiltrePaneli({
     }));
   }
 
+  // ⭐ YENİ (GV/Faz 3) — SAYI KUTUSU ODAKTAN ÇIKINCA
+  //
+  // hangi: 'alt' | 'ust'
+  //
+  // ⚠️ ÜÇ AŞAMA: ayrıştır → sınırla → işle.
+  //
+  // Ayrıştırma başarısızsa (boş kutu, "abc") kullanıcıyı hata
+  // mesajıyla karşılamak yerine değeri ESKİ HALİNE döndürüyoruz.
+  // Filtre kutusu bir form alanı değil; yanlış yazınca engellenmek
+  // değil, sessizce düzeltilmek beklenir.
+  //
+  // ⚠️ Sınırlama iki taraflı: alt kutu üst değeri geçemez, üst kutu
+  // altın altına inemez. Kaydırıcıdaki kuralın aynısı — iki giriş
+  // yolu aynı sonucu vermeli, yoksa "kutuyla yaptığımı kaydırıcıyla
+  // yapamıyorum" durumu doğar.
+  function kutuyuIsle(hangi) {
+    if (!sinirlar) return;
+
+    const enDusuk = Math.floor(sinirlar.enDusuk);
+    const enYuksek = Math.ceil(sinirlar.enYuksek);
+
+    const metin = hangi === 'alt' ? altMetin : ustMetin;
+    const sayi = parseInt(metin.replace(/[^0-9]/g, ''), 10);
+
+    if (Number.isNaN(sayi)) {
+      // Bozuk giriş → eski değeri geri yaz
+      setAltMetin(String(altFiyat));
+      setUstMetin(String(ustFiyat));
+      return;
+    }
+
+    let a = altFiyat;
+    let u = ustFiyat;
+
+    if (hangi === 'alt') {
+      a = Math.min(Math.max(sayi, enDusuk), ustFiyat);
+    } else {
+      u = Math.min(Math.max(sayi, altFiyat), enYuksek);
+    }
+
+    setAltFiyat(a);
+    setUstFiyat(u);
+    fiyatiIsle(a, u);
+  }
+
   function temizle() {
     setTaslak(bosFiltre());
 
@@ -219,6 +294,12 @@ export default function FiltrePaneli({
   const butonYazisi = sayi === null
     ? 'Ürünleri göster'
     : sayi + ' ürünü göster';
+
+  // ⭐ YENİ (GV/Faz 3) — başlıktaki temizle bağlantısının sayacı.
+  // ⚠️ aktifFiltreSayisi TASLAĞA bakıyor, yürürlükteki filtreye
+  // değil: kullanıcı panelde ne seçtiyse onu sayması gerekiyor.
+  const secimSayisi = aktifFiltreSayisi(taslak);
+  const secimVar = secimSayisi > 0;
 
   return (
     <Modal
@@ -238,6 +319,28 @@ export default function FiltrePaneli({
         <View style={styles.baslikSatiri}>
           <Text style={styles.baslik}>Filtrele</Text>
 
+          {/* ⭐ YENİ (GV/Faz 3) — "Temizle (3)".
+
+              ⚠️ Sayı ile birlikte gösteriliyor çünkü panel açıldığında
+              müşteri kaç filtrenin yürürlükte olduğunu görmeden
+              karar veremiyor: kaydırıcı ve karolar ekranın altında
+              kalabiliyor, kategori bölümü bazı ekranlarda hiç
+              çizilmiyor.
+
+              ⚠️ Hiç seçim yokken PASİF: basılabilir görünen ama
+              hiçbir şey yapmayan bir bağlantı, kullanıcıya
+              "çalışmıyor" dedirtir. */}
+          <TouchableOpacity
+            onPress={temizle}
+            disabled={!secimVar}
+            hitSlop={8}
+            style={styles.temizleBaglanti}
+          >
+            <Text style={[styles.temizleBaglantiYazi, !secimVar && styles.temizlePasif]}>
+              {secimVar ? `Temizle (${secimSayisi})` : 'Temizle'}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={onKapat} hitSlop={12}>
             <Ionicons name="close" size={24} color={renkler.yaziOrta} />
           </TouchableOpacity>
@@ -256,26 +359,51 @@ export default function FiltrePaneli({
             olurdu.
           */}
           {!kategoriId && kategoriler.length > 0 && (
-            <View style={styles.bolum}>
-              <Text style={styles.bolumBaslik}>Kategori</Text>
+            <View style={styles.kart}>
+              <View style={styles.kartBaslikSatiri}>
+                <Text style={styles.kartBaslik}>Kategori</Text>
 
-              <View style={styles.chipSatiri}>
+                {taslak.kategoriler.length > 0 && (
+                  <Text style={styles.kartOzet}>
+                    {taslak.kategoriler.length} seçili
+                  </Text>
+                )}
+              </View>
+
+              {/* ⚠️ YATAY KAYDIRMA, ALT SATIRA SARMA DEĞİL.
+
+                  Karolar 84dp; sarma bıraksaydık 7 kategori üç satır
+                  ederdi ve kart, panelin yarısını yerdi. Fiyat ve
+                  puan bölümleri ekranın altında kalırdı.
+
+                  ⚠️ flexGrow:0 — ScrollView'in dikey akışta kalan
+                  alanı yutma huyu. (SiralamaSeridi'nde yaşandı.) */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.karoSeridi}
+                style={styles.karoSeridiKap}
+                directionalLockEnabled
+              >
                 {kategoriler.map((k) => (
-                  <Chip
+                  <SecimKarosu
                     key={k.id}
+                    ikon={kategoriIkonu(k.name)}
                     etiket={k.name}
                     secili={taslak.kategoriler.includes(k.id)}
                     onBas={() => kategoriDegistir(k.id)}
                   />
                 ))}
-              </View>
+              </ScrollView>
             </View>
           )}
 
           {/* ---------- FİYAT ---------- */}
           {sinirlar && sinirlar.enYuksek > sinirlar.enDusuk && (
-            <View style={styles.bolum}>
-              <Text style={styles.bolumBaslik}>Fiyat aralığı</Text>
+            <View style={styles.kart}>
+              <View style={styles.kartBaslikSatiri}>
+                <Text style={styles.kartBaslik}>Fiyat</Text>
+              </View>
 
               <FiyatAraligi
                 enDusuk={Math.floor(sinirlar.enDusuk)}
@@ -285,20 +413,70 @@ export default function FiltrePaneli({
                 onDegisti={(a, u) => { setAltFiyat(a); setUstFiyat(u); }}
                 onBitti={fiyatiIsle}
               />
+
+              {/* ⭐ YENİ (GV/Faz 3) — SAYI KUTULARI.
+
+                  Kaydırıcı kaba ayar, kutular ince ayar. Tasarımda da
+                  ikisi birlikte var ve gerekçesi şu: 89–4.500 arası
+                  bir raya parmakla 1.500'ü tam tutturmak mümkün değil.
+
+                  ⚠️ Değerler artık kaydırıcının ÜSTÜNDE yazmıyor —
+                  okunacak yer burası. İki yerde birden göstermek aynı
+                  sayının iki kaynağı olurdu. */}
+              <View style={styles.kutuSatiri}>
+                <View style={styles.kutu}>
+                  <TextInput
+                    style={styles.kutuGiris}
+                    value={altMetin}
+                    onChangeText={setAltMetin}
+                    onBlur={() => kutuyuIsle('alt')}
+                    onSubmitEditing={() => kutuyuIsle('alt')}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    maxLength={9}
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.kutuSimge}>₺</Text>
+                </View>
+
+                <Text style={styles.kutuAyrac}>—</Text>
+
+                <View style={styles.kutu}>
+                  <TextInput
+                    style={styles.kutuGiris}
+                    value={ustMetin}
+                    onChangeText={setUstMetin}
+                    onBlur={() => kutuyuIsle('ust')}
+                    onSubmitEditing={() => kutuyuIsle('ust')}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    maxLength={9}
+                    selectTextOnFocus
+                  />
+                  <Text style={styles.kutuSimge}>₺</Text>
+                </View>
+              </View>
             </View>
           )}
 
           {/* ---------- PUAN ---------- */}
-          <View style={styles.bolum}>
-            <Text style={styles.bolumBaslik}>Puan</Text>
+          <View style={styles.kart}>
+            <View style={styles.kartBaslikSatiri}>
+              <Text style={styles.kartBaslik}>Puan</Text>
+            </View>
 
-            <View style={styles.chipSatiri}>
+            {/* ⚠️ Karoların içinde ikon yerine YILDIZ ŞERİDİ var
+                (SecimKarosu'nun "cocuk" prop'u). Müşteri "4 yıldız"
+                yazısını okumadan önce dolu yıldızları görüyor —
+                filtrenin ne yaptığı bir bakışta anlaşılıyor. */}
+            <View style={styles.karoSatiri}>
               {puanEsikleri.map((esik) => (
-                <Chip
+                <SecimKarosu
                   key={esik}
-                  etiket={esik + ' yıldız ve üzeri'}
+                  etiket={esik === 5 ? '5 yıldız' : `${esik} & üzeri`}
                   secili={taslak.minPuan === esik}
                   onBas={() => puanDegistir(esik)}
+                  cocuk={<Yildizlar deger={esik} boyut={11} />}
                 />
               ))}
             </View>
@@ -316,7 +494,7 @@ export default function FiltrePaneli({
           </View>
 
           {/* ---------- STOK ---------- */}
-          <View style={styles.bolum}>
+          <View style={styles.kart}>
             <View style={styles.anahtarSatiri}>
               <Text style={styles.anahtarYazi}>Sadece stoktakiler</Text>
 
@@ -394,34 +572,115 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.yari,
     lineHeight: satir.buyuk,
     color: renkler.yaziKoyu,
+
+    // Başlık soldan, temizle bağlantısı ve X sağdan — aradaki
+    // boşluğu başlık dolduruyor.
+    flex: 1,
   },
 
+  temizleBaglanti: {
+    marginRight: bosluk.orta,
+  },
+
+  temizleBaglantiYazi: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    lineHeight: satir.normal,
+    color: renkler.anaRenk,
+  },
+
+  temizlePasif: {
+    color: renkler.yaziGri,
+  },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 3) — GÖVDE ARTIK SAYFA ZEMİNİNDE.
+
+     Panelin kendisi beyazdı ve bölümler görünmez sınırlarla
+     ayrılıyordu; hepsi tek bir uzun liste gibi okunuyordu. Artık
+     gövde sayfa zemini rengiyle boyanıyor ve her filtre KENDİ BEYAZ
+     KARTINDA duruyor — hangi ayarın hangi başlığa ait olduğu
+     bakışta belli.
+
+     ⚠️ Bu, kırık-beyaz sayfa zemini kararının ilk somut karşılığı.
+     Zemin beyaz kalsaydı beyaz kartlar görünmez olurdu. */
   icerik: {
-    paddingHorizontal: bosluk.normal,
+    backgroundColor: renkler.arkaPlan,
   },
 
   icerikDolgu: {
-    paddingBottom: bosluk.normal,
+    padding: bosluk.orta,
+    gap: bosluk.orta,
   },
 
-  bolum: {
-    paddingTop: bosluk.normal,
+  kart: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    padding: bosluk.normal,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
   },
 
-  bolumBaslik: {
+  kartBaslikSatiri: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: bosluk.orta,
+  },
+
+  /* ⚠️ Başlıkta DİKEY BOŞLUK YOK — boşluğu kartBaslikSatiri veriyor.
+     Başlığa marginBottom koysaydık, özet hapının bulunduğu satırda
+     başlık aşağı itilir ve hap ile hizası bozulurdu. Her kart
+     başlığı aynı sarmalayıcıyı kullanıyor; özet olmayanlarda
+     sarmalayıcı tek çocukla çalışıyor. */
+  kartBaslik: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    lineHeight: satir.orta,
+    color: renkler.yaziKoyu,
+  },
+
+  /* Özet ("2 seçili") — başlık satırının sağında.
+     ⚠️ Yumuşak turuncu zeminli küçük bir hap: kart kapalıyken bile
+     "burada bir şey seçili" bilgisini taşıyor. */
+  kartOzet: {
     fontSize: yazi.kucuk,
     fontWeight: agirlik.yari,
     fontFamily: font.yari,
     lineHeight: satir.kucuk,
-    color: renkler.yaziGri,
-    textTransform: 'uppercase',
-    marginBottom: bosluk.orta,
+    color: renkler.anaRenk,
+    backgroundColor: renkler.yumusakVurgu,
+    paddingHorizontal: bosluk.kucuk,
+    paddingVertical: 3,
+    borderRadius: kose.tam,
+    overflow: 'hidden',
   },
 
-  chipSatiri: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  karoSeridiKap: {
+    flexGrow: 0,
+    flexShrink: 0,
+
+    /* ⚠️ Negatif yan boşluk: şerit kartın dolgusunu AŞIYOR.
+       Böylece son karo kartın kenarında kırpılıyor ve "devamı var"
+       hissi doğuyor. Dolgunun içinde kalsaydı şerit kenardan önce
+       biter, kaydırılabilir olduğu anlaşılmazdı. */
+    marginHorizontal: -bosluk.normal,
+  },
+
+  karoSeridi: {
+    paddingHorizontal: bosluk.normal,
     gap: bosluk.kucuk,
+
+    /* Onay rozeti karonun üstünden taşıyor; dikey boşluk olmadan
+       üst kenarı kırpılırdı. */
+    paddingVertical: bosluk.kucuk,
+  },
+
+  karoSatiri: {
+    flexDirection: 'row',
+    gap: bosluk.kucuk,
+    paddingVertical: bosluk.kucuk,
   },
 
   aciklama: {
@@ -429,6 +688,55 @@ const stilOlustur = (renkler) => StyleSheet.create({
     lineHeight: satir.kucuk,
     color: renkler.yaziGri,
     marginTop: bosluk.kucuk,
+  },
+
+  /* ---------- SAYI KUTULARI ---------- */
+
+  kutuSatiri: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.orta,
+    marginTop: bosluk.orta,
+  },
+
+  kutu: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: renkler.inputKenar,
+    borderRadius: kose.orta,
+    paddingHorizontal: bosluk.orta,
+    backgroundColor: renkler.kartArka,
+  },
+
+  kutuGiris: {
+    flex: 1,
+    paddingVertical: bosluk.orta,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.yaziKoyu,
+
+    /* ⚠️ Android'de TextInput'un varsayılan iç dolgusu var ve
+       kutuyu olduğundan uzun gösteriyor. Sıfırlanmazsa kutular
+       yanındaki "—" ile hizasız durur. */
+    paddingHorizontal: 0,
+  },
+
+  /* ⚠️ Simge SONDA — "₺ 89" değil "89 ₺".
+     Tasarımda öndeydi ama Türkçe yazımda para simgesi sayıdan
+     sonra gelir; uygulamanın geri kalanında (paraBicimle) da öyle. */
+  kutuSimge: {
+    fontSize: yazi.orta,
+    fontFamily: font.orta,
+    color: renkler.yaziGri,
+    marginLeft: bosluk.mikro,
+  },
+
+  kutuAyrac: {
+    fontSize: yazi.orta,
+    color: renkler.yaziGri,
   },
 
   anahtarSatiri: {

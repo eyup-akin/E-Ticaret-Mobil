@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, PanResponder } from 'react-native';
+import { View, StyleSheet, PanResponder } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
+import { bosluk, kose } from '../theme/olculer';
 
 // ============================================================
 //  FİYAT ARALIĞI — çift uçlu kaydırıcı
@@ -177,11 +177,15 @@ export default function FiyatAraligi({
 
   return (
     <View>
-      <View style={styles.degerSatiri}>
-        <Text style={styles.deger}>{alt.toLocaleString('tr-TR')} TL</Text>
-        <Text style={styles.deger}>{ust.toLocaleString('tr-TR')} TL</Text>
-      </View>
+      {/* ⭐ DEĞİŞTİ (GV/Faz 3) — DEĞER SATIRI KALDIRILDI.
 
+          Kaydırıcının üstünde iki uçta "89 TL … 4.500 TL" yazıyordu.
+          Faz 3'te panele düzenlenebilir sayı kutuları eklenince aynı
+          sayı ekranda İKİ YERDE birden görünür oldu.
+
+          ⚠️ İki gösterim, iki kaynak demek: kutuya yazarken hangisine
+          bakılacağı belirsizleşiyor ve biri bir adım geride kalırsa
+          çelişki ekrana yansıyor. Okunacak tek yer kutular. */}
       <View
         style={styles.rayAlani}
         onLayout={(olay) => setGenislik(olay.nativeEvent.layout.width)}
@@ -220,20 +224,6 @@ export default function FiyatAraligi({
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
-  degerSatiri: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: bosluk.kucuk,
-  },
-
-  deger: {
-    fontSize: yazi.normal,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-    lineHeight: satir.normal,
-    color: renkler.yaziKoyu,
-  },
-
   rayAlani: {
     height: TUTAMAK + bosluk.kucuk,
     justifyContent: 'center',
