@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { bosluk } from '../theme/olculer';
+import { bosluk, sayfaKenari } from '../theme/olculer';
 import { kategoriIkonu } from '../services/kategoriIkon';
 import SecimKarosu from './SecimKarosu';
 
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
 
   serit: {
-    paddingHorizontal: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
     gap: bosluk.kucuk,
 
     // Onay rozeti karonun üstünden taşıyor; dikey boşluk olmadan

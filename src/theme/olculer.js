@@ -43,6 +43,24 @@ export const bosluk = {
   dev: 32,
 };
 
+// ---------- SAYFA KENAR BOŞLUĞU ----------  ⭐ YENİ (GV/Faz 4.8)
+//
+// ⚠️ BU BİR HATA DÜZELTMESİ.
+//
+// Ana sayfadaki dört bölüm kenar boşluğunu AYRI AYRI seçiyordu:
+// arama çubuğu 12, banner 12, kategori şeridi 12, ürün ızgarası 8.
+// Sonuç cihazda görüldü: banner ve kategoriler, altlarındaki ürün
+// kartlarından 4dp daha içeride duruyor ve ekran "banner'ın solunda
+// gereksiz boşluk var" diye okunuyordu. Aslında fazla olan boşluk
+// değil, HİZASIZLIKTI.
+//
+// Artık dördü de bu token'ı kullanıyor. Kenar boşluğunu değiştirmek
+// isteyen tek bir yeri değiştiriyor ve hiza kendiliğinden korunuyor.
+//
+// ⚠️ Neden 12 değil 8? İkisi de ölçekte var ama kullanıcı cihazda
+// bakıp "fazla" dedi. Dar taraf seçildi; kartlar da zaten 8'deydi.
+export const sayfaKenari = 8;
+
 // ---------- KÖŞE YARIÇAPI ----------
 //
 // Referans tasarımlardaki kartlar belirgin şekilde yuvarlak

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { bosluk } from '../theme/olculer';
+import { bosluk, sayfaKenari } from '../theme/olculer';
 import { siralamaSecenekleri } from '../services/urunFiltresi';
 import Chip from './Chip';
 
@@ -74,7 +74,9 @@ const styles = StyleSheet.create({
   // yazsaydık yatay dolgu kaydırma alanını daraltır, son chip
   // ekranın kenarına yapışırdı.
   serit: {
-    paddingHorizontal: bosluk.orta,
+    // ⚠️ sayfaKenari — ilk chip'in sol kenarı, altındaki ilk ürün
+    // kartının sol kenarıyla aynı çizgide.
+    paddingHorizontal: sayfaKenari,
     paddingBottom: bosluk.kucuk,
     gap: bosluk.kucuk,
   },

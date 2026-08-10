@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
-import { bosluk, yazi, agirlik, satir, font } from '../theme/olculer';
+import { bosluk, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 
 // ============================================================
 //  BÖLÜM BAŞLIĞI — ana sayfadaki her bölümün üstünde
@@ -42,8 +42,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: bosluk.orta,
-    marginBottom: bosluk.orta,
+    // ⚠️ Başlık da sayfaKenari'nda: "Kategoriler" yazısının sol
+    // kenarı, altındaki ilk karonun sol kenarıyla aynı çizgide
+    // olmalı. Farklı olsaydı başlık kaymış görünürdü.
+    paddingHorizontal: sayfaKenari,
+    marginBottom: bosluk.kucuk,
   },
 
   baslik: {

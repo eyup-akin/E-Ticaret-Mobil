@@ -84,6 +84,23 @@ const stilOlustur = (renkler) => StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
 
+    /* ⭐ YENİ — İÇERİK DİKEY ORTADA.
+       ⚠️ Cihazda görülen bir hatanın düzeltmesi.
+
+       Karolar yatay bir şeritte yan yana duruyor ve ScrollView
+       çocuklarını varsayılan olarak GERİYOR (alignItems: stretch):
+       yani hepsi, en uzun karo kadar uzuyor. "Spor & Outdoor"
+       etiketi iki satır olduğu için o karo diğerlerinden yüksek
+       ve hepsini birden uzatıyordu.
+
+       justifyContent olmadan içerik uzayan kutunun ÜSTÜNDE kalıyor
+       ve tek satırlık karolarda (Elektronik, Giyim…) ikon ile
+       etiket yukarı yapışık, altta boşluk kalmış görünüyordu.
+
+       'center' bunu etiket kaç satır olursa olsun çözüyor — sabit
+       bir yükseklik vermeye gerek yok. */
+    justifyContent: 'center',
+
     /* ⚠️ Kenarlık iki durumda da var, sadece rengi ve kalınlığı
        değişiyor... DEĞİŞMİYOR: kalınlık da sabit 1.5.
 

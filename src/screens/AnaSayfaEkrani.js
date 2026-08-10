@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
-import { bosluk, yazi, satir } from '../theme/olculer';
+import { bosluk, yazi, satir, sayfaKenari } from '../theme/olculer';
 import {
   bosFiltre, varsayilanSiralama, filtreSorgusuKur, aktifFiltreSayisi,
 } from '../services/urunFiltresi';
@@ -287,10 +287,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.arkaPlan,
   },
 
-  // ⚠️ Bölümler arası 24dp — ayırıcı çizgi YOK.
-  // Çizgi çekseydik vitrin bir ayar ekranı gibi okunurdu.
+  /* ⭐ DEĞİŞTİ — bölüm arası 24 → 16.
+     ⚠️ Ayırıcı çizgi hâlâ YOK; çizgi çekseydik vitrin bir ayar
+     ekranı gibi okunurdu. Ama 24dp cihazda fazla geldi: banner ile
+     "Kategoriler", kategoriler ile "Tüm Ürünler" arasında ekranın
+     boşa giden bir bölümü oluşuyordu.
+
+     ⚠️ Görünen boşluk 16'dan FAZLA çünkü bölümlerin kendi dikey
+     dolguları da var (kategori şeridinde onay rozetinin taşması
+     için 8, başlıkta 12). Toplam ~32-36dp — nefes almaya yeter. */
   bolum: {
-    marginTop: bosluk.genis,
+    marginTop: bosluk.normal,
   },
 
   kompaktSeritKap: {
@@ -299,7 +306,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   kompaktSerit: {
-    paddingHorizontal: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
     gap: bosluk.orta,
   },
 
@@ -307,8 +314,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginTop: bosluk.dev,
   },
 
+  // ⚠️ sayfaKenari — banner, arama ve kategori şeridiyle aynı
+  // dikey çizgi. Önce bosluk.kucuk yazılıydı ve tesadüfen aynı
+  // değerdeydi; token'a bağlamak, kenar boşluğu değişince hizanın
+  // kendiliğinden korunmasını sağlıyor.
   liste: {
-    paddingHorizontal: bosluk.kucuk,
+    paddingHorizontal: sayfaKenari,
     paddingBottom: bosluk.normal,
   },
 

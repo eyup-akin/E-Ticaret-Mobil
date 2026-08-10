@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, yazi } from '../theme/olculer';
+import { bosluk, kose, yazi, sayfaKenari } from '../theme/olculer';
 import RozetliIkon from './RozetliIkon';
 
 export default function AramaCubugu({
@@ -87,7 +87,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   disKutu: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
     paddingVertical: bosluk.kucuk,
   },
   menuButon: {

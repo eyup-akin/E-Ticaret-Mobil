@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Image, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose } from '../theme/olculer';
+import { bosluk, kose, sayfaKenari } from '../theme/olculer';
 import { bannerlariGetir } from '../services/bannerlar';
 
 // ============================================================
@@ -51,7 +51,10 @@ export default function BannerSeridi({ onBannerBas }) {
   }
 
   // Banner genişliği: ekran eksi iki yan boşluk.
-  const kart = ekranGenisligi - bosluk.orta * 2;
+  // ⚠️ sayfaKenari kullanılıyor — arama çubuğu ve ürün ızgarasıyla
+  // AYNI dikey çizgide dursun diye. Önce bosluk.orta yazılıydı ve
+  // banner, altındaki kartlardan 4dp içeride kalıyordu.
+  const kart = ekranGenisligi - sayfaKenari * 2;
 
   function kaydirildi(olay) {
     const x = olay.nativeEvent.contentOffset.x;
@@ -92,21 +95,33 @@ export default function BannerSeridi({ onBannerBas }) {
         ))}
       </ScrollView>
 
-      {/* ⚠️ Nokta ŞERİDİN ALTINDA, görselin üstünde değil.
-          Tasarımda görselin üstündeydi ama oradaki fotoğrafın
-          rengi bilinmiyor: açık bir görselde beyaz nokta
-          kayboluyor. Altta, sayfa zemininde her zaman okunuyor.
+      {/* ⭐ DEĞİŞTİ — NOKTALAR ARTIK GÖRSELİN İÇİNDE.
 
-          ⚠️ Tek banner varsa nokta çizilmiyor — bir noktanın
+          Önce şeridin altındaydı ve altında ~14dp'lik ölü bir şerit
+          bırakıyordu; ekranda banner ile "Kategoriler" başlığı
+          arasındaki boşluğun bir kısmı buydu.
+
+          ⚠️ Görselin üstüne koymanın bir bedeli var: fotoğrafın o
+          bölgesi açık renkliyse noktalar kaybolur. Bu yüzden
+          noktalar YARI SAYDAM KOYU BİR HAPIN içinde duruyor — hangi
+          fotoğraf olursa olsun okunuyor. İlk yazımda tam da bu
+          riskten kaçınmak için dışarı alınmıştı; hap onu çözüyor.
+
+          ⚠️ Kapsayıcı pointerEvents="none": hapın üstüne basmak
+          banner'a basmayı engellememeli.
+
+          ⚠️ Tek banner varsa hiç çizilmiyor — bir noktanın
           gösterecek bir şeyi yok. */}
       {bannerlar.length > 1 && (
-        <View style={styles.noktalar}>
-          {bannerlar.map((b, i) => (
-            <View
-              key={b.id}
-              style={[styles.nokta, i === aktif && styles.noktaAktif]}
-            />
-          ))}
+        <View style={styles.noktaKatmani} pointerEvents="none">
+          <View style={styles.noktaHap}>
+            {bannerlar.map((b, i) => (
+              <View
+                key={b.id}
+                style={[styles.nokta, i === aktif && styles.noktaAktif]}
+              />
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -122,7 +137,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   serit: {
-    paddingHorizontal: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
     gap: bosluk.kucuk,
   },
 
@@ -140,19 +155,41 @@ const stilOlustur = (renkler) => StyleSheet.create({
     height: '100%',
   },
 
-  noktalar: {
+  /* Noktalar görselin ALT-ORTASINDA yüzüyor.
+     ⚠️ Mutlak konum + left/right 0 + alignItems:'center' üçlüsü
+     genişlik hesabı yapmadan ortalıyor. Sabit bir genişlik
+     verseydik nokta sayısı değişince orta kayardı. */
+  noktaKatmani: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: bosluk.orta,
+    alignItems: 'center',
+  },
+
+  /* Yarı saydam koyu hap — noktaların okunmasını fotoğraftan
+     bağımsız hale getiriyor.
+     ⚠️ Bu rgba ELLE yazılmış ve bilerek: iki temada da SİYAH
+     olmalı. Koyu temada açık bir hap, üstündeki fotoğrafı
+     aydınlatırdı. Karartma perdesiyle aynı gerekçe. */
+  noktaHap: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
     gap: bosluk.mikro,
-    marginTop: bosluk.kucuk,
+    paddingHorizontal: bosluk.kucuk,
+    paddingVertical: 5,
+    borderRadius: kose.tam,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
 
   nokta: {
     width: 6,
     height: 6,
     borderRadius: kose.tam,
-    backgroundColor: renkler.pasif,
+
+    // ⚠️ Pasif nokta da ELLE beyaz: hapın içindeki zemin siyah,
+    // tema nötrleri orada okunmuyor.
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
   },
 
   // Aktif nokta yuvarlak değil KISA BİR HAP: renk körü bir
