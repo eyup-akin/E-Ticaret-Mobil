@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Image, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Image, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { bosluk, kose, sayfaKenari } from '../theme/olculer';
 import { bannerlariGetir } from '../services/bannerlar';
@@ -7,7 +7,7 @@ import { bannerlariGetir } from '../services/bannerlar';
 // ============================================================
 //  BANNER ŞERİDİ — yatay kaydırmalı kampanya görselleri
 //
-//  onBannerBas(banner) : bir banner'a basılınca çağrılır
+//  ⚠️ Şu an TIKLANMIYOR — gerekçesi bannerlar.js'te.
 //
 //  ⚠️ SAYFA SAYFA KAYIYOR, SERBEST DEĞİL.
 //  pagingEnabled + snapToInterval ile her kaydırma tam bir
@@ -19,7 +19,7 @@ import { bannerlariGetir } from '../services/bannerlar';
 //  Sabit bir sayı yazsaydık yatay modda banner ya taşar ya
 //  ortada dururdu.
 // ============================================================
-export default function BannerSeridi({ onBannerBas }) {
+export default function BannerSeridi() {
   const { renkler } = useTema();
   const { width: ekranGenisligi } = useWindowDimensions();
   const styles = stilOlustur(renkler);
@@ -81,17 +81,12 @@ export default function BannerSeridi({ onBannerBas }) {
         directionalLockEnabled
       >
         {bannerlar.map((b) => (
-          <TouchableOpacity
-            key={b.id}
-            activeOpacity={0.9}
-            onPress={() => onBannerBas && onBannerBas(b)}
-            style={[styles.kart, { width: kart }]}
-          >
+          <View key={b.id} style={[styles.kart, { width: kart }]}>
             {/* ⚠️ resizeMode="cover": görselin oranı 2:1 değilse
                 bile kutuyu tam dolduruyor. "contain" olsaydı
                 kenarlarda boş şeritler kalırdı. */}
             <Image source={b.gorsel} style={styles.gorsel} resizeMode="cover" />
-          </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
 

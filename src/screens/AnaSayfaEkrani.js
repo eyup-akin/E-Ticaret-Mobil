@@ -185,12 +185,7 @@ export default function AnaSayfaEkrani({ navigation }) {
   // ---- ÜST BÖLÜMLER ----
   const basliklar = (
     <View>
-      <BannerSeridi
-        onBannerBas={(b) => {
-          const k = kategoriler.find((x) => x.name === b.kategoriAdi);
-          if (k) kategoriSec(k.id);
-        }}
-      />
+      <BannerSeridi />
 
       <View style={styles.bolum}>
         <BolumBasligi

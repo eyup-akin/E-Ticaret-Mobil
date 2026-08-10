@@ -30,17 +30,30 @@
 //  duruyor.
 // ============================================================
 
+// ⚠️ BANNER'LAR ŞU AN TIKLANMIYOR — bilinçli.
+//
+// İlk sürümde basınca ilgili kategoriyi filtreliyorlardı. Kaldırıldı:
+// banner bir kategori kısayolu değil, bir KAMPANYA DUYURUSU olacak
+// ("Muhteşem Cuma başladı", "Efsane Kasım'da %40'a varan indirim").
+// Böyle bir banner'a basınca gidilecek yer bir kategori değil, o
+// kampanyanın kendisi — kupon kodu, indirimli ürün listesi ya da
+// kampanya sayfası.
+//
+// O hedef daha yok. Yanlış bir yere götürmektense hiçbir yere
+// götürmemek doğru: müşteri "Efsane Kasım"a basıp kendini rastgele
+// bir kategoride bulsaydı bu bir hata gibi okunurdu.
+//
+// ⚠️ Hedef alanı şimdiden EKLENMEDİ. Boş bir "hedef: null" koymak,
+// nasıl bir hedef olacağını bilmeden şekil uydurmak olurdu —
+// kampanya sayfası mı, kupon kodu mu, filtre mi henüz belli değil.
 const yerelBannerlar = [
   {
     id: 1,
     gorsel: require('../../assets/bannerlar/spor.png'),
-    // Basınca nereye gidilecek. Şimdilik kategori filtresine.
-    kategoriAdi: 'Spor & Outdoor',
   },
   {
     id: 2,
     gorsel: require('../../assets/bannerlar/elektronik.png'),
-    kategoriAdi: 'Elektronik',
   },
 ];
 
