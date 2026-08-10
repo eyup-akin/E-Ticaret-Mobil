@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Scr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPost, apiDelete } from '../services/api';
+import { sonGezileneEkle } from '../services/sonGezilenler';
 import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
@@ -109,6 +110,23 @@ export default function UrunDetayEkrani({ route, navigation }) {
   }
 
   useEffect(() => { urunuGetir(); }, [urunId]);
+
+  // ⭐ YENİ (GV/Faz 4) — ZİYARETİ CİHAZA KAYDET
+  //
+  // Ana sayfadaki "Son gezdiğin ürünler" şeridini besleyen tek
+  // yer burası.
+  //
+  // ⚠️ ÜRÜNÜN GELMESİ BEKLENMİYOR, id YETİYOR.
+  // urunuGetir'in içine koysaydık istek başarısız olduğunda
+  // ziyaret kaydedilmezdi. Oysa müşteri o ürüne BAKTI; ağ
+  // hatası bu gerçeği değiştirmiyor. Silinmiş bir ürün de sorun
+  // değil: şerit onu sunucudan çekemeyince listeden kendiliğinden
+  // düşüyor.
+  //
+  // ⚠️ await EDİLMİYOR ve hatası yakalanmıyor — servisin kendisi
+  // yutuyor. Bu bir arka plan kolaylığı; ekranın açılışını
+  // bekletmesi ya da bir hata göstermesi kabul edilemez.
+  useEffect(() => { sonGezileneEkle(urunId); }, [urunId]);
 
   // ⭐ YENİ (5.2) — ŞİMDİ AL
   //

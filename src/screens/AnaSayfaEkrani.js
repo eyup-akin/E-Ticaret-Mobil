@@ -1,40 +1,66 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { bosluk, yazi, satir } from '../theme/olculer';
 import {
   bosFiltre, varsayilanSiralama, filtreSorgusuKur, aktifFiltreSayisi,
 } from '../services/urunFiltresi';
+import { sonGezilenleriOku } from '../services/sonGezilenler';
 import AramaCubugu from '../components/AramaCubugu';
 import UrunKarti from '../components/UrunKarti';
+import UrunKartiKompakt from '../components/UrunKartiKompakt';
 import SiralamaSeridi from '../components/SiralamaSeridi';
 import FiltrePaneli from '../components/FiltrePaneli';
+import BannerSeridi from '../components/BannerSeridi';
+import KategoriSeridi from '../components/KategoriSeridi';
+import BolumBasligi from '../components/BolumBasligi';
 
+// ============================================================
+//  ANA SAYFA — vitrin
+//
+//  Sıra: arama → banner → kategoriler → son gezdiklerin →
+//        tüm ürünler (sıralama şeridi + ızgara)
+//
+//  ⚠️ HAMBURGER MENÜSÜ KALDIRILDI.
+//  Kategorilere erişim artık kategori şeridinin sonundaki "Tümü"
+//  karosundan. Hamburger, içinde tek bir şey olan bir menüyü
+//  açıyordu; şerit hem daha hızlı hem kategorileri GÖRÜNÜR
+//  kılıyor.
+//
+//  ⚠️ ÜST BÖLÜMLER FlatList'İN "ListHeaderComponent"İNDE.
+//
+//  Izgara bir FlatList (numColumns=2) ve onu bir ScrollView'in
+//  içine koysaydık React Native uyarı verirdi: iç içe aynı yönde
+//  iki kaydırıcı, sanallaştırmayı bozar ve tüm kartlar bir anda
+//  çizilir. Bölümleri başlık bileşenine koymak, tek bir
+//  kaydırıcıyla çalışmak demek.
+//
+//  ⚠️ ARAMA ÇUBUĞU BAŞLIĞIN İÇİNDE DEĞİL, DIŞINDA.
+//  İçinde olsaydı liste her yenilendiğinde başlık yeniden
+//  render olur ve yazarken KLAVYE ODAĞI DÜŞERDİ. Ayrıca
+//  yukarıda sabit kalması zaten doğru davranış.
+// ============================================================
 export default function AnaSayfaEkrani({ navigation }) {
-  // ⚠️ useFavorite() ARTIK ÇAĞRILMIYOR — bilerek.
-  // Favori durumunu her kart kendi içinden okuyor. Ekran da abone
-  // olsaydı bir favori değişiminde TÜM ekran yeniden render olur,
-  // kartlardaki memo'nun kazandırdığının bir kısmı geri giderdi.
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
   const [urunler, setUrunler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
+  const [uygulananArama, setUygulananArama] = useState('');
 
-  // ⭐ YENİ (6.3)
   const [filtre, setFiltre] = useState(bosFiltre);
   const [siralama, setSiralama] = useState(varsayilanSiralama);
   const [panelAcik, setPanelAcik] = useState(false);
 
-  // ⚠️ Arama metni state'te AYRICA tutuluyor çünkü AramaCubugu
-  // canlı arama yapıyor (400 ms gecikmeli) ve filtre/sıralama
-  // değişince aynı aramanın korunması gerekiyor. Bu olmadan
-  // sıralamayı değiştiren müşterinin araması silinirdi.
-  const [uygulananArama, setUygulananArama] = useState('');
+  // ⭐ YENİ (GV/Faz 4)
+  const [kategoriler, setKategoriler] = useState([]);
+  const [sonGezilenler, setSonGezilenler] = useState([]);
 
+  // ---- ÜRÜN IZGARASI ----
   async function urunleriGetir(arama, aktifFiltre, aktifSiralama) {
     try {
       setYukleniyor(true);
@@ -56,19 +82,96 @@ export default function AnaSayfaEkrani({ navigation }) {
   // ⚠️ TEK EFEKT, ÜÇ TETİKLEYİCİ. Arama, filtre ve sıralama için
   // ayrı efektler yazsaydık ikisi aynı anda değiştiğinde iki
   // istek birden giderdi ve hangisinin cevabı sonra dönerse ekran
-  // ona göre kalırdı. Tek efekt, her değişiklikte tek istek.
+  // ona göre kalırdı.
   useEffect(() => {
     urunleriGetir(uygulananArama, filtre, siralama);
   }, [uygulananArama, filtre, siralama]);
 
-  // ⭐ YENİ (GV/Faz 2.1) — SATIR ÇİZİCİ SABİTLENDİ.
+  // ---- KATEGORİLER — bir kez ----
+  useEffect(() => {
+    let iptal = false;
+
+    (async () => {
+      try {
+        const veri = await apiGet('/categories');
+        if (!iptal) setKategoriler(veri);
+      } catch (hata) {
+        // ⚠️ Kategori şeridi çizilemezse ana sayfa yine çalışıyor:
+        // bölüm hiç görünmüyor, ürün ızgarası yerinde duruyor.
+        console.log('Kategoriler alınamadı:', hata.message);
+      }
+    })();
+
+    return () => { iptal = true; };
+  }, []);
+
+  // ---- SON GEZİLENLER ----
   //
-  // ⚠️ UrunKarti artık React.memo ile sarılı ama memo yalnızca
-  // prop'lar DEĞİŞMEZSE işe yarar. Burada satır içi bir ok
-  // fonksiyonu (`onPress={() => ...}`) verseydik her render'da yeni
-  // bir fonksiyon üretilir, prop her seferinde "değişmiş" sayılır ve
-  // memo hiçbir şey engellemezdi. Cihazda düşen
-  // "VirtualizedList ... slow to update" uyarısının kaynağı buydu.
+  // ⚠️ useFocusEffect — useEffect DEĞİL.
+  //
+  // Müşteri ürün detayına gidip geri döndüğünde şerit güncel
+  // olmalı. useEffect yalnızca ekran ilk kurulduğunda çalışır;
+  // sekmeler arası dönüşte ana sayfa bileşeni bellekte duruyor ve
+  // efekt bir daha tetiklenmiyor. Sonuç: az önce baktığın ürün
+  // şeritte görünmüyordu.
+  //
+  // ⚠️ İD SIRASI SUNUCUDAN GELMİYOR — burada geri kuruluyor.
+  // Sunucuya "şu id'leri getir" diyoruz, o da veritabanı sırasında
+  // döndürüyor. "En son bakılan başta" sırası cihazdaki listede;
+  // gelen ürünleri o listeye göre diziyoruz. Sunucudan sıra
+  // istemek (SQL'de CASE WHEN zinciri) hem çirkin hem gereksizdi.
+  useFocusEffect(
+    useCallback(() => {
+      let iptal = false;
+
+      (async () => {
+        const idler = await sonGezilenleriOku();
+
+        if (idler.length === 0) {
+          if (!iptal) setSonGezilenler([]);
+          return;
+        }
+
+        try {
+          const veri = await apiGet('/products?idler=' + idler.join(','));
+          if (iptal) return;
+
+          // Cihazdaki sıraya diz. Silinmiş/pasifleşmiş ürünler
+          // sunucudan hiç gelmiyor ve listeden kendiliğinden
+          // düşüyor — ayrıca temizlemeye gerek yok.
+          const sirali = idler
+            .map((id) => veri.find((u) => u.id === id))
+            .filter(Boolean);
+
+          setSonGezilenler(sirali);
+        } catch (hata) {
+          if (!iptal) setSonGezilenler([]);
+          console.log('Son gezilenler alınamadı:', hata.message);
+        }
+      })();
+
+      return () => { iptal = true; };
+    }, [])
+  );
+
+  // ---- KATEGORİYE BASILINCA ----
+  //
+  // ⚠️ Panelden farklı olarak ANINDA uygulanıyor. Panelde birden
+  // çok ayar yapılıyor ve "göster"e basılıyor; burada tek dokunuş
+  // var ve beklenti "tak diye o kategori gelsin".
+  //
+  // ⚠️ Seçiliye tekrar basmak seçimi KALDIRIYOR — aynı karoya
+  // basıp filtreden çıkmak, panele girmeden geri dönmenin tek
+  // yolu.
+  const kategoriSec = useCallback((id) => {
+    setFiltre((onceki) => ({
+      ...onceki,
+      kategoriler: onceki.kategoriler.includes(id)
+        ? onceki.kategoriler.filter((x) => x !== id)
+        : [...onceki.kategoriler, id],
+    }));
+  }, []);
+
   const kartCiz = useCallback(
     ({ item }) => (
       <UrunKarti
@@ -79,45 +182,93 @@ export default function AnaSayfaEkrani({ navigation }) {
     [navigation]
   );
 
+  // ---- ÜST BÖLÜMLER ----
+  const basliklar = (
+    <View>
+      <BannerSeridi
+        onBannerBas={(b) => {
+          const k = kategoriler.find((x) => x.name === b.kategoriAdi);
+          if (k) kategoriSec(k.id);
+        }}
+      />
+
+      <View style={styles.bolum}>
+        <BolumBasligi
+          baslik="Kategoriler"
+          onTumunuBas={() => navigation.navigate('Kategoriler')}
+        />
+        <KategoriSeridi
+          kategoriler={kategoriler}
+          seciliIdler={filtre.kategoriler}
+          onSec={kategoriSec}
+          onTumuBas={() => navigation.navigate('Kategoriler')}
+        />
+      </View>
+
+      {/* ⚠️ Geçmiş yoksa bölüm TAMAMEN yok — boş yer tutucu ya da
+          "henüz ürün gezmedin" yazısı değil. İlk kez açan
+          müşteriye söylenecek bir şey yok; boş bir bölüm sadece
+          ekranı uzatırdı. */}
+      {sonGezilenler.length > 0 && (
+        <View style={styles.bolum}>
+          <BolumBasligi baslik="Son gezdiğin ürünler" />
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.kompaktSerit}
+            style={styles.kompaktSeritKap}
+            directionalLockEnabled
+          >
+            {sonGezilenler.map((u) => (
+              <UrunKartiKompakt
+                key={u.id}
+                urun={u}
+                onPress={() => navigation.navigate('UrunDetay', { urunId: u.id })}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.bolum}>
+        <BolumBasligi baslik="Tüm Ürünler" />
+        <SiralamaSeridi secili={siralama} onSec={setSiralama} />
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <AramaCubugu
         value={aramaMetni}
         onChangeText={setAramaMetni}
         onSubmit={(metin) => setUygulananArama(metin)}
-        onMenuBas={() => navigation.navigate('Kategoriler')}
         onFiltreBas={() => setPanelAcik(true)}
         aktifFiltre={aktifFiltreSayisi(filtre)}
       />
 
-      <SiralamaSeridi secili={siralama} onSec={setSiralama} />
-
-      {yukleniyor ? (
-        <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
-      ) : (
-        /* ⚠️ extraData KALDIRILDI — bilerek.
-
-           Favori durumu UrunKarti'nın İÇİNDEN useFavorite() ile
-           okunuyor; context değişince o kart zaten kendi başına
-           render oluyor. extraData vermek FlatList'e "görünen her
-           satırı yeniden çiz" demek olurdu ve React.memo'yu
-           anlamsız kılardı. */
-        <FlatList
-          data={urunler}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={kartCiz}
-          numColumns={2}
-          columnWrapperStyle={styles.satir}
-          contentContainerStyle={styles.liste}
-          ListEmptyComponent={
+      <FlatList
+        data={yukleniyor ? [] : urunler}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={kartCiz}
+        numColumns={2}
+        columnWrapperStyle={styles.satir}
+        contentContainerStyle={styles.liste}
+        ListHeaderComponent={basliklar}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          yukleniyor ? (
+            <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
+          ) : (
             <Text style={styles.bosYazi}>
               {aktifFiltreSayisi(filtre) > 0
                 ? 'Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene.'
                 : 'Ürün bulunamadı.'}
             </Text>
-          }
-        />
-      )}
+          )
+        }
+      />
 
       <FiltrePaneli
         acik={panelAcik}
@@ -135,15 +286,36 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
+  // ⚠️ Bölümler arası 24dp — ayırıcı çizgi YOK.
+  // Çizgi çekseydik vitrin bir ayar ekranı gibi okunurdu.
+  bolum: {
+    marginTop: bosluk.genis,
+  },
+
+  kompaktSeritKap: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+
+  kompaktSerit: {
+    paddingHorizontal: bosluk.orta,
+    gap: bosluk.orta,
+  },
+
   cark: {
     marginTop: bosluk.dev,
   },
+
   liste: {
-    padding: bosluk.kucuk,
+    paddingHorizontal: bosluk.kucuk,
+    paddingBottom: bosluk.normal,
   },
+
   satir: {
     justifyContent: 'space-between',
   },
+
   bosYazi: {
     textAlign: 'center',
     marginTop: bosluk.dev,
