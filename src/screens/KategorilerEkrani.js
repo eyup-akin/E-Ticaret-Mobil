@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
-import { kategoriEmoji } from '../services/kategoriIkon';
+import { kategoriIkonu } from '../services/kategoriIkon';
 import AramaCubugu from '../components/AramaCubugu';
 
 export default function KategorilerEkrani({ navigation }) {
@@ -51,7 +51,21 @@ export default function KategorilerEkrani({ navigation }) {
           })
         }
       >
-        <Text style={styles.emoji}>{kategoriEmoji(item.name)}</Text>
+        {/* ⭐ DEĞİŞTİ (4.7) — emoji yerine ikon.
+
+            İkon bir daire içinde duruyor: emoji kendi "gövdesini"
+            taşıyordu (renkli, dolu bir şekil), çizgi ikon ise sadece
+            bir kontur. Zeminsiz bıraksaydık kart boşalmış görünürdü.
+
+            Renk anaRenk: kategori ikonu dekorasyon değil, kartın ne
+            hakkında olduğunu söyleyen bilgi. */}
+        <View style={styles.ikonDaire}>
+          <Ionicons
+            name={kategoriIkonu(item.name)}
+            size={24}
+            color={renkler.anaRenk}
+          />
+        </View>
 
         <View>
           <Text style={styles.kategoriAd} numberOfLines={2}>{item.name}</Text>
@@ -143,8 +157,23 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginBottom: 12,
     justifyContent: 'space-between',
   },
-  emoji: {
-    fontSize: 36,
+  /* ⭐ DEĞİŞTİ (4.7) — "emoji" stili yerine ikon dairesi.
+
+     ⚠️ Eski hali sadece fontSize: 36 idi; emoji kendi rengini ve
+     şeklini taşıdığı için başka bir şeye ihtiyacı yoktu. Çizgi ikon
+     ise şeffaf bir kontur — arkasına yumuşak bir daire koymazsak
+     kartta yüzer gibi durur ve görsel ağırlığı kaybolur.
+
+     ⚠️ 42px, 48 değil: kart yüksekliği SABİT (110) ve içerik
+     space-between ile dağılıyor. Eski emoji 36px puntoyla ~43px
+     yer kaplıyordu; daireyi 48 yapsaydık kart taşardı. */
+  ikonDaire: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: renkler.yumusakVurgu,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   kategoriAd: {
     fontSize: 15,

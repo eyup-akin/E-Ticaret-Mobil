@@ -153,16 +153,31 @@ export default function SiparisDetayEkrani({ route, navigation }) {
                   
                   Bu ipucu olmadan uzun basma özelliği KEŞFEDİLEMEZ —
                   görünmeyen bir özellik, olmayan bir özelliktir. */}
-              <Text
-                style={[
-                  styles.kopyaIpucu,
-                  kopyalandi && styles.kopyaIpucuBasarili,
-                ]}
-              >
-                {kopyalandi
-                  ? '✓ Takip numarası kopyalandı'
-                  : 'Numarayı kopyalamak için üzerine uzun bas'}
-              </Text>
+              <View style={styles.kopyaIpucuSatir}>
+                {kopyalandi && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={14}
+                    color={renkler.basari}
+                  />
+                )}
+
+                <Text
+                  style={[
+                    styles.kopyaIpucu,
+                    kopyalandi && styles.kopyaIpucuBasarili,
+                  ]}
+                >
+                {/* ⭐ DEĞİŞTİ (4.7) — baştaki ✓ karakteri kaldırıldı.
+                    Onay işareti artık metnin solunda gerçek bir ikon;
+                    metnin içine gömülü karakter, yazı tipine göre
+                    farklı boyutta çiziliyor ve satır hizasını
+                    kaydırıyordu. */}
+                  {kopyalandi
+                    ? 'Takip numarası kopyalandı'
+                    : 'Numarayı kopyalamak için üzerine uzun bas'}
+                </Text>
+              </View>
             </View>
           </View>
         ) : null}
@@ -437,10 +452,21 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   /* ⭐ YENİ — uzun basma ipucu / kopyalandı onayı */
+  /* ⭐ YENİ (4.7) — ipucu satırı (ikon + metin).
+
+     ⚠️ marginTop metinden BURAYA taşındı. Metinde kalsaydı ikon
+     satırın tepesinde, metin 6px aşağıda durur ve ikisi hizasız
+     görünürdü. */
+  kopyaIpucuSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 6
+  },
   kopyaIpucu: {
     fontSize: 11,
     color: renkler.yaziGri,
-    marginTop: 6,
     textAlign: 'right'
   },
   kopyaIpucuBasarili: {

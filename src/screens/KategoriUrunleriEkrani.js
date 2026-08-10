@@ -5,8 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
+import { bosluk, yazi, agirlik, satir } from '../theme/olculer';
+import {
+  bosFiltre, varsayilanSiralama, filtreSorgusuKur, aktifFiltreSayisi,
+} from '../services/urunFiltresi';
 import AramaCubugu from '../components/AramaCubugu';
 import UrunKarti from '../components/UrunKarti';
+import SiralamaSeridi from '../components/SiralamaSeridi';
+import FiltrePaneli from '../components/FiltrePaneli';
 
 export default function KategoriUrunleriEkrani({ route, navigation }) {
   // Kategoriler ekranından gelen bilgiler
@@ -19,23 +25,23 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
   const [urunler, setUrunler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState(baslangicArama || '');
+  const [uygulananArama, setUygulananArama] = useState(baslangicArama || '');
 
-  // Hem kategoriye göre hem aramaya göre filtreler (ikisi birlikte de çalışır)
-  async function urunleriGetir(arama = '') {
+  // ⭐ YENİ (6.3)
+  const [filtre, setFiltre] = useState(bosFiltre);
+  const [siralama, setSiralama] = useState(varsayilanSiralama);
+  const [panelAcik, setPanelAcik] = useState(false);
+
+  // Kategori, arama, filtre ve sıralama birlikte çalışır.
+  async function urunleriGetir(arama, aktifFiltre, aktifSiralama) {
     try {
       setYukleniyor(true);
 
-      const parcalar = [];
-      if (kategoriId) {
-        parcalar.push('categoryId=' + kategoriId);
-      }
-      if (arama) {
-        parcalar.push('search=' + encodeURIComponent(arama));
-      }
-
-      const yol = parcalar.length > 0
-        ? '/products?' + parcalar.join('&')
-        : '/products';
+      const yol = '/products' + filtreSorgusuKur(aktifFiltre, {
+        kategoriId,
+        arama,
+        siralama: aktifSiralama,
+      });
 
       const veri = await apiGet(yol);
       setUrunler(veri);
@@ -47,8 +53,8 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
   }
 
   useEffect(() => {
-    urunleriGetir(baslangicArama || '');
-  }, [kategoriId]);
+    urunleriGetir(uygulananArama, filtre, siralama);
+  }, [kategoriId, uygulananArama, filtre, siralama]);
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
@@ -63,8 +69,12 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
       <AramaCubugu
         value={aramaMetni}
         onChangeText={setAramaMetni}
-        onSubmit={(metin) => urunleriGetir(metin)}
+        onSubmit={(metin) => setUygulananArama(metin)}
+        onFiltreBas={() => setPanelAcik(true)}
+        aktifFiltre={aktifFiltreSayisi(filtre)}
       />
+
+      <SiralamaSeridi secili={siralama} onSec={setSiralama} />
 
       {yukleniyor ? (
         <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
@@ -82,9 +92,30 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
           columnWrapperStyle={styles.satir}
           contentContainerStyle={styles.liste}
           extraData={favoriIdler}
-          ListEmptyComponent={<Text style={styles.bosYazi}>Bu kategoride ürün bulunamadı.</Text>}
+          ListEmptyComponent={
+            <Text style={styles.bosYazi}>
+              {aktifFiltreSayisi(filtre) > 0
+                ? 'Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene.'
+                : 'Bu kategoride ürün bulunamadı.'}
+            </Text>
+          }
         />
       )}
+
+      {/*
+        ⚠️ kategoriId veriliyor: panel bunu görünce kategori
+        bölümünü hiç çizmiyor. Müşteri zaten bir kategorinin
+        içinde; ikinci bir kategori seçimi sunmak "Kitap"
+        başlığının altında ayakkabı listelemek olurdu.
+      */}
+      <FiltrePaneli
+        acik={panelAcik}
+        filtre={filtre}
+        kategoriId={kategoriId}
+        arama={uygulananArama}
+        onKapat={() => setPanelAcik(false)}
+        onUygula={(yeni) => { setFiltre(yeni); setPanelAcik(false); }}
+      />
     </SafeAreaView>
   );
 }
@@ -97,32 +128,35 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
   },
   geriButon: {
-    marginRight: 12,
+    marginRight: bosluk.orta,
   },
   ustBaslik: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.yari,
+    lineHeight: satir.buyuk,
     color: renkler.yaziKoyu,
   },
   cark: {
-    marginTop: 40,
+    marginTop: bosluk.dev,
   },
   liste: {
-    padding: 8,
+    padding: bosluk.kucuk,
   },
   satir: {
     justifyContent: 'space-between',
   },
   bosYazi: {
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: bosluk.dev,
+    marginHorizontal: bosluk.genis,
     color: renkler.yaziGri,
-    fontSize: 16,
+    fontSize: yazi.orta,
+    lineHeight: satir.orta,
   },
 });

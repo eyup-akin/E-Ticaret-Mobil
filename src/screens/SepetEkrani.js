@@ -357,7 +357,11 @@ export default function SepetEkrani({ navigation }) {
               ) : ozet && ozet.ucretsizKargoKazanildi ? (
                 <View style={styles.kargoRozet}>
                   <Ionicons name="gift" size={16} color={renkler.basari} />
-                  <Text style={styles.kargoRozetYazi}>Kargo bedava kazandın 🎉</Text>
+                  {/* ⭐ DEĞİŞTİ (4.7) — sondaki 🎉 kaldırıldı.
+                      Solda zaten bir hediye ikonu var; emoji ikinci
+                      bir kutlama işareti ekliyordu ve platformlar
+                      arasında farklı çiziliyordu. */}
+                  <Text style={styles.kargoRozetYazi}>Kargo bedava kazandın</Text>
                 </View>
               ) : null}
 

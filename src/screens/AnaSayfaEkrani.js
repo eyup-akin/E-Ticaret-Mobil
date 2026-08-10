@@ -4,8 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiGet } from '../services/api';
 import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
+import { bosluk, yazi, satir } from '../theme/olculer';
+import {
+  bosFiltre, varsayilanSiralama, filtreSorgusuKur, aktifFiltreSayisi,
+} from '../services/urunFiltresi';
 import AramaCubugu from '../components/AramaCubugu';
 import UrunKarti from '../components/UrunKarti';
+import SiralamaSeridi from '../components/SiralamaSeridi';
+import FiltrePaneli from '../components/FiltrePaneli';
 
 export default function AnaSayfaEkrani({ navigation }) {
   const { favoriIdler } = useFavorite();
@@ -16,12 +22,26 @@ export default function AnaSayfaEkrani({ navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
 
-  async function urunleriGetir(arama = '') {
+  // ⭐ YENİ (6.3)
+  const [filtre, setFiltre] = useState(bosFiltre);
+  const [siralama, setSiralama] = useState(varsayilanSiralama);
+  const [panelAcik, setPanelAcik] = useState(false);
+
+  // ⚠️ Arama metni state'te AYRICA tutuluyor çünkü AramaCubugu
+  // canlı arama yapıyor (400 ms gecikmeli) ve filtre/sıralama
+  // değişince aynı aramanın korunması gerekiyor. Bu olmadan
+  // sıralamayı değiştiren müşterinin araması silinirdi.
+  const [uygulananArama, setUygulananArama] = useState('');
+
+  async function urunleriGetir(arama, aktifFiltre, aktifSiralama) {
     try {
       setYukleniyor(true);
-      const yol = arama
-        ? '/products?search=' + encodeURIComponent(arama)
-        : '/products';
+
+      const yol = '/products' + filtreSorgusuKur(aktifFiltre, {
+        arama,
+        siralama: aktifSiralama,
+      });
+
       const veri = await apiGet(yol);
       setUrunler(veri);
     } catch (hata) {
@@ -31,19 +51,26 @@ export default function AnaSayfaEkrani({ navigation }) {
     }
   }
 
+  // ⚠️ TEK EFEKT, ÜÇ TETİKLEYİCİ. Arama, filtre ve sıralama için
+  // ayrı efektler yazsaydık ikisi aynı anda değiştiğinde iki
+  // istek birden giderdi ve hangisinin cevabı sonra dönerse ekran
+  // ona göre kalırdı. Tek efekt, her değişiklikte tek istek.
   useEffect(() => {
-    urunleriGetir();
-  //  favorileriYukle();
-  }, []);
+    urunleriGetir(uygulananArama, filtre, siralama);
+  }, [uygulananArama, filtre, siralama]);
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <AramaCubugu
         value={aramaMetni}
         onChangeText={setAramaMetni}
-        onSubmit={(metin) => urunleriGetir(metin)}
+        onSubmit={(metin) => setUygulananArama(metin)}
         onMenuBas={() => navigation.navigate('Kategoriler')}
+        onFiltreBas={() => setPanelAcik(true)}
+        aktifFiltre={aktifFiltreSayisi(filtre)}
       />
+
+      <SiralamaSeridi secili={siralama} onSec={setSiralama} />
 
       {yukleniyor ? (
         <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
@@ -61,9 +88,23 @@ export default function AnaSayfaEkrani({ navigation }) {
           columnWrapperStyle={styles.satir}
           contentContainerStyle={styles.liste}
           extraData={favoriIdler}
-          ListEmptyComponent={<Text style={styles.bosYazi}>Ürün bulunamadı.</Text>}
+          ListEmptyComponent={
+            <Text style={styles.bosYazi}>
+              {aktifFiltreSayisi(filtre) > 0
+                ? 'Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene.'
+                : 'Ürün bulunamadı.'}
+            </Text>
+          }
         />
       )}
+
+      <FiltrePaneli
+        acik={panelAcik}
+        filtre={filtre}
+        arama={uygulananArama}
+        onKapat={() => setPanelAcik(false)}
+        onUygula={(yeni) => { setFiltre(yeni); setPanelAcik(false); }}
+      />
     </SafeAreaView>
   );
 }
@@ -74,18 +115,20 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.arkaPlan,
   },
   cark: {
-    marginTop: 40,
+    marginTop: bosluk.dev,
   },
   liste: {
-    padding: 8,
+    padding: bosluk.kucuk,
   },
   satir: {
     justifyContent: 'space-between',
   },
   bosYazi: {
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: bosluk.dev,
+    marginHorizontal: bosluk.genis,
     color: renkler.yaziGri,
-    fontSize: 16,
+    fontSize: yazi.orta,
+    lineHeight: satir.orta,
   },
 });

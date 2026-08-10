@@ -111,9 +111,15 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             sefere kupon aramaya teşvik eder. */}
         {indirimSayi > 0 && (
           <View style={styles.tasarrufRozet}>
+            {/* ⭐ DEĞİŞTİ (4.7) — baştaki 🎉 yerine ikon.
+
+                Kutlama hissi korunuyor ama ikonun rengi temadan
+                geliyor ve her platformda aynı çiziliyor. */}
+            <Ionicons name="sparkles" size={16} color={renkler.basari} />
+
             {/* ⭐ DEĞİŞTİ — biçimlendirme ortak fonksiyona geçti */}
             <Text style={styles.tasarrufYazi}>
-              🎉 Bu siparişte {paraBicimle(indirimSayi)} tasarruf ettin!
+              Bu siparişte {paraBicimle(indirimSayi)} tasarruf ettin!
             </Text>
           </View>
         )}
@@ -208,7 +214,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginTop: 12,
+
+    /* ⭐ DEĞİŞTİ (4.7) — satır düzeni.
+       Emoji metnin İÇİNDEYKEN tek bir Text yeterliydi. İkon ayrı bir
+       öğe olduğu için varsayılan column düzeninde metnin ÜSTÜNE
+       yığılırdı. */
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   tasarrufYazi: {
     fontSize: 14,
