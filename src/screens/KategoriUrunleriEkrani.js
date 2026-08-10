@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
-import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
 import { bosluk, yazi, agirlik, satir, font } from '../theme/olculer';
 import {
@@ -17,8 +16,6 @@ import FiltrePaneli from '../components/FiltrePaneli';
 export default function KategoriUrunleriEkrani({ route, navigation }) {
   // Kategoriler ekranından gelen bilgiler
   const { kategoriId, kategoriAdi, baslangicArama } = route.params;
-
-  const { favoriIdler } = useFavorite();
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
@@ -56,6 +53,20 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
     urunleriGetir(uygulananArama, filtre, siralama);
   }, [kategoriId, uygulananArama, filtre, siralama]);
 
+  // ⭐ YENİ (GV/Faz 2.1) — satır çizici sabitlendi.
+  // Gerekçe AnaSayfaEkrani'nda yazılı: satır içi ok fonksiyonu her
+  // render'da yeni prop üretir ve UrunKarti'daki React.memo'yu
+  // işlevsiz bırakırdı.
+  const kartCiz = useCallback(
+    ({ item }) => (
+      <UrunKarti
+        urun={item}
+        onPress={() => navigation.navigate('UrunDetay', { urunId: item.id })}
+      />
+    ),
+    [navigation]
+  );
+
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       {/* Üst bar: geri + kategori adı */}
@@ -82,16 +93,10 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
         <FlatList
           data={urunler}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <UrunKarti
-              urun={item}
-              onPress={() => navigation.navigate('UrunDetay', { urunId: item.id })}
-            />
-          )}
+          renderItem={kartCiz}
           numColumns={2}
           columnWrapperStyle={styles.satir}
           contentContainerStyle={styles.liste}
-          extraData={favoriIdler}
           ListEmptyComponent={
             <Text style={styles.bosYazi}>
               {aktifFiltreSayisi(filtre) > 0

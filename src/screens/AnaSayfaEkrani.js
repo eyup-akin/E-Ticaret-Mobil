@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiGet } from '../services/api';
-import { useFavorite } from '../context/FavoriteContext';
 import { useTema } from '../context/TemaContext';
 import { bosluk, yazi, satir } from '../theme/olculer';
 import {
@@ -14,7 +13,10 @@ import SiralamaSeridi from '../components/SiralamaSeridi';
 import FiltrePaneli from '../components/FiltrePaneli';
 
 export default function AnaSayfaEkrani({ navigation }) {
-  const { favoriIdler } = useFavorite();
+  // ⚠️ useFavorite() ARTIK ÇAĞRILMIYOR — bilerek.
+  // Favori durumunu her kart kendi içinden okuyor. Ekran da abone
+  // olsaydı bir favori değişiminde TÜM ekran yeniden render olur,
+  // kartlardaki memo'nun kazandırdığının bir kısmı geri giderdi.
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
@@ -59,6 +61,24 @@ export default function AnaSayfaEkrani({ navigation }) {
     urunleriGetir(uygulananArama, filtre, siralama);
   }, [uygulananArama, filtre, siralama]);
 
+  // ⭐ YENİ (GV/Faz 2.1) — SATIR ÇİZİCİ SABİTLENDİ.
+  //
+  // ⚠️ UrunKarti artık React.memo ile sarılı ama memo yalnızca
+  // prop'lar DEĞİŞMEZSE işe yarar. Burada satır içi bir ok
+  // fonksiyonu (`onPress={() => ...}`) verseydik her render'da yeni
+  // bir fonksiyon üretilir, prop her seferinde "değişmiş" sayılır ve
+  // memo hiçbir şey engellemezdi. Cihazda düşen
+  // "VirtualizedList ... slow to update" uyarısının kaynağı buydu.
+  const kartCiz = useCallback(
+    ({ item }) => (
+      <UrunKarti
+        urun={item}
+        onPress={() => navigation.navigate('UrunDetay', { urunId: item.id })}
+      />
+    ),
+    [navigation]
+  );
+
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <AramaCubugu
@@ -75,19 +95,20 @@ export default function AnaSayfaEkrani({ navigation }) {
       {yukleniyor ? (
         <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
       ) : (
+        /* ⚠️ extraData KALDIRILDI — bilerek.
+
+           Favori durumu UrunKarti'nın İÇİNDEN useFavorite() ile
+           okunuyor; context değişince o kart zaten kendi başına
+           render oluyor. extraData vermek FlatList'e "görünen her
+           satırı yeniden çiz" demek olurdu ve React.memo'yu
+           anlamsız kılardı. */
         <FlatList
           data={urunler}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <UrunKarti
-              urun={item}
-              onPress={() => navigation.navigate('UrunDetay', { urunId: item.id })}
-            />
-          )}
+          renderItem={kartCiz}
           numColumns={2}
           columnWrapperStyle={styles.satir}
           contentContainerStyle={styles.liste}
-          extraData={favoriIdler}
           ListEmptyComponent={
             <Text style={styles.bosYazi}>
               {aktifFiltreSayisi(filtre) > 0

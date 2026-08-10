@@ -19,11 +19,33 @@ export default function MainTabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        // ⭐ DEĞİŞTİ (GV/Faz 2.10) — SEKME ÇUBUĞU ARTIK LACİVERT.
+        //
+        // Eskiden kart zemini (açık temada beyaz) kullanıyordu ve
+        // çubuk sayfadan ayrılmıyordu. Açık temada lacivert bir
+        // çubuk, uygulamanın marka renginin ekranda GÖRÜNMESİNİ
+        // sağlayan tek yer — lacivert şu ana kadar yalnızca metin
+        // rengiydi ve gözle fark edilmiyordu.
+        //
+        // ⚠️ Renk kartArka'dan DEĞİL lacivertYuzey'den geliyor.
+        // "Açık temada koyu kalan yüzey" ayrı bir rol; kartArka'yı
+        // koyultsaydık uygulamadaki bütün kartlar da kararırdı.
+        //
+        // ⚠️ Pasif renk de ayrı token. yaziGri açık zemin için
+        // seçilmişti ve lacivert çubuk üstünde ~2,2:1 veriyor —
+        // pasif sekmeler okunmaz olurdu.
+        //
+        // ⚠️ Aktif renk turuncu kalıyor: sekme seçimi bir EYLEM
+        // sonucudur ve turuncu bu uygulamada eylemin rengi. Lacivert
+        // zemin üstünde turuncu ayrıca çok net ayrışıyor.
         tabBarActiveTintColor: renkler.anaRenk,
-        tabBarInactiveTintColor: renkler.yaziGri,
+        tabBarInactiveTintColor: renkler.lacivertYuzeyPasif,
         tabBarStyle: {
-          backgroundColor: renkler.kartArka,
-          borderTopColor: renkler.kenarlik,
+          backgroundColor: renkler.lacivertYuzey,
+
+          // Koyu çubukta açık bir çizgi ayrım yaratmaz; kenarlığı
+          // çubuğun kendi renginde bırakıp görünmez kılıyoruz.
+          borderTopColor: renkler.lacivertYuzey,
         },
         tabBarIcon: ({ color, size }) => {
           // Rozetli sekmeler kendi bileşenlerini kullanıyor.

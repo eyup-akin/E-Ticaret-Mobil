@@ -15,7 +15,7 @@ import Yildizlar from './Yildizlar';
 // ⭐ YENİ (5.1) — karttan doğrudan sepete ekleme
 import AdetKontrolu from './AdetKontrolu';
 
-export default function UrunKarti({ urun, onPress }) {
+function UrunKartiIc({ urun, onPress }) {
   const { favoriMi, favoriDegistir } = useFavorite();
   const { token } = useAuth();
   const { renkler } = useTema();
@@ -86,6 +86,30 @@ export default function UrunKarti({ urun, onPress }) {
             color={favori ? renkler.favoriRenk : renkler.yaziOrta}
           />
         </TouchableOpacity>
+
+        {/* ⭐ DEĞİŞTİ (GV/Faz 2.1) — STOK ROZETİ ARTIK GÖRSELİN ÜSTÜNDE.
+
+            Eskiden bilgi alanında, sepet butonuyla aynı satırdaydı.
+            Sorun: o satır kartların ÇOĞUNDA boştu — rozet yalnızca
+            "az" ve "yok" durumlarında çiziliyor, yani tipik bir
+            listede kartların ~%85'inde 36dp'lik bir şerit sadece
+            sağdaki butonu taşımak için duruyordu. Kartı uzatan
+            sebeplerden biri buydu.
+
+            Görselin sol üstü tasarımda zaten rozet bölgesi (indirim
+            rozeti oraya gelecek — B1 onaylanırsa). Rozet oraya
+            taşınınca bilgi alanı bir satır kısaldı ve sepet butonu
+            fiyatın yanındaki boşluğa yerleşebildi.
+
+            ⚠️ Sol üst seçildi, sağ üst değil: sağ üstte kalp var. */}
+        {(tukendi || azKaldi) && (
+          <View style={styles.rozetYeri}>
+            <Rozet
+              tip={tukendi ? 'notr' : 'uyari'}
+              yazi={tukendi ? 'Tükendi' : `Son ${urun.kalanAdet} ürün`}
+            />
+          </View>
+        )}
       </View>
 
       {/* ---------- BİLGİ ALANI ---------- */}
@@ -126,54 +150,60 @@ export default function UrunKarti({ urun, onPress }) {
           <Text style={styles.puanAdet}>({urun.reviewCount ?? 0})</Text>
         </View>
 
-        <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
+        {/* ---------- FİYAT + SEPET BUTONU (TEK SATIR) ----------
 
-        {/* ---------- STOK ROZETİ + SEPET BUTONU ----------
+            ⭐ DEĞİŞTİ (GV/Faz 2.1) — ikisi artık aynı satırda.
 
-            ⚠️ ROZET ARTIK İKİ DURUMLU, ÜÇ DEĞİL.
-            "Stokta var" (yeşil) hali KALDIRILDI; geriye "Son X ürün"
-            (turuncu) ve "Tükendi" (nötr) kaldı.
+            Eskiden fiyat tek başına bir satır, sepet butonu ise
+            altında ayrı bir satırdı. Fiyatın sağındaki ~50dp
+            bilerek boş bırakılmıştı; kullanıcının ekran görüntüsünde
+            kırmızıyla işaretlediği ölü alan tam olarak orasıydı.
 
-            Sebep: yeşil rozet neredeyse HER kartta çıkıyordu. Her
-            yerde görünen bir işaret hiçbir şey söylemez — göz onu
-            birkaç saniyede filtrelemeyi öğrenir ve o andan itibaren
-            AYNI yerdeki "Son 3 ürün" uyarısını da görmez olur.
-            Kıtlık sinyalini değersizleştiren şey bolluk sinyaliydi.
+            ⚠️ ESKİ GEREKÇE HÂLÂ GEÇERLİ AMA ARTIK BAĞLAYICI DEĞİL.
+            AdetKontrolu'nda "fiyat + sayaç yan yana taşar" diye
+            yazılıydı ve doğruydu: sayaç HAPI ~68dp. Ama hap yalnızca
+            ürün SEPETTEYKEN çiziliyor; sepette olmayan üründe 36dp'lik
+            bir daire var. Tipik listede kartların çoğu ikinci
+            durumda.
 
-            Ayrıca "stokta var" zaten varsayılan durum: ürün kartta
-            görünüyor ve sepete eklenebiliyorsa stoktadır. Aynı
-            bilgiyi iki kez söylüyorduk.
+            ⚠️ Taşma riski fiyata "flex: 1 + minWidth: 0 +
+            numberOfLines" ile değil, SATIRIN KENDİSİYLE çözülüyor:
+            fiyat esneyip küçülmüyor (flexShrink: 0), buton sağa
+            yaslanıyor. Sepetteki üründe hap sığmazsa satır büyür,
+            fiyat KIRPILMAZ. Karttaki en kritik bilgiyi kırpmak
+            kabul edilebilir değil — o kural değişmedi.
 
-            Kalan iki rozet varsayılandan SAPMA bildiriyor — ikisi de
-            gerçek haber değeri taşıyor. Renk hâlâ bilgi: turuncu
-            "acele et", nötr "bu bir hata değil, sadece bir durum".
-
-            ⚠️ Renk koşullu HESAPLANMIYOR, Rozet'e TİP veriliyor.
-            "tukendi ? renkler.yaziGri : renkler.uyari" yazmak,
-            rengin ne anlama geldiğini çağrı yerinde saklardı.
-
-            Sepet butonu da bu satırda: eskiden ürün görselinin sağ
-            alt köşesinde yüzüyor ve fotoğrafı kapatıyordu. Genişlik
-            hesabı ve sarmalayıcının gerekçesi altSatir / rozetSar
-            stillerinde. */}
-        <View style={styles.altSatir}>
-          <View style={styles.rozetSar}>
-            {(tukendi || azKaldi) && (
-              <Rozet
-                tip={tukendi ? 'notr' : 'uyari'}
-                yazi={tukendi ? 'Tükendi' : `Son ${urun.kalanAdet} ürün`}
-              />
-            )}
-          </View>
-
-          {/* Tükenmiş üründe bileşen null dönüyor; satırda yalnızca
-              "Tükendi" rozeti kalıyor. */}
+            Tükenmiş üründe AdetKontrolu null dönüyor; satırda
+            yalnızca fiyat kalıyor. */}
+        <View style={styles.fiyatSatir}>
+          <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
           <AdetKontrolu urun={urun} boyut="kart" />
         </View>
       </View>
     </TouchableOpacity>
   );
 }
+
+// ⭐ YENİ (GV/Faz 2.1) — LİSTE PERFORMANSI
+//
+// ⚠️ Cihazda şu uyarı düşüyordu:
+//   "VirtualizedList: You have a large list that is slow to update"
+//
+// Sebep: FlatList her değişiklikte görünen TÜM kartları yeniden
+// çiziyordu. 26 ürünlük listede bir favori değişince 26 kart birden
+// render oluyordu.
+//
+// ⚠️ MEMO FAVORİ GÜNCELLEMESİNİ ENGELLEMİYOR — kritik ayrım.
+// React.memo yalnızca EBEVEYNDEN gelen prop değişimini durdurur;
+// context değişimini durdurmaz. Kalp durumu useFavorite() ile
+// BİLEŞENİN İÇİNDEN okunuyor, yani favori değişince bu kart yine
+// kendi başına render oluyor — ama sadece o kart, diğer 25'i değil.
+//
+// ⚠️ Bunun çalışması için ekranlardaki "onPress" fonksiyonunun her
+// render'da yeniden yaratılmaması gerekiyor; ekranlarda useCallback
+// ile sabitlendi. Aksi halde prop her seferinde değişir ve memo
+// hiçbir işe yaramazdı.
+export default React.memo(UrunKartiIc);
 
 const stilOlustur = (renkler) => StyleSheet.create({
   /* ⭐ DEĞİŞTİ (Aşama 4.5) — kenarlık kaldırıldı, gölge geldi.
@@ -194,9 +224,21 @@ const stilOlustur = (renkler) => StyleSheet.create({
     overflow: 'hidden',
     ...renkler.golgeSm,
   },
+  /* ⭐ DEĞİŞTİ (GV/Faz 2.1) — SABİT 200px YÜKSEKLİK YERİNE KARE.
+
+     ⚠️ KARTIN "ÇOK UZUN" GÖRÜNMESİNİN ASIL SEBEBİ BURASIYDI.
+
+     Kart genişliği ekranın %48'i; 390dp'lik bir telefonda ~181dp.
+     Sabit 200px yükseklik, bu genişlikte 1:1,10 DİKEY bir görsel
+     demekti — göz bunu "uzun" diye okuyor. Tasarımın tamamı 1:1
+     kare görsel üzerine kurulu.
+
+     aspectRatio kullanmanın ikinci faydası: ekran genişliği ne
+     olursa olsun oran sabit kalıyor. Sabit piksel, küçük ekranda
+     daha da dikey, tablette daha da yatık bir kart üretiyordu. */
   resimAlan: {
     width: '100%',
-    height: 200,            // kartın ~%65'i. Ayar düğmesi burası.
+    aspectRatio: 1,
     backgroundColor: renkler.acikKart,
     position: 'relative',
   },
@@ -308,40 +350,36 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: bosluk.kucuk,
+
+    /* ⚠️ flexShrink: 0 — fiyat ASLA daralmaz.
+       Sepetteki üründe sayaç hapı geniş; esnemeye izin verseydik
+       daralan taraf fiyat olur ve "₺1.799,5…" diye kırpılırdı.
+       Kırpılacaksa satır büyüsün, fiyat değil. */
+    flexShrink: 0,
   },
 
-  /* ⭐ YENİ — stok rozeti + sepet butonu satırı.
+  /* ⭐ YENİ (GV/Faz 2.1) — fiyat ve sepet butonu aynı satırda.
 
-     ⚠️ FİYAT BU SATIRA ALINMADI, ÜSTTE TEK BAŞINA KALDI.
-     Kart 165dp, iç boşluklar düşünce ~141dp kullanılabilir alan
-     var. "₺1.799,50" 18px kalın puntoda ~90dp, sayaç hapı ~68dp:
-     yan yana koysaydık 158dp ederdi ve taşardı. Taşmayı flex ile
-     çözseydik daralan taraf fiyat olur, karttaki en kritik bilgi
-     "₺1.799,5…" diye kırpılırdı.
+     Fiyatın sağındaki boşluk artık butonun yeri. Rozet buradan
+     görselin sol üstüne taşındı, o yüzden ayrı bir alt satıra
+     gerek kalmadı — kart bir satır kısaldı.
 
-     Rozet ise ~72dp — hapla birlikte 140dp, sınırın içinde. */
-  altSatir: {
+     ⚠️ justifyContent: 'space-between' ile buton sağa yaslı; ek bir
+     boşluk doldurucu View'a gerek yok. */
+  fiyatSatir: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: bosluk.kucuk,
   },
 
-  /* Rozetin yeri — rozet çizilmese bile duruyor.
+  /* ⭐ YENİ (GV/Faz 2.1) — görselin sol üstündeki rozet yuvası.
 
-     ⚠️ flexShrink DEĞİL flex: 1.
-     "Stokta var" kaldırıldıktan sonra bu sarmalayıcı çoğu kartta
-     BOŞ kalıyor. Sadece flexShrink olsaydı boş kutu 0 genişlik alır,
-     justifyContent: 'space-between' tek çocuk (buton) ile onu SOLA
-     yaslardı. flex: 1 boşluğu doldurup butonu sağda tutuyor.
-
-     ⚠️ minWidth: 0 ŞART. Flex çocukları varsayılan olarak kendi
-     içeriklerinin altına inmeyi reddeder; bu olmadan uzun rozet
-     metni ("Son 12 ürün") sarmalayıcıyı şişirip butonu kartın
-     dışına iter. */
-  rozetSar: {
-    flex: 1,
-    minWidth: 0,
+     ⚠️ Konum mutlak: rozet görselin akışına girmiyor, dolayısıyla
+     görselin oranını (aspectRatio: 1) bozmuyor. */
+  rozetYeri: {
+    position: 'absolute',
+    top: bosluk.kucuk,
+    left: bosluk.kucuk,
   },
 });
