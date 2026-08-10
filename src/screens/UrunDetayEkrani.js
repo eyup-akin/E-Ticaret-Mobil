@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPost, apiDelete } from '../services/api';
 import { sonGezileneEkle } from '../services/sonGezilenler';
@@ -34,6 +34,11 @@ export default function UrunDetayEkrani({ route, navigation }) {
   const { token } = useAuth();
   const { renkler } = useTema();
   const { sepet, sepeteEkle } = useSepet();
+
+  // ⚠️ Yüzen geri butonunun durum çubuğunun altında kalması için.
+  // Sabit bir sayı yazsaydık centikli telefonlarda saatin üstune
+  // binerdi.
+  const { top: guvenliUst } = useSafeAreaInsets();
   const styles = stilOlustur(renkler);
 
   const [urun, setUrun] = useState(null);
@@ -205,15 +210,14 @@ export default function UrunDetayEkrani({ route, navigation }) {
   const sepetteVar = sepet.some((s) => s.productId === urun.id);
 
   return (
-    <SafeAreaView style={styles.kapsayici} edges={['top']}>
-      {/* ÜST BAR */}
-      <View style={styles.ustBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.geriButon}>
-          <Ionicons name="arrow-back" size={24} color={renkler.yaziKoyu} />
-        </TouchableOpacity>
-        <Text style={styles.ustBaslik} numberOfLines={1}>Ürün Detayı</Text>
-      </View>
+    /* ⭐ DEĞİŞTİ (GV/Faz 5.1) — edges'ten 'top' ÇIKARILDI.
 
+       Galeri artık tam genişlik ve ekranın en üstünden başlıyor;
+       güvenli alan boşluğu bırakılsaydı fotoğrafın üstünde bir
+       şerit kalır ve "tam ekran" hissi kaybolurdu. Durum çubuğuyla
+       çakışan tek şey geri butonu ve o zaten aşağıda, güvenli
+       alanın altında konumlanıyor. */
+    <SafeAreaView style={styles.kapsayici} edges={[]}>
       <ScrollView contentContainerStyle={styles.icerik} showsVerticalScrollIndicator={false}>
         {/* GALERİ + FAVORİ KALBİ */}
         <UrunGaleri
@@ -224,7 +228,16 @@ export default function UrunDetayEkrani({ route, navigation }) {
           favoriRenk={renkler.favoriRenk}
         />
 
-        {/* BİLGİ KARTI */}
+        {/* ⭐ DEĞİŞTİ (GV/Faz 5.2) — BİLGİ KARTI GALERİNİN ÜSTÜNE BİNİYOR.
+
+            marginTop negatif: yaprak fotoğrafın alt 20dp'sini
+            örtüyor ve üst köşeleri yuvarlak olduğu için fotoğraf
+            kartın altından çıkıyor gibi duruyor. Tasarımın en
+            belirgin hareketi bu.
+
+            ⚠️ Negatif marj + overflow: iOS'ta gölge kırpılmasın
+            diye kartın kendi gölgesi yok; ayrımı köşe yuvarlaklığı
+            ve renk farkı yapıyor. */}
         <View style={styles.bilgiKart}>
           <Text style={styles.urunAd}>{urun.name}</Text>
 
@@ -323,10 +336,32 @@ export default function UrunDetayEkrani({ route, navigation }) {
         </View>
       </ScrollView>
 
+      {/* ⭐ YENİ (GV/Faz 5.1) — YÜZEN GERİ BUTONU
+
+          Başlıklı üst barın yerini aldı. "Ürün Detayı" yazısı
+          kaldırıldı: müşteri zaten bir ürünün fotoğrafına bakıyor,
+          nerede olduğunu söylemeye gerek yok — o satır yalnızca
+          fotoğrafa ayrılabilecek 48dp'yi yiyordu.
+
+          ⚠️ SafeAreaView'in dışında ve mutlak konumlu: ScrollView
+          kayarken buton yerinde kalıyor. İçine koysaydık fotoğrafla
+          birlikte yukarı kayar ve uzun sayfalarda geri dönmek için
+          en yukarı çıkmak gerekirdi.
+
+          ⚠️ top: güvenli alan + 12. Durum çubuğunun altında
+          kalması gerekiyor; sabit bir sayı yazsaydık çentikli
+          telefonlarda saatin üstüne binerdi. */}
+      <TouchableOpacity
+        style={[styles.geriYuzen, { top: guvenliUst + bosluk.orta }]}
+        onPress={() => navigation.goBack()}
+        hitSlop={8}
+      >
+        <Ionicons name="arrow-back" size={22} color={renkler.yaziKoyu} />
+      </TouchableOpacity>
+
       {/* ALT BAR: FİYAT + SEPETE EKLE */}
       <View style={styles.altBar}>
         <View style={styles.fiyatKutu}>
-          <Text style={styles.fiyatEtiket}>Fiyat</Text>
           <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
         </View>
 
@@ -428,19 +463,40 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: { flex: 1, backgroundColor: renkler.arkaPlan },
   ortala: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: renkler.arkaPlan },
   bosYazi: { fontSize: 16, color: renkler.yaziGri },
-  ustBar: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: renkler.kenarlik },
-  geriButon: { marginRight: 12 },
-  ustBaslik: { fontSize: 18, fontWeight: '600', fontFamily: font.yari, color: renkler.yaziKoyu },
-  icerik: { paddingBottom: 24 },
+  /* ⭐ YENİ (GV/Faz 5.1) — YÜZEN GERİ BUTONU.
+     Başlıklı üst bar (ustBar/geriButon/ustBaslik) kaldırıldı;
+     "Ürün Detayı" yazısı fotoğrafa ayrılabilecek 48dp'yi yiyordu.
+
+     ⚠️ Zemin kartArka: fotoğrafın üstünde duruyor ve fotoğrafın
+     rengi bilinmiyor. Saydam bıraksaydık açık bir fotoğrafta ok
+     kaybolurdu. */
+  geriYuzen: {
+    position: 'absolute',
+    left: bosluk.orta,
+    width: 40,
+    height: 40,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.kartArka,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...renkler.golgeSm,
+  },
+
+  icerik: { paddingBottom: bosluk.genis },
 
   bilgiKart: {
     backgroundColor: renkler.kartArka,
-    marginHorizontal: 12,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
+
+    /* ⚠️ YAN BOŞLUK YOK — yaprak ekranın tamamını kaplıyor.
+       Kart olarak durmuyor, galerinin üstüne binen bir YÜZEY.
+       marginHorizontal verseydik iki yanda fotoğraf görünür ve
+       "yaprak" hissi bozulurdu. */
+    marginTop: -bosluk.genis,   // galerinin alt 24dp'sini örtüyor
+    borderTopLeftRadius: kose.dev,
+    borderTopRightRadius: kose.dev,
+    paddingHorizontal: bosluk.normal,
+    paddingTop: bosluk.genis,
+    paddingBottom: bosluk.normal,
   },
 
   // ⭐ YENİ — açıklama bölümü
@@ -450,10 +506,10 @@ const stilOlustur = (renkler) => StyleSheet.create({
   // "asimetrik boşluk bozuk, simetrik boşluk kasıtlı okunur."
   aciklamaKart: {
     backgroundColor: renkler.kartArka,
-    marginHorizontal: 12,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 16,
+    marginHorizontal: sayfaKenari,
+    marginTop: bosluk.orta,
+    borderRadius: kose.buyuk,
+    padding: bosluk.normal,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
   },
@@ -461,7 +517,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
   aciklamaBaslik: {
     fontSize: 16,
     fontWeight: '600', fontFamily: font.yari,
-    fontFamily: font.yari,
     color: renkler.yaziKoyu,
     marginBottom: 10,
   },
@@ -488,7 +543,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
   aciklamaButonYazi: {
     fontSize: 14,
     fontWeight: '600', fontFamily: font.yari,
-    fontFamily: font.yari,
     color: renkler.anaRenk,
   },
   urunAd: { fontSize: 22, fontWeight: 'bold', fontFamily: font.kalin, color: renkler.yaziKoyu, marginBottom: 8 },
@@ -545,7 +599,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenk,
     fontSize: 16,
     fontWeight: '700', fontFamily: font.kalin,
-    fontFamily: font.kalin,
   },
 
   /* ⭐ YENİ (5.5) — "Stoka gelince haber ver" butonu.
@@ -582,15 +635,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.anaRenk,
     fontSize: 14,
     fontWeight: '700', fontFamily: font.kalin,
-    fontFamily: font.kalin,
   },
 
   yorumKart: {
     backgroundColor: renkler.kartArka,
-    marginHorizontal: 12,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 16,
+    marginHorizontal: sayfaKenari,
+    marginTop: bosluk.orta,
+    borderRadius: kose.buyuk,
+    padding: bosluk.normal,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
   },
@@ -598,12 +650,32 @@ const stilOlustur = (renkler) => StyleSheet.create({
   altBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: bosluk.orta,
+    paddingVertical: bosluk.orta,
     borderTopWidth: 1,
     borderTopColor: renkler.kenarlik,
     backgroundColor: renkler.kartArka,
   },
-  fiyatKutu: { marginRight: 14 },
-  fiyatEtiket: { fontSize: 12, color: renkler.yaziGri },
-  fiyat: { fontSize: 20, fontWeight: 'bold', fontFamily: font.kalin, color: renkler.anaRenk },
+
+  fiyatKutu: { marginRight: bosluk.orta },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 5.3) — FİYAT ARTIK TURUNCU DEĞİL.
+     ⚠️ Bu bir kural ihlaliydi ve palet değişince görünür oldu.
+
+     Turuncu bu uygulamada EYLEM demek. Alt çubukta fiyatın hemen
+     yanında "Şimdi Al" ve "Sepete Ekle" butonları var; üçü de
+     turuncu olunca hangisine basılacağı renkten okunamıyordu.
+     Ürün kartında bu kural zaten uygulanmıştı, detay ekranı
+     atlanmış.
+
+     ⚠️ "Fiyat" etiketi de KALDIRILDI: altındaki sayı zaten ₺ ile
+     bitiyor, neyin fiyat olduğu belli. Etiket yalnızca alt çubuğu
+     iki satır yapıyordu. */
+  fiyat: {
+    fontSize: yazi.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    lineHeight: satir.baslik,
+    color: renkler.yaziKoyu,
+  },
 });
