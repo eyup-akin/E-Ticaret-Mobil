@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTema } from '../context/TemaContext';
 import { useAuth } from '../context/AuthContext';
+import OnayPenceresi from '../components/OnayPenceresi';
 
 // Kullanıcının birebir yazması gereken metin.
 //
@@ -39,6 +39,14 @@ export default function HesapKapatEkrani({ navigation }) {
   const [islemde, setIslemde] = useState(false);
   const [hata, setHata] = useState('');
 
+  // ⭐ YENİ (GV/Faz 7.12) — son onay ve kapanış pencereleri.
+  //
+  // ⚠️ Alert.alert yerine OnayPenceresi. Bu ekrandaki en kritik
+  // pencere yıkıcı bir eylemi soruyor; sistem penceresi yıkıcı butonu
+  // vurgulayamıyor ve iki buton aynı görünüyordu.
+  const [sonOnayAcik, setSonOnayAcik] = useState(false);
+  const [kapandiAcik, setKapandiAcik] = useState(false);
+
   // Onay metni doğru yazıldı mı?
   //
   // trim(): telefon klavyeleri kelime sonunda otomatik boşluk ekleyebiliyor.
@@ -49,28 +57,6 @@ export default function HesapKapatEkrani({ navigation }) {
 
   // İki koşul birden sağlanmalı. Türetilmiş değer — ayrı state yok.
   const devamEdilebilir = onayDogruMu && sifre.length > 0;
-
-  // Son uyarı penceresini açar.
-  //
-  // Neden ayrı bir adım? Buton basıldığında işlem HEMEN başlamasın.
-  // Yazıyı yazmak "bilerek mi" sorusunu, şifre "sen kimsin" sorusunu
-  // cevaplıyor. Bu pencere üçüncü ve farklı bir soruyu soruyor:
-  // "hâlâ emin misin?" — son çıkış kapısı.
-  function sonOnayiSor() {
-    Alert.alert(
-      'Emin misin?',
-      'Hesabın kapatılacak ve kişisel bilgilerin silinecek. ' +
-      'Bu işlem geri alınamaz.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Hesabımı Kapat',
-          style: 'destructive',   // iOS'ta kırmızı gösterir
-          onPress: kapat,
-        },
-      ]
-    );
-  }
 
   async function kapat() {
     setHata('');
@@ -86,28 +72,7 @@ export default function HesapKapatEkrani({ navigation }) {
       //    uygulama şu an misafir durumunda. Ama bu ekran hâlâ açık.
       //    Kullanıcı ne olduğunu okumadan ekran değişirse "kapandı mı,
       //    kapanmadı mı?" diye kalır.
-      Alert.alert(
-        'Hesabın kapatıldı',
-        'Kişisel bilgilerin silindi. Geçmiş sipariş kayıtların yasal ' +
-        'saklama yükümlülüğü nedeniyle muhasebe kaydı olarak saklanıyor, ' +
-        'ancak artık kimliğinle ilişkilendirilemez.\n\n' +
-        'Bizi tercih ettiğin için teşekkürler.',
-        [
-          {
-            text: 'Tamam',
-            onPress: () => {
-              // Yığının en başına dön.
-              //
-              // goBack() yeterli olmazdı: kullanıcı buraya
-              // Hesabım → Hesabı Kapat yolundan geldi ve arada başka
-              // ekranlar da olabilir. popToTop yığını temizleyip
-              // Hesabım ekranına döndürüyor — orası token null olduğu
-              // için otomatik olarak misafir görünümüne geçmiş durumda.
-              navigation.popToTop();
-            },
-          },
-        ]
-      );
+      setKapandiAcik(true);
     } catch (e) {
       // Sunucudan gelebilecek mesajlar:
       //   "Şifren yanlış. Hesabın kapatılmadı."
@@ -270,7 +235,7 @@ export default function HesapKapatEkrani({ navigation }) {
               styles.tehlikeButon,
               (!devamEdilebilir || islemde) && styles.tehlikeButonPasif,
             ]}
-            onPress={sonOnayiSor}
+            onPress={() => setSonOnayAcik(true)}
             disabled={!devamEdilebilir || islemde}
           >
             {islemde ? (
@@ -292,6 +257,37 @@ export default function HesapKapatEkrani({ navigation }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ⚠️ ÜÇÜNCÜ VE SON KAPI. Onay metnini yazmak "bilerek mi",
+          şifre "sen kimsin" sorusunu cevaplıyor; bu pencere "hâlâ
+          emin misin" diye soruyor. Buton basıldığında işlem HEMEN
+          başlamıyor olması bilinçli. */}
+      <OnayPenceresi
+        acik={sonOnayAcik}
+        ikon="warning-outline"
+        yikici
+        baslik="Emin misin?"
+        mesaj="Hesabın kapatılacak ve kişisel bilgilerin silinecek. Bu işlem geri alınamaz."
+        onayYazisi="Hesabımı Kapat"
+        onVazgec={() => setSonOnayAcik(false)}
+        onOnayla={() => { setSonOnayAcik(false); kapat(); }}
+      />
+
+      {/* ⚠️ popToTop: goBack() yetmezdi — kullanıcı buraya
+          Hesabım → Hesabı Kapat yolundan geldi ve arada başka ekranlar
+          da olabilir. popToTop yığını temizleyip Hesabım'a döndürüyor;
+          orası token null olduğu için misafir görünümüne geçmiş
+          durumda. */}
+      <OnayPenceresi
+        acik={kapandiAcik}
+        ikon="checkmark-circle-outline"
+        tekButon
+        baslik="Hesabın kapatıldı"
+        mesaj="Kişisel bilgilerin silindi. Geçmiş sipariş kayıtların yasal saklama yükümlülüğü nedeniyle muhasebe kaydı olarak saklanıyor, ancak artık kimliğinle ilişkilendirilemez."
+        onayYazisi="Tamam"
+        onVazgec={() => { setKapandiAcik(false); navigation.popToTop(); }}
+        onOnayla={() => { setKapandiAcik(false); navigation.popToTop(); }}
+      />
     </SafeAreaView>
   );
 }
@@ -301,173 +297,217 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
-  },
-  geriButon: {
-    marginRight: 12,
-  },
-  ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-  },
-  icerik: {
-    padding: 16,
-    paddingBottom: 32,
+    backgroundColor: renkler.kartArka,
   },
 
+  geriButon: {
+    width: 32,
+  },
+
+  ustBaslik: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  icerik: {
+    padding: sayfaKenari,
+    paddingBottom: bosluk.dev,
+  },
+
+
   /* ---- UYARI ---- */
+
   uyariKutu: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: renkler.acikKart,
-    borderRadius: 10,
+    gap: bosluk.orta,
+    backgroundColor: renkler.yumusakHata,
+    borderRadius: kose.orta,
     borderLeftWidth: 4,
     borderLeftColor: renkler.hata,
-    padding: 14,
-    marginBottom: 24,
+    padding: bosluk.normal,
+    marginBottom: bosluk.genis,
   },
+
   uyariYazi: {
     flex: 1,
-    fontSize: 14,
+    fontSize: yazi.normal,
     color: renkler.yaziKoyu,
-    lineHeight: 20,
+    lineHeight: satir.normal,
   },
+
   kalin: {
-    fontWeight: 'bold',
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.hata,
   },
 
+
   /* ---- LİSTELER ---- */
+
   bolumBaslik: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-    marginBottom: 8,
+    color: renkler.yaziGri,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: bosluk.kucuk,
   },
+
   listeKutu: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 18,
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+    marginBottom: bosluk.normal,
   },
+
   listeSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 5,
-  },
-  listeYazi: {
-    flex: 1,
-    fontSize: 14,
-    color: renkler.yaziOrta,
-  },
-  aciklama: {
-    fontSize: 13,
-    color: renkler.yaziGri,
-    lineHeight: 19,
+    gap: bosluk.kucuk,
+    paddingVertical: bosluk.mikro,
   },
 
-  /* ---- FORM ---- */
-  ipucu: {
-    fontSize: 13,
-    color: renkler.yaziGri,
-    lineHeight: 19,
-    marginBottom: 10,
+  listeYazi: {
+    flex: 1,
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
   },
+
+  aciklama: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    lineHeight: satir.kucuk,
+  },
+
+
+  /* ---- FORM ---- */
+
+  ipucu: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    lineHeight: satir.kucuk,
+    marginBottom: bosluk.kucuk,
+  },
+
   kod: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-    fontWeight: 'bold',
     color: renkler.yaziKoyu,
   },
+
   input: {
     borderWidth: 1,
     borderColor: renkler.inputKenar,
-    borderRadius: 8,
-    paddingHorizontal: 14,
+    borderRadius: kose.orta,
+    paddingHorizontal: bosluk.normal,
     height: 48,
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.yaziKoyu,
     backgroundColor: renkler.kartArka,
   },
+
+  /* ⚠️ Kenarlık kalınlaşıyor ama kutu YÜKSEKLİĞİ sabit (height: 48),
+     o yüzden düzen kaymıyor. Yükseklik içeriğe bağlı olsaydı doğru
+     yazınca kutu 2px büyür ve altındaki her şey zıplardı. */
   inputDogru: {
     borderColor: renkler.basari,
     borderWidth: 2,
   },
 
+
   /* ---- GÖSTER/GİZLE ---- */
+
   gosterSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: bosluk.kucuk,
     alignSelf: 'flex-start',
-    paddingVertical: 8,
+    paddingVertical: bosluk.kucuk,
   },
+
   gosterYazi: {
-    fontSize: 13,
+    fontSize: yazi.kucuk,
     color: renkler.anaRenk,
-    fontWeight: '600',
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
   },
 
+
   /* ---- HATA ---- */
+
   hataKutu: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: renkler.acikKart,
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakHata,
     borderLeftWidth: 3,
     borderLeftColor: renkler.hata,
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
-  },
-  hataYazi: {
-    flex: 1,
-    fontSize: 13,
-    color: renkler.hata,
-    lineHeight: 18,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginTop: bosluk.orta,
   },
 
+  hataYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    color: renkler.hata,
+    lineHeight: satir.kucuk,
+  },
+
+
   /* ---- BUTONLAR ---- */
+
+  /* ⚠️ DOLU KIRMIZI — ve bu, uygulamadaki TEK dolu kırmızı buton.
+     Çıkış yapma ve oturum kapatma çerçeveli; onlar geri alınabilir.
+     Hesap kapatma geri alınamaz ve o ağırlığı yalnızca burası
+     taşıyor. */
   tehlikeButon: {
     backgroundColor: renkler.hata,
-    paddingVertical: 15,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: bosluk.genis,
   },
+
   tehlikeButonPasif: {
     opacity: 0.45,
   },
+
   tehlikeYazi: {
-    /* Sabit beyaz: hata rengi hem açık hem koyu temada koyu bir kırmızı
-       tonu, üstünde beyaz her iki temada da okunuyor. renkler.yaziKoyu
-       kullansaydık koyu temada açık gri olur ve kırmızı üstünde
-       okunurluğu düşerdi. */
+    /* ⚠️ Sabit beyaz ve bilerek: hata rengi hem açık hem koyu temada
+       koyu bir kırmızı tonu, üstünde beyaz her iki temada da
+       okunuyor. renkler.yaziKoyu kullansaydık koyu temada açık gri
+       olur ve kırmızı üstünde okunurluğu düşerdi. */
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
+
   vazgecButon: {
-    paddingVertical: 15,
+    paddingVertical: bosluk.normal,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: bosluk.kucuk,
   },
+
   vazgecYazi: {
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.anaRenk,
-    fontWeight: '600',
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
   },
 });

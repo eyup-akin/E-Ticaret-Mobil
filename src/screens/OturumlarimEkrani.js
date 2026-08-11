@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +17,7 @@ import { apiPost } from '../services/api';
 import { refreshTokenAl } from '../services/tokenStorage';
 import { tarihBicimle } from '../utils/bicimlendir';
 import { useTema } from '../context/TemaContext';
+import OnayPenceresi from '../components/OnayPenceresi';
 
 
 // User-Agent metnini okunabilir hâle çevirir.
@@ -96,6 +96,20 @@ export default function OturumlarimEkrani({ navigation }) {
   const [islemdekiId, setIslemdekiId] = useState(null);
   const [digerleriIslemde, setDigerleriIslemde] = useState(false);
 
+  // ⭐ YENİ (GV/Faz 7.10) — onay penceresi durumları.
+  //
+  // ⚠️ Alert.alert yerine OnayPenceresi: sistem penceresi koyu temada
+  // bile beyaz açılıyor ve Android'de butonları büyük harfe çeviriyor.
+  // Sepet, adres ve kart ekranlarında aynı değişiklik yapılmıştı;
+  // uygulamada tek bir onay dili olsun.
+  //
+  // İki ayrı state çünkü iki farklı soru: biri TEK oturumu (hangisi
+  // olduğunu bilmesi gerek), diğeri hepsini kapatıyor. Tek state'e
+  // sıkıştırsaydık pencerenin hangi metni göstereceğini ayrıca
+  // hesaplamak gerekirdi.
+  const [kapatilacak, setKapatilacak] = useState(null);
+  const [digerleriSorusu, setDigerleriSorusu] = useState(false);
+
   async function oturumlariGetir() {
     setHata('');
 
@@ -128,24 +142,6 @@ export default function OturumlarimEkrani({ navigation }) {
   );
 
 
-  // Tek oturumu kapat
-  function kapatmayiOnayla(oturum) {
-    const cihaz = cihazOku(oturum.cihazBilgisi);
-
-    Alert.alert(
-      'Oturumu kapat',
-      `"${cihaz.tarayici}" oturumu kapatılacak. O cihaz bir sonraki ` +
-      'istekte giriş ekranına düşer.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Kapat',
-          style: 'destructive',
-          onPress: () => oturumuKapat(oturum.id),
-        },
-      ]
-    );
-  }
 
   async function oturumuKapat(id) {
     setIslemdekiId(id);
@@ -168,22 +164,6 @@ export default function OturumlarimEkrani({ navigation }) {
   }
 
 
-  // Bu cihaz hariç hepsini kapat
-  function digerleriniOnayla() {
-    Alert.alert(
-      'Diğer oturumları kapat',
-      `Bu cihaz hariç ${digerSayisi} oturum kapatılacak. Diğer ` +
-      'cihazlarda tekrar giriş yapman gerekecek.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Hepsini Kapat',
-          style: 'destructive',
-          onPress: digerleriniKapat,
-        },
-      ]
-    );
-  }
 
   async function digerleriniKapat() {
     setDigerleriIslemde(true);
@@ -192,13 +172,18 @@ export default function OturumlarimEkrani({ navigation }) {
     try {
       const refresh = (await refreshTokenAl()) ?? '';
 
-      const veri = await apiPost('/auth/diger-oturumlari-kapat', {
+      await apiPost('/auth/diger-oturumlari-kapat', {
         refreshToken: refresh,
       });
 
+      // ⭐ DEĞİŞTİ (GV/Faz 7.10) — bitince Alert AÇILMIYOR.
+      //
+      // ⚠️ Eskiden sunucunun mesajı bir Alert ile gösteriliyordu:
+      // kullanıcı onay penceresini kapatıyor, hemen ardından ikinci
+      // bir pencere açılıyordu. Sonucu zaten LİSTE söylüyor —
+      // kapatılan oturumlar gitmiş oluyor. İşin sonucunu ekranın
+      // kendisi anlatıyorsa üstüne bir de pencere koymuyoruz.
       await oturumlariGetir();
-
-      Alert.alert('Tamamlandı', veri.mesaj);
     } catch (e) {
       setHata(e.message);
     } finally {
@@ -309,7 +294,7 @@ export default function OturumlarimEkrani({ navigation }) {
                     {!o.buCihaz && (
                       <TouchableOpacity
                         style={styles.kapatButon}
-                        onPress={() => kapatmayiOnayla(o)}
+                        onPress={() => setKapatilacak(o)}
                         disabled={islemdekiId === o.id}
                       >
                         {islemdekiId === o.id ? (
@@ -328,11 +313,11 @@ export default function OturumlarimEkrani({ navigation }) {
             {digerSayisi > 0 && (
               <TouchableOpacity
                 style={styles.tehlikeButon}
-                onPress={digerleriniOnayla}
+                onPress={() => setDigerleriSorusu(true)}
                 disabled={digerleriIslemde}
               >
                 {digerleriIslemde ? (
-                  <ActivityIndicator color="#ffffff" />
+                  <ActivityIndicator color={renkler.hata} />
                 ) : (
                   <Text style={styles.tehlikeYazi}>
                     Diğer {digerSayisi} Oturumu Kapat
@@ -349,6 +334,44 @@ export default function OturumlarimEkrani({ navigation }) {
         </Text>
 
       </ScrollView>
+
+      {/* ⚠️ İki pencere ayrı ayrı duruyor, tek bir "genel onay"
+          bileşenine sıkıştırılmadı: metinleri, ikonları ve
+          sonuçları farklı. Ortaklaştırsaydık pencerenin hangi işi
+          yaptığını bir bayrakla seçmek gerekirdi ve yanlış bayrak
+          yanlış oturumu kapatırdı. */}
+      <OnayPenceresi
+        acik={kapatilacak !== null}
+        ikon="log-out-outline"
+        yikici
+        baslik="Oturum kapatılsın mı?"
+        mesaj={
+          kapatilacak
+            ? `"${cihazOku(kapatilacak.cihazBilgisi).tarayici}" oturumu kapatılacak. O cihaz bir sonraki istekte giriş ekranına düşer.`
+            : ''
+        }
+        onayYazisi="Kapat"
+        onVazgec={() => setKapatilacak(null)}
+        onOnayla={() => {
+          const oturum = kapatilacak;
+          setKapatilacak(null);
+          if (oturum) oturumuKapat(oturum.id);
+        }}
+      />
+
+      <OnayPenceresi
+        acik={digerleriSorusu}
+        ikon="log-out-outline"
+        yikici
+        baslik="Diğer oturumlar kapatılsın mı?"
+        mesaj={`Bu cihaz hariç ${digerSayisi} oturum kapatılacak. Diğer cihazlarda tekrar giriş yapman gerekecek.`}
+        onayYazisi="Hepsini Kapat"
+        onVazgec={() => setDigerleriSorusu(false)}
+        onOnayla={() => {
+          setDigerleriSorusu(false);
+          digerleriniKapat();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -358,95 +381,119 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
-  },
-  geriButon: {
-    marginRight: 12,
-  },
-  ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-  },
-  icerik: {
-    padding: 16,
-    paddingBottom: 32,
+    backgroundColor: renkler.kartArka,
   },
 
+  geriButon: {
+    width: 32,
+  },
+
+  ustBaslik: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  icerik: {
+    padding: sayfaKenari,
+    paddingBottom: bosluk.dev,
+  },
+
+
   /* ---- BİLGİ KUTUSU ---- */
+
   bilgiKutu: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: bosluk.kucuk,
     backgroundColor: renkler.acikKart,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 20,
-  },
-  bilgiYazi: {
-    flex: 1,
-    fontSize: 13,
-    color: renkler.yaziOrta,
-    lineHeight: 19,
+    borderRadius: kose.orta,
+    padding: bosluk.normal,
+    marginBottom: bosluk.normal,
   },
 
+  bilgiYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    color: renkler.yaziOrta,
+    lineHeight: satir.kucuk,
+  },
+
+
   /* ---- HATA ---- */
+
   hataKutu: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: renkler.acikKart,
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakHata,
     borderLeftWidth: 3,
     borderLeftColor: renkler.hata,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  hataYazi: {
-    flex: 1,
-    fontSize: 13,
-    color: renkler.hata,
-    lineHeight: 18,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginBottom: bosluk.normal,
   },
 
-  /* ---- LİSTE ---- */
-  sayiYazi: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-    marginBottom: 10,
+  hataYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    color: renkler.hata,
+    lineHeight: satir.kucuk,
   },
+
+
+  /* ---- LİSTE ---- */
+
+  sayiYazi: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziGri,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: bosluk.kucuk,
+  },
+
   liste: {
     backgroundColor: renkler.kartArka,
-    borderRadius: 12,
+    borderRadius: kose.buyuk,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
-    paddingHorizontal: 14,
+    paddingHorizontal: bosluk.normal,
   },
+
   satir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
+    gap: bosluk.orta,
+    paddingVertical: bosluk.normal,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
   },
+
+  /* ⚠️ İkon dairesi acikKart zeminli, turuncu değil: bu bir cihaz
+     göstergesi, bir eylem değil. Faz 1'de düzeltilen dekoratif ana
+     renk hatasının aynısı olurdu. */
   ikonDaire: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: kose.tam,
     backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
+
   /* flex: 1 → orta blok kalan alanı doldursun.
      minWidth: 0 → uzun metin taşırmasın (flex öğelerinin varsayılan
      minWidth'i auto, bu da taşmaya yol açar) */
@@ -454,89 +501,116 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+
   cihazSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: bosluk.kucuk,
     flexWrap: 'wrap',
   },
+
   cihazAd: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
+
   detay: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
     marginTop: 3,
   },
+
   hamUa: {
-    fontSize: 10,
+    fontSize: yazi.mikro,
     color: renkler.yaziGri,
-    marginTop: 4,
+    marginTop: bosluk.mikro,
     /* Platform.select: iOS ve Android'de monospace font adları farklı */
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
   },
 
+
   /* ---- BU CİHAZ ROZETİ ---- */
+
   buCihazRozet: {
-    backgroundColor: renkler.basari,
-    borderRadius: 20,
+    backgroundColor: renkler.yumusakBasari,
+    borderRadius: kose.tam,
     paddingVertical: 2,
-    paddingHorizontal: 9,
+    paddingHorizontal: bosluk.kucuk,
   },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.10) — dolu yeşil + beyaz yazı yerine yumuşak
+     zemin + yeşil yazı.
+
+     ⚠️ Dolu yeşil rozet listede en parlak öğeydi ve gözü "bu cihaz"
+     etiketine çekiyordu; oysa müşterinin araması gereken şey
+     TANIMADIĞI cihazlar. Vurgu yanlış yerdeydi. Ayrıca elle yazılmış
+     '#ffffff' de böylece kalktı. */
   buCihazYazi: {
-    /* Sabit beyaz: başarı rengi hem açık hem koyu temada koyu yeşil,
-       üstünde beyaz her iki temada okunuyor. */
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
+    color: renkler.basari,
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 
+
   /* ---- BUTONLAR ---- */
+
   kapatButon: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: bosluk.kucuk,
+    paddingHorizontal: bosluk.orta,
+    borderRadius: kose.kucuk,
     borderWidth: 1,
     borderColor: renkler.hata,
     minWidth: 62,
     alignItems: 'center',
   },
+
   kapatYazi: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.hata,
   },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.10) — dolu kırmızıdan çerçeveli kırmızıya.
+
+     ⚠️ Dolu kırmızı bu uygulamada "yıkıcı ve geri alınamaz" demek
+     (hesap kapatma). Diğer oturumları kapatmak geri alınabilir: o
+     cihazlarda tekrar giriş yapılır. Hesabım ekranındaki "Çıkış Yap"
+     ile aynı ağırlıkta olmalı ve orası da çerçeveli. */
   tehlikeButon: {
-    backgroundColor: renkler.hata,
-    paddingVertical: 14,
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: renkler.hata,
+    paddingVertical: bosluk.orta,
+    borderRadius: kose.orta,
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: bosluk.normal,
   },
+
   tehlikeYazi: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: 'bold',
+    color: renkler.hata,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 
+
   /* ---- DİĞER ---- */
+
   bosYazi: {
     textAlign: 'center',
-    marginTop: 30,
-    fontSize: 15,
+    marginTop: bosluk.dev,
+    fontSize: yazi.normal,
     color: renkler.yaziGri,
   },
+
   ipucu: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    lineHeight: 18,
-    marginTop: 18,
+    lineHeight: satir.kucuk,
+    marginTop: bosluk.normal,
     textAlign: 'center',
   },
 });

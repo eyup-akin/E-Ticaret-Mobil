@@ -129,6 +129,16 @@ export const acikTema = {
   // turuncunun anlamını çalmıyor.
   yildizRengi: '#f59e0b',
 
+  // ⭐ YENİ (GV/Faz 7.9) — İADE RENGİ
+  //
+  // ⚠️ İade ne başarı ne hata: para geri döndü, kimse yanlış bir şey
+  // yapmadı. Yeşil yapsaydık "iyi haber", kırmızı yapsaydık "sorun"
+  // derdi; ikisi de yanlış. Mor bu üç anlamın hiçbirine bulaşmıyor.
+  //
+  // ⚠️ Bu renk daha önce durum.js icinde ELLE yazılıydı ('#8e44ad')
+  // ve koyu temada değişmiyordu.
+  iadeRengi: '#7c3aed',
+
   // ⭐ YENİ (GV/Faz 1) — LACİVERT DOLU YÜZEY
   //
   // Açık temada bile koyu kalan yüzeyler: giriş ekranının üst bandı,
@@ -285,6 +295,10 @@ export const koyuTema = {
   // ⚠️ Yıldız koyu temada bir tık AÇILIYOR: kehribar, koyu lacivert
   // zeminde sönük kalıyor. (Gerekçenin tamamı açık temada yazılı.)
   yildizRengi: '#fbbf24',
+
+  // ⚠️ İade moru koyu temada AÇILIYOR: #7c3aed koyu lacivert zeminde
+  // neredeyse siyah okunuyordu. (Gerekçenin tamamı açık temada.)
+  iadeRengi: '#a78bfa',
 
   // ⭐ YENİ (GV/Faz 1) — lacivert dolu yüzey, koyu tema karşılığı.
   //

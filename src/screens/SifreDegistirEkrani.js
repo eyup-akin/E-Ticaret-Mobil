@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -17,11 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTema } from '../context/TemaContext';
 import { useAuth } from '../context/AuthContext';
+import OnayPenceresi from '../components/OnayPenceresi';
+import SifreGucu, { MIN_SIFRE } from '../components/SifreGucu';
 
-// Sunucudaki kuralla AYNI sayı.
-// İki katmanda farklı olsaydı arayüzde kabul edilen şifre sunucuda
-// reddedilirdi — kullanıcı sebebini anlamazdı.
-const MIN_SIFRE = 6;
+// ⭐ DEĞİŞTİ (GV/Faz 7.11) — MIN_SIFRE artık SifreGucu bileşeninden
+// geliyor. Sayı iki dosyada ayrı ayrı yazılıydı; biri değişip diğeri
+// unutulsaydı çubuk "yeterli" derken form reddederdi.
 
 export default function SifreDegistirEkrani({ navigation }) {
   const { renkler } = useTema();
@@ -39,6 +39,13 @@ export default function SifreDegistirEkrani({ navigation }) {
 
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [hata, setHata] = useState('');
+
+  // ⭐ YENİ (GV/Faz 7.11) — başarı penceresi.
+  //
+  // ⚠️ Alert.alert yerine OnayPenceresi; uygulamada tek bir pencere
+  // dili olsun. "Vazgeç" yok çünkü geri alınacak bir şey yok: şifre
+  // zaten değişti, pencere yalnızca sonucu bildiriyor.
+  const [basariAcik, setBasariAcik] = useState(false);
 
   // Üç alan da dolu mu? Türetilmiş — buton durumunu bundan okuyoruz.
   const hepsiDolu =
@@ -83,12 +90,7 @@ export default function SifreDegistirEkrani({ navigation }) {
       // kasaya yazıyor — o adım atlanırsa kullanıcı çıkışa düşer.
       await sifreDegistir(eski, yeni);
 
-      Alert.alert(
-        'Şifren değişti',
-        'Diğer cihazlardaki oturumların kapatıldı. Bu cihazda oturumun ' +
-        'açık kalmaya devam ediyor.',
-        [{ text: 'Tamam', onPress: () => navigation.goBack() }]
-      );
+      setBasariAcik(true);
     } catch (e) {
       // Sunucudan gelen mesaj: "Mevcut şifren yanlış.",
       // "Yeni şifre eskisiyle aynı olamaz." veya rate limit hatası.
@@ -156,6 +158,19 @@ export default function SifreDegistirEkrani({ navigation }) {
 
           {sifreAlani('Mevcut Şifre', eski, setEski, 'Şu anki şifren')}
           {sifreAlani('Yeni Şifre', yeni, setYeni, `En az ${MIN_SIFRE} karakter`)}
+
+          {/* ⭐ YENİ (GV/Faz 7.11) — güç göstergesi + kural listesi.
+
+              ⚠️ Gösterge YENİ ŞİFRE alanının hemen altında, formun
+              sonunda değil: kullanıcı yazarken görmeli. Aşağıda
+              olsaydı geri bildirim, düzeltme fırsatı geçtikten sonra
+              gelirdi.
+
+              ⚠️ Zorunlu kural ile öneri AYRILDI. Sunucu bugün
+              yalnızca "en az 6 karakter" uyguluyor; büyük harf/rakam
+              kuralları backend'de YOK. Onları zorunlu diye
+              göstermek, olmayan bir güvenliği vaat etmek olurdu. */}
+          <SifreGucu sifre={yeni} />
           {sifreAlani('Yeni Şifre (Tekrar)', yeniTekrar, setYeniTekrar, 'Tekrar yaz')}
 
           {/* Göster/gizle — tek anahtar üç alanı birden etkiler */}
@@ -197,6 +212,17 @@ export default function SifreDegistirEkrani({ navigation }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <OnayPenceresi
+        acik={basariAcik}
+        ikon="shield-checkmark-outline"
+        tekButon
+        baslik="Şifren değişti"
+        mesaj="Diğer cihazlardaki oturumların kapatıldı. Bu cihazda oturumun açık kalmaya devam ediyor."
+        onayYazisi="Tamam"
+        onVazgec={() => { setBasariAcik(false); navigation.goBack(); }}
+        onOnayla={() => { setBasariAcik(false); navigation.goBack(); }}
+      />
     </SafeAreaView>
   );
 }
@@ -206,116 +232,143 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
-  },
-  geriButon: {
-    marginRight: 12,
-  },
-  ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-  },
-  icerik: {
-    padding: 16,
+    backgroundColor: renkler.kartArka,
   },
 
+  geriButon: {
+    width: 32,
+  },
+
+  ustBaslik: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  icerik: {
+    padding: sayfaKenari,
+    paddingBottom: bosluk.dev,
+  },
+
+
   /* ---- BİLGİ KUTUSU ---- */
+
   bilgiKutu: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: bosluk.kucuk,
     backgroundColor: renkler.acikKart,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 22,
-  },
-  bilgiYazi: {
-    flex: 1,
-    fontSize: 13,
-    color: renkler.yaziOrta,
-    lineHeight: 19,
+    borderRadius: kose.orta,
+    padding: bosluk.normal,
+    marginBottom: bosluk.normal,
   },
 
-  /* ---- FORM ---- */
-  alan: {
-    marginBottom: 16,
+  bilgiYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    color: renkler.yaziOrta,
+    lineHeight: satir.kucuk,
   },
+
+
+  /* ---- FORM ---- */
+
+  alan: {
+    marginBottom: bosluk.normal,
+  },
+
   etiket: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
-    marginBottom: 6,
+    marginBottom: bosluk.mikro,
   },
+
   inputSarmal: {
     borderWidth: 1,
     borderColor: renkler.inputKenar,
-    borderRadius: 8,
+    borderRadius: kose.orta,
     backgroundColor: renkler.kartArka,
   },
+
   input: {
-    paddingHorizontal: 14,
+    paddingHorizontal: bosluk.normal,
     height: 48,
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.yaziKoyu,
   },
 
+
   /* ---- GÖSTER/GİZLE ---- */
+
   gosterSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: bosluk.kucuk,
     alignSelf: 'flex-start',
-    paddingVertical: 6,
+    paddingVertical: bosluk.kucuk,
+    marginTop: bosluk.kucuk,
   },
+
   gosterYazi: {
-    fontSize: 13,
+    fontSize: yazi.kucuk,
     color: renkler.anaRenk,
-    fontWeight: '600',
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
   },
 
+
   /* ---- HATA ---- */
+
   hataKutu: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: renkler.acikKart,
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakHata,
     borderLeftWidth: 3,
     borderLeftColor: renkler.hata,
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 14,
-  },
-  hataYazi: {
-    flex: 1,
-    fontSize: 13,
-    color: renkler.hata,
-    lineHeight: 18,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginTop: bosluk.orta,
   },
 
+  hataYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    color: renkler.hata,
+    lineHeight: satir.kucuk,
+  },
+
+
   /* ---- BUTON ---- */
+
   anaButon: {
     backgroundColor: renkler.anaRenk,
-    paddingVertical: 15,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: bosluk.genis,
   },
+
   anaButonPasif: {
     opacity: 0.5,
   },
+
   anaButonYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 });

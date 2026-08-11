@@ -46,6 +46,7 @@ export default function OnayPenceresi({
   onayYazisi = 'Onayla',
   vazgecYazisi = 'Vazgeç',
   yikici = false,
+  tekButon = false,
   ikon,
   onOnayla,
   onVazgec,
@@ -78,9 +79,23 @@ export default function OnayPenceresi({
           {mesaj ? <Text style={styles.mesaj}>{mesaj}</Text> : null}
 
           <View style={styles.butonlar}>
-            <TouchableOpacity style={styles.vazgecButon} onPress={onVazgec} activeOpacity={0.7}>
-              <Text style={styles.vazgecYazi}>{vazgecYazisi}</Text>
-            </TouchableOpacity>
+            {/* ⭐ YENİ (GV/Faz 7.11) — `tekButon` ile vazgeç gizleniyor.
+
+                ⚠️ Bazı pencereler bir SORU sormuyor, bir SONUÇ
+                bildiriyor ("Şifren değişti"). Orada "Vazgeç" yazan
+                bir buton anlamsız: geri alınacak bir şey yok, işlem
+                zaten oldu. İki butonu zorla göstermek kullanıcıya
+                olmayan bir seçim sunmak olurdu.
+
+                Ayrı bir "BilgiPenceresi" bileşeni yazılmadı: pencere
+                kabuğu, karartma, gölge ve ikon dili birebir aynı;
+                ikinci bir kopya, birinde yapılan düzeltmenin
+                diğerinde unutulması demekti. */}
+            {!tekButon && (
+              <TouchableOpacity style={styles.vazgecButon} onPress={onVazgec} activeOpacity={0.7}>
+                <Text style={styles.vazgecYazi}>{vazgecYazisi}</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.onayButon, yikici && styles.onayButonYikici]}

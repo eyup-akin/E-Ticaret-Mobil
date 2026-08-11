@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTema } from '../context/TemaContext';
 import { useAuth } from '../context/AuthContext';
+import OnayPenceresi from '../components/OnayPenceresi';
 
 export default function ProfilDuzenleEkrani({ route, navigation }) {
   const { renkler } = useTema();
@@ -35,6 +35,10 @@ export default function ProfilDuzenleEkrani({ route, navigation }) {
   const [adSoyad, setAdSoyad] = useState(kullanici?.fullName ?? '');
 
   const [kaydediliyor, setKaydediliyor] = useState(false);
+
+  // ⭐ YENİ (GV/Faz 7.13) — kaydedildi penceresi.
+  // Alert.alert yerine OnayPenceresi; gerekçe diğer ekranlarla aynı.
+  const [kaydedildiAcik, setKaydedildiAcik] = useState(false);
   const [hata, setHata] = useState('');
 
   // Değişiklik var mı? Türetilmiş değer — ayrı state tutmuyoruz.
@@ -65,12 +69,10 @@ export default function ProfilDuzenleEkrani({ route, navigation }) {
     try {
       await profilGuncelle(temiz);
 
-      // Alert ile bildirip geri dönüyoruz.
-      // Ekranda yeşil mesaj gösterip beklemek de olurdu ama kullanıcı
-      // burada tek bir iş yapmaya geldi; işi bitince listeye dönmesi doğal.
-      Alert.alert('Kaydedildi', 'Profilin güncellendi.', [
-        { text: 'Tamam', onPress: () => navigation.goBack() },
-      ]);
+      // Bildirip geri dönüyoruz. Ekranda yeşil bir mesaj gösterip
+      // beklemek de olurdu ama kullanıcı burada tek bir iş yapmaya
+      // geldi; işi bitince geri dönmesi doğal.
+      setKaydedildiAcik(true);
     } catch (e) {
       setHata(e.message);
     } finally {
@@ -150,6 +152,17 @@ export default function ProfilDuzenleEkrani({ route, navigation }) {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <OnayPenceresi
+        acik={kaydedildiAcik}
+        ikon="checkmark-circle-outline"
+        tekButon
+        baslik="Kaydedildi"
+        mesaj="Profilin güncellendi."
+        onayYazisi="Tamam"
+        onVazgec={() => { setKaydedildiAcik(false); navigation.goBack(); }}
+        onOnayla={() => { setKaydedildiAcik(false); navigation.goBack(); }}
+      />
     </SafeAreaView>
   );
 }
@@ -159,101 +172,125 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
+    backgroundColor: renkler.kartArka,
   },
+
   geriButon: {
-    marginRight: 12,
+    width: 32,
   },
+
   ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
   },
+
   icerik: {
-    padding: 16,
+    padding: sayfaKenari,
   },
+
   etiket: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
-    marginBottom: 6,
+    marginBottom: bosluk.mikro,
   },
+
   input: {
     borderWidth: 1,
     borderColor: renkler.inputKenar,
-    borderRadius: 8,
-    paddingHorizontal: 14,
+    borderRadius: kose.orta,
+    paddingHorizontal: bosluk.normal,
     height: 48,
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.yaziKoyu,
     backgroundColor: renkler.kartArka,
   },
 
+
   /* ---- KİLİTLİ ALAN ---- */
+
+  /* ⚠️ Kilitli alan input'la AYNI ölçülerde ama zemini acikGri ve
+     kenarlığı daha silik: aynı kutu gibi görünüp basılamıyor olması
+     kafa karıştırırdı, tamamen farklı görünmesi ise "bu bir alan
+     değil" izlenimi verirdi. Ortada durması bilinçli. */
   kilitliSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: bosluk.kucuk,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
-    borderRadius: 8,
-    paddingHorizontal: 14,
+    borderRadius: kose.orta,
+    paddingHorizontal: bosluk.normal,
     height: 48,
     backgroundColor: renkler.acikGri,
   },
+
   kilitliYazi: {
     flex: 1,
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.yaziOrta,
   },
+
   ipucu: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    lineHeight: 18,
-    marginTop: 8,
+    lineHeight: satir.kucuk,
+    marginTop: bosluk.kucuk,
   },
 
+
   /* ---- HATA ---- */
+
   hataKutu: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: renkler.acikKart,
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakHata,
     borderLeftWidth: 3,
     borderLeftColor: renkler.hata,
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 18,
-  },
-  hataYazi: {
-    flex: 1,
-    fontSize: 13,
-    color: renkler.hata,
-    lineHeight: 18,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginTop: bosluk.normal,
   },
 
+  hataYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    color: renkler.hata,
+    lineHeight: satir.kucuk,
+  },
+
+
   /* ---- BUTON ---- */
+
   anaButon: {
     backgroundColor: renkler.anaRenk,
-    paddingVertical: 15,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
-    marginTop: 26,
+    marginTop: bosluk.genis,
   },
+
   anaButonPasif: {
     opacity: 0.5,
   },
+
   anaButonYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
-}); 
+});

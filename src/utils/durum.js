@@ -11,10 +11,15 @@ export function durumYazisi(kod) {
   return kod;
 }
 
+// ⭐ DEĞİŞTİ (GV/Faz 7) — elle yazılı renkler token'a bağlandı.
+//
+// ⚠️ Burada '#e74c3c' ve '#8e44ad' sabit yazılıydı: ikisi de koyu
+// temada değişmiyordu ve tasarım sisteminin sabit renk yasağını
+// çiğniyordu. Renk kararının tek yeri tema.js.
 export function durumRengi(kod, renkler) {
   if (kod === 'teslim_edildi') return renkler.basari;
   if (kod === 'kargoda') return renkler.anaRenk;
-  if (kod === 'iptal') return '#e74c3c';   // kırmızı
+  if (kod === 'iptal') return renkler.hata;
   return renkler.yaziOrta;                  // hazirlaniyor
 }
 
@@ -27,7 +32,7 @@ export function odemeYazisi(kod) {
 
 export function odemeRengi(kod, renkler) {
   if (kod === 'odendi') return renkler.basari;
-  if (kod === 'iade_edildi') return '#8e44ad';   // mor
+  if (kod === 'iade_edildi') return renkler.iadeRengi;
   return renkler.yaziOrta;                          // beklemede
 }
 

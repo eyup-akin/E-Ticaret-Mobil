@@ -37,19 +37,32 @@ import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 //  seçim, seçilmemiş de olabilir). Tek seçimli bir şeritte seçim
 //  zaten kendini gösteriyor. Rozet SecimKarosu'nda kaldı.
 // ============================================================
-export default function Chip({ etiket, secili = false, onBas }) {
+// ⭐ YENİ (GV/Faz 7.3) — `pasif` prop'u eklendi.
+//
+// İkinci tüketici çıktı: Siparişlerim ekranındaki durum şeridi,
+// sayısı 0 olan durumu GÖRÜNÜR ama BASILAMAZ göstermek istiyor
+// ("İptal (0)" bir bilgidir; basılabilir olsaydı boş listeye
+// götüren bir çıkmaz olurdu).
+//
+// ⚠️ Prop bileşene, o ekrana özel bir kopya çıkarılarak değil
+// buraya eklendi: "ikinci tüketici çıktığı an ortak yere taşınır"
+// kuralının tersi de geçerli — ikinci tüketicinin ihtiyacı ortak
+// bileşende karşılanır, yoksa şerit kendi Chip'ini yazar ve iki
+// chip zamanla ayrışır.
+export default function Chip({ etiket, secili = false, pasif = false, onBas }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
   return (
     <TouchableOpacity
-      style={[styles.chip, secili && styles.chipSecili]}
+      style={[styles.chip, secili && styles.chipSecili, pasif && styles.chipPasif]}
       onPress={onBas}
+      disabled={pasif}
       activeOpacity={0.7}
       // Ekran okuyucu "seçili mi" bilgisini görsel dolgudan
       // çıkaramaz; açıkça söylemek gerekiyor.
       accessibilityRole="button"
-      accessibilityState={{ selected: secili }}
+      accessibilityState={{ selected: secili, disabled: pasif }}
     >
       <Text style={[styles.yaziStil, secili && styles.yaziSecili]} numberOfLines={1}>
         {etiket}
@@ -76,6 +89,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
   chipSecili: {
     backgroundColor: renkler.yumusakVurgu,
     borderColor: renkler.anaRenk,
+  },
+
+  /* ⚠️ Görünür ama soluk. Tamamen gizleseydik "bu durumda hiç
+     siparişim yok" bilgisi de kaybolurdu; soluk hâl hem sayıyı
+     gösteriyor hem de tıklanacak bir şey olmadığını söylüyor. */
+  chipPasif: {
+    opacity: 0.4,
   },
 
   yaziStil: {

@@ -8,13 +8,14 @@ import { useTema } from '../context/TemaContext';
 import { useAuth } from '../context/AuthContext';
 import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 import AramaCubugu from '../components/AramaCubugu';
-import { durumYazisi, durumRengi, odemeYazisi, odemeRengi } from '../utils/durum';   // ⭐
-import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';                     // ⭐
-// ⭐ YENİ — tasarım sistemi ölçüleri. Bu dosyanın ESKİ stilleri hâlâ ham
-// sayı kullanıyor; sadece yeni eklenen durum şeridi token'a bağlandı.
-import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
+import BosDurum from '../components/BosDurum';
+import Chip from '../components/Chip';
+import Rozet from '../components/Rozet';
+import { durumYazisi, odemeYazisi, odemeRengi } from '../utils/durum';
+import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 
-// ⭐ YENİ — DURUM ŞERİDİNİN SIRASI VE ETİKETLERİ
+// DURUM ŞERİDİNİN SIRASI VE ETİKETLERİ
 //
 // ⚠️ Sipariş yaşam döngüsü sırasında: hazırlanıyor → kargoda →
 // teslim edildi, sonra iptal. Alfabetik veya sayıya göre sıralamak
@@ -32,6 +33,19 @@ const DURUMLAR = [
   { ozetAnahtari: 'iptal', durumKodu: 'iptal', etiket: 'İptal' },
 ];
 
+/* ⭐ YENİ (GV/Faz 7.3) — durum kodu → Rozet tipi.
+ *
+ * ⚠️ Renk artık `durumRengi()` ile elle verilmiyor, `Rozet`'in
+ * tipine bırakılıyor. Sipariş kartı, ürün kartı ve ürün detayı aynı
+ * rozet dilini konuşsun diye: üç ekranda üç farklı hap görünümü
+ * vardı ve biri değişince diğerleri geride kalıyordu. */
+function durumTipi(durum) {
+  if (durum === 'teslim_edildi') return 'basari';
+  if (durum === 'kargoda') return 'vurgu';
+  if (durum === 'iptal') return 'hata';
+  return 'uyari';   // hazirlaniyor
+}
+
 export default function SiparislerimEkrani({ navigation }) {
   const { token } = useAuth();
   const { renkler } = useTema();
@@ -41,7 +55,7 @@ export default function SiparislerimEkrani({ navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
 
-  // ⭐ YENİ — durum sayaçları (sunucudan) ve seçili filtre.
+  // Durum sayaçları (sunucudan) ve seçili filtre.
   //
   // ⚠️ SAYILAR SUNUCUDAN GELİYOR, LİSTEDEN SAYILMIYOR.
   // Sipariş listesi ileride sayfalanacak; elimizdeki diziyi
@@ -56,8 +70,7 @@ export default function SiparislerimEkrani({ navigation }) {
   async function siparisleriGetir() {
     try {
       // ⚠️ İki istek PARALEL, arka arkaya değil — aralarında
-      // bağımlılık yok, sıralı yapsaydık ekran toplam süre kadar
-      // beklerdi.
+      // bağımlılık yok.
       //
       // ⚠️ allSettled, all DEĞİL.
       //
@@ -65,8 +78,6 @@ export default function SiparislerimEkrani({ navigation }) {
       // LİSTESİ DE düşerdi — müşteri, tamamen çalışan siparişlerini
       // sırf sayaç şeridi yüzünden göremezdi. Özet bir SÜStür, liste
       // asıl içeriktir; süsün hatası içeriği götürmemeli.
-      //
-      // Özet gelmezse ozet null kalıyor ve şerit hiç çizilmiyor.
       const [listeSonuc, ozetSonuc] = await Promise.allSettled([
         apiGet('/orders'),
         apiGet('/orders/durum-ozeti'),
@@ -95,7 +106,7 @@ export default function SiparislerimEkrani({ navigation }) {
     }, [token])
   );
 
-  // ⭐ YENİ — önce durum filtresi, sonra arama.
+  // Önce durum filtresi, sonra arama.
   //
   // İkisi BİRLİKTE çalışıyor: "Kargoda" seçiliyken arama yapmak
   // yalnızca kargodakiler içinde arar. Arama seçili durumu sıfırlasaydı
@@ -108,18 +119,22 @@ export default function SiparislerimEkrani({ navigation }) {
     ? durumFiltreli.filter((s) => {
         const kelime = aramaMetni.toLowerCase();
         // Numara harf içeriyor (SP-260724-4821), o yüzden karşılaştırmadan
-        // önce küçük harfe çeviriyoruz. Kullanıcı "sp-2607" de yazsa,
-        // sadece "4821" de yazsa bulunsun.
-        const noEslesme = (s.orderNumber || '')
-          .toLowerCase()
-          .includes(kelime);
+        // önce küçük harfe çeviriyoruz.
+        const noEslesme = (s.orderNumber || '').toLowerCase().includes(kelime);
         const urunEslesme = s.items.some((u) => u.productName.toLowerCase().includes(kelime));
         return noEslesme || urunEslesme;
       })
     : durumFiltreli;
 
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.3) — SİPARİŞ KARTI YENİDEN KURULDU.
+   *
+   * Sıra: üstte durum rozeti + tarih, altında sipariş no, sonra ürün
+   * özeti, en altta ödeme bilgisi + tutar.
+   *
+   * ⚠️ Eskiden numara ve tutar aynı satırdaydı; müşterinin bu ekranda
+   * aradığı ilk şey "nerede kaldı" yani DURUM. Numara arama yaparken
+   * lazım oluyor, ilk bakışta değil. */
   function siparisKarti({ item }) {
-    const rozetR = durumRengi(item.status, renkler);
     const odemeR = odemeRengi(item.paymentStatus, renkler);
 
     const urunOzet = item.items.map((u) => u.productName + ' × ' + u.quantity).join(', ');
@@ -132,29 +147,32 @@ export default function SiparislerimEkrani({ navigation }) {
     return (
       <TouchableOpacity
         style={styles.kart}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPress={() => navigation.navigate('SiparisDetay', { siparisId: item.id })}
       >
         <View style={styles.kartUst}>
-          <Text style={styles.siparisNo}>{item.orderNumber}</Text>
-          <Text style={styles.tutar}>{paraBicimle(item.total)}</Text>
+          <Rozet tip={durumTipi(item.status)} yazi={durumYazisi(item.status)} />
+          <Text style={styles.tarih}>{tarihBicimle(item.createdAt)}</Text>
         </View>
 
-        <Text style={styles.tarih}>{tarihBicimle(item.createdAt)}</Text>
+        <Text style={styles.siparisNo}>{item.orderNumber}</Text>
 
         <Text style={styles.urunOzet} numberOfLines={2}>{urunOzet}</Text>
 
-        <View style={styles.rozetler}>
-          <View style={[styles.rozet, { backgroundColor: rozetR }]}>
-            <Text style={styles.rozetYazi}>{durumYazisi(item.status)}</Text>
+        <View style={styles.kartAlt}>
+          <View style={styles.odeme}>
+            <Ionicons name={odemeIkon} size={14} color={odemeR} />
+            <Text style={[styles.odemeYazi, { color: odemeR }]}>
+              {odemeYazisi(item.paymentStatus)}
+            </Text>
+            <Text style={styles.kartBilgi}>•••• {item.cardLast4}</Text>
           </View>
 
-          <View style={[styles.rozetOdeme, { borderColor: odemeR }]}>
-            <Ionicons name={odemeIkon} size={13} color={odemeR} />
-            <Text style={[styles.rozetOdemeYazi, { color: odemeR }]}>  {odemeYazisi(item.paymentStatus)}</Text>
-          </View>
-
-          <Text style={styles.kartBilgi}>**** {item.cardLast4}</Text>
+          {/* ⚠️ Tutar turuncu DEĞİL: bu ekranda tıklanabilir olan
+              kartın kendisi ve turuncu bu uygulamada eylem demek.
+              Aynı düzeltme sepette, onay ve başarı ekranlarında da
+              yapıldı. */}
+          <Text style={styles.tutar}>{paraBicimle(item.total)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -178,86 +196,86 @@ export default function SiparislerimEkrani({ navigation }) {
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <Text style={styles.baslik}>Siparişlerim</Text>
 
-      {/* ⭐ YENİ — DURUM ŞERİDİ
-
-          ⚠️ Yol haritasında bu "her durum bir satır" olarak
-          tasarlanmıştı. Referansta ayrı bir ekrandı; bizde sipariş
-          listesiyle AYNI ekranda. Dikey liste, asıl içeriği (siparişleri)
-          ekranın altına iterdi. Yatay çip şeridi aynı sayıları
-          gösteriyor ve üstüne FİLTRE işlevi kazandırıyor.
-
-          ⚠️ SAYISI 0 OLAN DURUM DA ÇİZİLİYOR ama basılamıyor.
-          "İptal (0)" görmek müşteriye "iptalim yok" der; satırın hiç
-          olmaması "burada iptal diye bir şey yok mu?" sorusunu
-          doğurur. Basılabilir bırakmak ise boş listeye götüren bir
-          çıkmaz olurdu.
-
-          Özet gelmediyse (eski API, ağ hatası) şerit hiç çizilmiyor —
-          sipariş listesi normal çalışmaya devam ediyor. */}
-      {ozet && siparisler.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.durumSerit}
-        >
-          {/* "Tümü" çipi — seçili durumdan çıkış yolu.
-              Olmasaydı müşteri bir durumu seçtikten sonra tüm
-              listeye dönmek için aynı çipe tekrar basmayı tahmin
-              etmek zorunda kalırdı. */}
-          <TouchableOpacity
-            style={[styles.cip, seciliDurum === null && styles.cipSecili]}
-            onPress={() => setSeciliDurum(null)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.cipYazi, seciliDurum === null && styles.cipYaziSecili]}>
-              Tümü ({ozet.toplam ?? 0})
-            </Text>
-          </TouchableOpacity>
-
-          {DURUMLAR.map((d) => {
-            const adet = ozet[d.ozetAnahtari] ?? 0;
-            const secili = seciliDurum === d.durumKodu;
-            const bos = adet === 0;
-
-            return (
-              <TouchableOpacity
-                key={d.durumKodu}
-                style={[styles.cip, secili && styles.cipSecili, bos && styles.cipBos]}
-                onPress={() => setSeciliDurum(d.durumKodu)}
-                disabled={bos}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.cipYazi, secili && styles.cipYaziSecili]}>
-                  {d.etiket} ({adet})
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
-
-      {siparisler.length > 0 && (
-        <AramaCubugu
-          value={aramaMetni}
-          onChangeText={setAramaMetni}
-          onSubmit={() => {}}
-          placeholder="Sipariş no veya ürün ara..."
-        />
-      )}
-
       {siparisler.length === 0 ? (
-        <View style={styles.ortala}>
-          <Ionicons name="receipt-outline" size={64} color={renkler.yaziGri} />
-          <Text style={styles.bosYazi}>Henüz siparişin yok.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtreliSiparisler}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={siparisKarti}
-          contentContainerStyle={styles.liste}
-          ListEmptyComponent={<Text style={styles.bosYazi}>Eşleşen sipariş bulunamadı.</Text>}
+        /* ⭐ DEĞİŞTİ (GV/Faz 7.3) — boş durum ortak bileşene geçti.
+           Eskiden yerinde çizilmiş bir ikon + tek satır yazıydı ve
+           müşteriye gidecek bir yer önermiyordu. */
+        <BosDurum
+          ikon="receipt-outline"
+          baslik="Henüz siparişin yok"
+          aciklama="Beğendiğin ürünleri sepete ekleyip ilk siparişini verebilirsin."
+          eylemYazisi="Alışverişe Başla"
+          onEylem={() => navigation.navigate('AnaSayfa', { screen: 'AnaSayfaMain' })}
         />
+      ) : (
+        <>
+          {/* DURUM ŞERİDİ
+
+              ⚠️ Yol haritasında bu "her durum bir satır" olarak
+              tasarlanmıştı. Dikey liste, asıl içeriği (siparişleri)
+              ekranın altına iterdi. Yatay şerit aynı sayıları
+              gösteriyor ve üstüne FİLTRE işlevi kazandırıyor.
+
+              ⚠️ SAYISI 0 OLAN DURUM DA ÇİZİLİYOR ama basılamıyor.
+              "İptal (0)" görmek müşteriye "iptalim yok" der; satırın
+              hiç olmaması "burada iptal diye bir şey yok mu?" sorusunu
+              doğurur.
+
+              ⭐ DEĞİŞTİ (GV/Faz 7.3) — çipler artık ortak `Chip`
+              bileşeni. Bu dosyada elle yazılmış bir kopyası vardı ve
+              yorumunda "ikinci tüketici çıkınca ortak yere taşınır"
+              yazıyordu; Chip Faz 2.3'te yazıldı, taşıma bugün yapıldı.
+              Pasif hâl için Chip'e `pasif` prop'u eklendi. */}
+          {ozet && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.durumSerit}
+            >
+              {/* "Tümü" çipi — seçili durumdan çıkış yolu. Olmasaydı
+                  müşteri tüm listeye dönmek için aynı çipe tekrar
+                  basmayı tahmin etmek zorunda kalırdı. */}
+              <Chip
+                etiket={`Tümü (${ozet.toplam ?? 0})`}
+                secili={seciliDurum === null}
+                onBas={() => setSeciliDurum(null)}
+              />
+
+              {DURUMLAR.map((d) => {
+                const adet = ozet[d.ozetAnahtari] ?? 0;
+
+                return (
+                  <Chip
+                    key={d.durumKodu}
+                    etiket={`${d.etiket} (${adet})`}
+                    secili={seciliDurum === d.durumKodu}
+                    pasif={adet === 0}
+                    onBas={() => setSeciliDurum(d.durumKodu)}
+                  />
+                );
+              })}
+            </ScrollView>
+          )}
+
+          <View style={styles.aramaYeri}>
+            <AramaCubugu
+              value={aramaMetni}
+              onChangeText={setAramaMetni}
+              onSubmit={() => {}}
+              placeholder="Sipariş no veya ürün ara..."
+            />
+          </View>
+
+          <FlatList
+            data={filtreliSiparisler}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={siparisKarti}
+            contentContainerStyle={styles.liste}
+            ListEmptyComponent={
+              <Text style={styles.aramaBos}>Eşleşen sipariş bulunamadı.</Text>
+            }
+          />
+        </>
       )}
     </SafeAreaView>
   );
@@ -266,152 +284,133 @@ export default function SiparislerimEkrani({ navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan
+    backgroundColor: renkler.arkaPlan,
   },
+
   ortala: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: renkler.arkaPlan
+    backgroundColor: renkler.arkaPlan,
   },
+
   baslik: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    paddingHorizontal: 16,
-    paddingTop: 16
-  },
-  liste: {
-    padding: 12
-  },
-
-  /* ⭐ YENİ — DURUM FİLTRE ŞERİDİ
-
-     ⚠️ Bu çipler ortak bir Chip bileşenine ÇIKARILMADI — bilerek.
-     Yol haritası Chip'i Aşama 6/7 için planlıyor ve projenin kuralı
-     şu: "kural tek yerde kullanılıyorsa orada durur, İKİNCİ tüketici
-     çıktığı an ortak yere taşınır." Bugün tek tüketici burası.
-     Filtre paneli (6.3) yazılırken buradan çıkarılacak. */
-  durumSerit: {
-    paddingHorizontal: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
     paddingTop: bosluk.orta,
-    gap: bosluk.kucuk
+    paddingBottom: bosluk.kucuk,
   },
-  cip: {
-    paddingHorizontal: bosluk.orta,
+
+  durumSerit: {
+    paddingHorizontal: sayfaKenari,
     paddingVertical: bosluk.kucuk,
-    borderRadius: kose.tam,
+    gap: bosluk.kucuk,
+  },
+
+  aramaYeri: {
+    paddingHorizontal: sayfaKenari,
+    paddingBottom: bosluk.kucuk,
+  },
+
+  liste: {
+    paddingHorizontal: sayfaKenari,
+    paddingBottom: bosluk.genis,
+    gap: bosluk.orta,
+  },
+
+  aramaBos: {
+    fontSize: yazi.normal,
+    color: renkler.yaziGri,
+    textAlign: 'center',
+    marginTop: bosluk.genis,
+  },
+
+
+  /* ---------- SİPARİŞ KARTI ---------- */
+
+  kart: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
-    backgroundColor: renkler.kartArka
+    padding: bosluk.normal,
   },
 
-  /* Seçili çip: dolu zemin.
-     Sadece kenarlık rengini değiştirmek yetmezdi — güneş altında ve
-     küçük ekranda 1px'lik renk farkı seçilebilir bir sinyal değil. */
-  cipSecili: {
-    backgroundColor: renkler.anaRenk,
-    borderColor: renkler.anaRenk
+  kartUst: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
   },
 
-  /* Sayısı 0 olan çip: görünür ama soluk ve basılamaz.
-     Görünmesi bilgi ("iptalin yok"), soluk olması da o bilginin
-     tıklanacak bir şey OLMADIĞINI söylüyor. */
-  cipBos: {
-    opacity: 0.4
+  tarih: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
   },
-  cipYazi: {
+
+  /* ⚠️ DÜZELTME (GV/Faz 7.3): burada `fontFamily` İKİ KEZ yazılıydı —
+     önce Platform.select ile eşit genişlikli font, hemen ardından
+     font.kalin. İkincisi birincisini eziyordu, yani numaralar hiçbir
+     zaman hizalanmıyordu ve yorum yalan söylüyordu.
+
+     Eşit genişlikli font korundu (alt alta gelen numaralar hizalı
+     okunsun diye). ⚠️ Bunun bedeli: özel fontla birlikte kalınlık
+     çalışmıyor, o yüzden `fontWeight` de kaldırıldı — duran ama
+     etkisi olmayan bir satır bırakmak sonraki okuyucuyu yanıltırdı.
+     Ayrımı harf aralığı ve renk veriyor. */
+  siparisNo: {
+    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+    fontSize: yazi.normal,
+    letterSpacing: 0.5,
+    color: renkler.yaziKoyu,
+  },
+
+  urunOzet: {
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.yaziOrta,
+    marginTop: bosluk.kucuk,
+  },
+
+  kartAlt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: bosluk.kucuk,
+    marginTop: bosluk.orta,
+    paddingTop: bosluk.orta,
+    borderTopWidth: 1,
+    borderTopColor: renkler.kenarlik,
+  },
+
+  odeme: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.mikro,
+    flexShrink: 1,
+  },
+
+  odemeYazi: {
     fontSize: yazi.kucuk,
     fontWeight: agirlik.yari,
     fontFamily: font.yari,
-    color: renkler.yaziOrta
   },
-  cipYaziSecili: {
-    color: renkler.anaRenkUstuYazi
-  },
-  kart: {
-    backgroundColor: renkler.kartArka,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik
-  },
-  kartUst: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2
-  },
-  siparisNo: {
-    // Tek aralıklı yazı tipi: alt alta gelen numaralar hizalı görünür.
-    // ⚠️ 'monospace' sadece Android'de çalışır, iOS'ta böyle bir font yok.
-    // Platform.select her işletim sisteminde doğru fontu seçer.
-    fontFamily: Platform.select({
-      ios: 'Courier',
-      android: 'monospace'
-    }),
-    fontSize: 14,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu
-  },
-  tutar: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-    color: renkler.anaRenk
-  },
-  tarih: {
-    fontSize: 12,
-    color: renkler.yaziGri,
-    marginBottom: 8  // ⭐ yeni
-  },
-  urunOzet: {
-    fontSize: 13,
-    color: renkler.yaziOrta,
-    marginBottom: 10
-  },
-  rozetler: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  rozet: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8
-  },
-  rozetYazi: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.anaRenkUstuYazi
-  },
-  rozetOdeme: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: 'transparent',
-    borderWidth: 1
-  },
-  rozetOdemeYazi: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: font.yari,
-  },
+
   kartBilgi: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginLeft: 'auto'
+    marginLeft: bosluk.mikro,
   },
-  bosYazi: {
-    fontSize: 16,
-    color: renkler.yaziGri,
-    marginTop: 12,
-    textAlign: 'center'
-  }
+
+  tutar: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
 });

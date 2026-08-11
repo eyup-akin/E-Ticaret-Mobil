@@ -1,44 +1,76 @@
 import React from 'react';
-import { font } from '../theme/olculer';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
-import { durumYazisi } from '../utils/durum';
 import { tarihBicimle } from '../utils/bicimlendir';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
-// Sipariş iptalse kırmızı iptal kutusu, değilse kargo adım çubuğu gösterir.
+/* Sipariş iptalse kırmızı iptal kutusu, değilse DİKEY ZAMAN ÇİZELGESİ.
+ *
+ * ⭐ DEĞİŞTİ (GV/Faz 7.4) — yatay ikon listesi yerine dikey çizelge.
+ *
+ * Eskiden her aşama bir satırdı ve aralarında görsel bir bağ yoktu;
+ * üç bağımsız onay kutusu gibi duruyordu. Tasarımdaki dikey çizgi
+ * aşamaların BİR AKIŞ olduğunu söylüyor: nokta = an, çizgi = geçen
+ * süre.
+ *
+ * ⚠️ Çizgi noktaların ARASINDA, satırın tamamı boyunca değil. Son
+ * noktadan sonra çizgi devam etseydi "daha gelecek bir adım var"
+ * derdi; teslim edilmiş bir siparişte bu yanlış olurdu.
+ */
 export default function KargoDurumu({ siparis }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
   const iptalMi = siparis.status === 'iptal';
 
-  // ⭐ DEĞİŞTİ — aşamalar artık düz metin dizisi değil, nesne dizisi.
-  //
-  // Her aşamanın kendi tarih kaynağı var:
-  //   hazirlaniyor  → createdAt   (sipariş oluşturulduğu an)
-  //   kargoda       → shippedAt   (admin kargoya verdiği an)
-  //   teslim_edildi → deliveredAt (admin teslim işaretlediği an)
-  //
-  // Neden nesne? Aşama adı ile tarihi ayrı iki dizide tutsaydık
-  // ("asamalar" ve "tarihler") ikisinin sırasının aynı kalması
-  // bize kalırdı. Araya bir aşama eklendiğinde birini güncelleyip
-  // diğerini unutmak çok kolay olurdu. Birlikte değişen veriler
-  // birlikte dursun.
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.4 · B9 + B10) — DÖRT ADIM.
+   *
+   * ⚠️ B9 — "Sipariş Alındı" ayrı bir DURUM DEĞİL, türetilmiş bir
+   * adım. Durum makinemizde üç durum + iptal var; buraya dördüncü
+   * bir durum eklemek backend'i, admin panelini ve raporları
+   * ilgilendirirdi. Oysa gereken tek şey `createdAt`: sipariş kaydı
+   * varsa alınmıştır. Sıfır maliyetle çizilebilen bir adım için
+   * durum makinesi değiştirilmez.
+   *
+   * ⚠️ Bu adım HER ZAMAN geçilmiş sayılıyor — sipariş ekranda
+   * duruyorsa alınmış demektir.
+   *
+   * ⚠️ B10 — "Hazırlanıyor" adımının kendi zaman damgası YOK.
+   * `ShippedAt` ve `DeliveredAt` var ama hazırlanmaya geçiş anı
+   * tutulmuyor. `createdAt`'i buraya da yazmak cazip ama YANLIŞ
+   * olurdu: iki farklı olayı aynı ana bağlamak, veriyi uydurmak
+   * demek. Tarih null bırakılıyor ve ekranda "—" görünüyor —
+   * "yanlış sayı, eksik sayıdan tehlikelidir".
+   *
+   * Her aşamanın kendi tarih kaynağı var:
+   *   alindi        → createdAt   (sipariş oluşturulduğu an)
+   *   hazirlaniyor  → yok         (B10)
+   *   kargoda       → shippedAt   (admin kargoya verdiği an)
+   *   teslim_edildi → deliveredAt (admin teslim işaretlediği an)
+   */
   const asamalar = [
-    { kod: 'hazirlaniyor',  tarih: siparis.createdAt },
-    { kod: 'kargoda',       tarih: siparis.shippedAt },
-    { kod: 'teslim_edildi', tarih: siparis.deliveredAt },
+    { kod: 'alindi',        etiket: 'Sipariş Alındı', tarih: siparis.createdAt },
+    { kod: 'hazirlaniyor',  etiket: 'Hazırlanıyor',   tarih: null },
+    { kod: 'kargoda',       etiket: 'Kargoda',        tarih: siparis.shippedAt },
+    { kod: 'teslim_edildi', etiket: 'Teslim Edildi',  tarih: siparis.deliveredAt },
   ];
 
+  // ⚠️ "alindi" bir durum kodu olmadığı için listede bulunamaz ve
+  // findIndex -1 döner. O yüzden kendi indeksini +1 ile kaydırıyoruz:
+  // sunucudan gelen durum ne olursa olsun ilk adım geçilmiş sayılır.
   const suankiIndex = asamalar.findIndex((a) => a.kod === siparis.status);
+  const gecilenSonIndex = suankiIndex === -1 ? 0 : suankiIndex;
 
   if (iptalMi) {
     return (
       <View style={styles.iptalKutu}>
         <View style={styles.iptalUst}>
-          <Ionicons name="close-circle" size={22} color="#e74c3c" />
-          <Text style={styles.iptalBaslik}>  Sipariş İptal Edildi</Text>
+          {/* ⚠️ Renk artık token. Bu dosyada üç yerde elle '#e74c3c'
+              yazılıydı: koyu temada değişmiyordu ve tasarım sisteminin
+              sabit renk yasağını çiğniyordu. */}
+          <Ionicons name="close-circle" size={20} color={renkler.hata} />
+          <Text style={styles.iptalBaslik}>Sipariş İptal Edildi</Text>
         </View>
 
         {siparis.cancelledAt ? (
@@ -57,37 +89,57 @@ export default function KargoDurumu({ siparis }) {
   return (
     <View style={styles.kutu}>
       {asamalar.map((asama, i) => {
-        const gecti = i <= suankiIndex;
+        const gecti = i <= gecilenSonIndex;
+        const suanki = i === gecilenSonIndex;
+        const sonMu = i === asamalar.length - 1;
 
         return (
-          <View key={asama.kod} style={styles.asamaSatir}>
-            <Ionicons
-              name={gecti ? 'checkmark-circle' : 'ellipse-outline'}
-              size={22}
-              color={gecti ? renkler.basari : renkler.yaziGri}
-            />
+          <View key={asama.kod} style={styles.asama}>
+            {/* SOL SÜTUN: nokta + bağlantı çizgisi */}
+            <View style={styles.sol}>
+              <View
+                style={[
+                  styles.nokta,
+                  gecti && styles.noktaGecti,
+                  /* ⚠️ Şu anki adım halkalı: geçmiş adımlarla aynı dolu
+                     nokta olsaydı "şu an neredeyim" sorusu cevapsız
+                     kalırdı. Renk tek başına bunu söylemiyor. */
+                  suanki && styles.noktaSuanki,
+                ]}
+              >
+                {gecti && !suanki && (
+                  <Ionicons name="checkmark" size={12} color={renkler.anaRenkUstuYazi} />
+                )}
+              </View>
 
-            {/* ⭐ DEĞİŞTİ — yazı ve tarih alt alta olduğu için
-                sarmalayıcı View gerekti. Önce tek Text vardı. */}
-            <View style={styles.asamaOrta}>
+              {/* Çizgi son noktadan sonra çizilmiyor. Geçilmiş kısmı
+                  dolu renkte: müşteri nereye kadar geldiğini çizginin
+                  rengiyle de okuyor. */}
+              {!sonMu && (
+                <View style={[styles.cizgi, i < gecilenSonIndex && styles.cizgiGecti]} />
+              )}
+            </View>
+
+            {/* SAĞ SÜTUN: etiket + zaman damgası */}
+            <View style={[styles.orta, sonMu && styles.ortaSon]}>
               <Text style={[styles.asamaYazi, gecti && styles.asamaYaziAktif]}>
-                {durumYazisi(asama.kod)}
+                {asama.etiket}
               </Text>
 
-              {/* ⭐ YENİ — tarih.
-                  
-                  İKİ koşul birden aranıyor:
-                  
-                  gecti → henüz ulaşılmamış aşamanın tarihi olamaz.
-                  Tek başına "asama.tarih" kontrolü yetmezdi çünkü
-                  veri bozuksa gelecekteki bir aşamada tarih görünebilirdi.
-                  
-                  asama.tarih → aşamaya ulaşılmış ama tarih boş olabilir.
-                  Bu, biz bu alanları eklemeden ÖNCE kargoya verilmiş
-                  eski siparişlerde oluyor: status "kargoda" ama
-                  shippedAt null. Eski veriyi kırmadan gösteriyoruz. */}
-              {gecti && asama.tarih ? (
-                <Text style={styles.asamaTarih}>{tarihBicimle(asama.tarih)}</Text>
+              {/* ⚠️ Tarih İKİ koşula bağlı:
+                  gecti      → henüz ulaşılmamış aşamanın tarihi olamaz
+                  asama.tarih → ulaşılmış ama tarih boş olabilir
+                    (B10'daki "Hazırlanıyor" ve bu alanlar eklenmeden
+                     önce kargoya verilmiş eski siparişler)
+
+                  ⚠️ Geçilmiş ama tarihi olmayan adımda "—" yazılıyor,
+                  satır boş bırakılmıyor: boşluk "burada bir şey
+                  eksik/bozuk" gibi okunur, "—" ise "bu bilgi
+                  tutulmuyor" der. */}
+              {gecti ? (
+                <Text style={styles.asamaTarih}>
+                  {asama.tarih ? tarihBicimle(asama.tarih) : '—'}
+                </Text>
               ) : null}
             </View>
           </View>
@@ -99,78 +151,126 @@ export default function KargoDurumu({ siparis }) {
 
 const stilOlustur = (renkler) => StyleSheet.create({
   kutu: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 14
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
   },
-  asamaSatir: {
+
+  asama: {
     flexDirection: 'row',
-
-    /* ⭐ DEĞİŞTİ: 'center' → 'flex-start'
-       
-       Aşama artık iki satır olabiliyor (yazı + tarih). 'center'
-       kalsaydı ikonun ortası iki satırın ortasına hizalanır,
-       yazının hizasından kayardı. 'flex-start' ikonu ilk satıra
-       hizalıyor — göz ikonu ve başlığı aynı çizgide okuyor. */
-    alignItems: 'flex-start',
-    paddingVertical: 8
+    gap: bosluk.orta,
   },
 
-  /* ⭐ YENİ — yazı ve tarihi taşıyan sütun */
-  asamaOrta: {
+  sol: {
+    alignItems: 'center',
+  },
+
+  nokta: {
+    width: 20,
+    height: 20,
+    borderRadius: kose.tam,
+    borderWidth: 2,
+    borderColor: renkler.kenarlik,
+    backgroundColor: renkler.arkaPlan,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  noktaGecti: {
+    backgroundColor: renkler.anaRenk,
+    borderColor: renkler.anaRenk,
+  },
+
+  /* Şu anki adım: içi boş ama kenarlığı kalın ve renkli halka. */
+  noktaSuanki: {
+    backgroundColor: renkler.arkaPlan,
+    borderWidth: 5,
+    borderColor: renkler.anaRenk,
+  },
+
+  /* ⚠️ flex: 1 — çizgi, sağdaki metnin yüksekliği kadar uzuyor.
+     Sabit yükseklik verseydik iki satırlık bir adımda çizgi kısa
+     kalır ve noktalar arasında kopukluk görünürdü. */
+  cizgi: {
     flex: 1,
-    marginLeft: 12
+    width: 2,
+    backgroundColor: renkler.kenarlik,
+    marginVertical: bosluk.mikro,
+  },
+
+  cizgiGecti: {
+    backgroundColor: renkler.anaRenk,
+  },
+
+  orta: {
+    flex: 1,
+    paddingBottom: bosluk.normal,
+  },
+
+  /* Son adımın altında boşluk yok; kartın kendi dolgusu yetiyor. */
+  ortaSon: {
+    paddingBottom: 0,
   },
 
   asamaYazi: {
-    fontSize: 15,
-    color: renkler.yaziGri
-
-    /* marginLeft kaldırıldı — artık asamaOrta veriyor */
+    fontSize: yazi.orta,
+    color: renkler.yaziGri,
   },
+
   asamaYaziAktif: {
     color: renkler.yaziKoyu,
-    fontWeight: '600',
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
   },
 
-  /* ⭐ YENİ — aşama tarihi */
   asamaTarih: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginTop: 2
+    marginTop: 2,
   },
 
+
+  /* ---------- İPTAL ---------- */
+
   iptalKutu: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: renkler.yumusakHata,
+    borderRadius: kose.buyuk,
     borderWidth: 1,
-    borderColor: '#e74c3c'
+    borderColor: renkler.hata,
+    padding: bosluk.normal,
   },
+
   iptalUst: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
   },
+
   iptalBaslik: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: '#e74c3c'
+    color: renkler.hata,
   },
+
   iptalTarih: {
-    fontSize: 13,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginBottom: 6
+    marginBottom: bosluk.kucuk,
   },
+
   iptalSebep: {
-    fontSize: 14,
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
     color: renkler.yaziKoyu,
-    marginBottom: 6
+    marginBottom: bosluk.kucuk,
   },
+
   iptalIade: {
-    fontSize: 14,
-    color: renkler.yaziOrta
-  }
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
+  },
 });

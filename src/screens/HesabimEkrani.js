@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,27 +8,23 @@ import { apiGet, apiPost } from '../services/api';
 import { refreshTokenAl } from '../services/tokenStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
-import { gunBicimle } from '../utils/bicimlendir';        // ⭐
+import { gunBicimle } from '../utils/bicimlendir';
 
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
   const { renkler, temaAdi, temaDegistir } = useTema();
   const styles = stilOlustur(renkler);
 
-  const [profil, setProfil] = useState(null);   // ⭐ email + üyelik tarihi buradan
+  const [profil, setProfil] = useState(null);   // email + üyelik tarihi buradan
 
-  // ⭐ YENİ — aktif oturum sayısı.
+  // Aktif oturum sayısı.
   //
   // null = henüz bilinmiyor / alınamadı.
   //
   // Neden 0 ile başlatmıyoruz? Çünkü 0 geçerli bir cevap ("hiç oturum
   // yok") ama bizim durumumuz "henüz sormadım". İkisini karıştırırsak
   // veri gelmeden ekranda "0" yazar ve kullanıcı yanlış bilgi görür.
-  // ?? ile || farkında öğrendiğimiz aynı prensip: yokluk ile sıfır
-  // birbirinden ayrı şeyler.
   const [oturumSayisi, setOturumSayisi] = useState(null);
-
-
 
   // Giriş varsa profili çek, çıkışta temizle
   useEffect(() => {
@@ -46,30 +42,25 @@ export default function HesabimEkrani({ navigation }) {
     }
     profiliGetir();
   }, [token]);
-  
-  // ⭐ YENİ — OTURUM SAYISINI ÇEK
+
+  // OTURUM SAYISINI ÇEK
   //
   // Neden useFocusEffect, useEffect değil?
   //   Kullanıcı Oturumlarım ekranına girip bir oturum kapatıp geri
   //   dönebilir. useEffect sadece token değişince çalışırdı ve sayaç
   //   bayat kalırdı. useFocusEffect ekran her odağa geldiğinde çalışır.
-  //
-  //   Sunucudan gelen türetilmiş değer, girdisi değişebiliyorsa yeniden
-  //   sorulmalı — kupon indiriminde de aynı ilkeyi uygulamıştık.
   useFocusEffect(
     useCallback(() => {
-      // Misafirse istek atma
       if (!token) {
         setOturumSayisi(null);
         return;
       }
 
-      // ⭐ İPTAL BAYRAĞI
+      // ⚠️ İPTAL BAYRAĞI
       //
       // Kullanıcı ekrana girip hemen çıkarsa istek hâlâ yolda olabilir.
       // Cevap gelince setOturumSayisi çağrılır ama ekran artık odakta
-      // değil — boşa iş. Temizlik fonksiyonunda bayrağı kaldırıp
-      // cevabı yok sayıyoruz.
+      // değil — boşa iş.
       let iptalEdildi = false;
 
       async function sayiyiGetir() {
@@ -86,8 +77,7 @@ export default function HesabimEkrani({ navigation }) {
           }
         } catch {
           // Sessizce yut. Bu bir SAYAÇ — alınamazsa ekran yine
-          // çalışmalı, kullanıcıya hata göstermek gereksiz gürültü.
-          // Asıl hata yönetimi Oturumlarım ekranında yapılıyor.
+          // çalışmalı. Asıl hata yönetimi Oturumlarım ekranında.
           if (!iptalEdildi) {
             setOturumSayisi(null);
           }
@@ -102,17 +92,60 @@ export default function HesabimEkrani({ navigation }) {
     }, [token])
   );
 
-  function menuSatiri(ikon, baslik, hedef) {
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.1) — MENÜ SATIRI TASARIMA ÇEVRİLDİ.
+   *
+   * Eskiden her satır kendi kartıydı: kenarlıklı, köşeli, aralarında
+   * 8dp boşluk. Tasarımda satırlar TEK kartın içinde, aralarında ince
+   * ayraçlarla — sepet satırlarında verilen kararın aynısı.
+   *
+   * ⚠️ İkon artık yuvarlak köşeli bir karenin içinde ve TURUNCU DEĞİL.
+   * Sekiz satırın sekizi de turuncu ikon taşıyınca "turuncu = eylem"
+   * kuralı ekranda görünmez oluyordu; hangi satırın önemli olduğu
+   * anlaşılmıyordu. Satırın tıklanabilir olduğunu sağdaki chevron
+   * söylüyor, tıpkı tasarımdaki gibi.
+   *
+   * @param sonMu  son satırsa alt ayraç çizilmiyor
+   * @param rozet  sağda gösterilecek sayaç (yalnızca oturumlarda var)
+   */
+  function menuSatiri({ ikon, baslik, hedef, parametre, sonMu, rozet }) {
     return (
       <TouchableOpacity
-        style={styles.menuSatir}
-        onPress={() => navigation.navigate(hedef)}
+        key={baslik}
+        style={[styles.menuSatir, !sonMu && styles.menuAyrac]}
+        onPress={() => navigation.navigate(hedef, parametre)}
         activeOpacity={0.7}
       >
-        <Ionicons name={ikon} size={22} color={renkler.anaRenk} />
+        <View style={styles.menuIkon}>
+          <Ionicons name={ikon} size={18} color={renkler.yaziOrta} />
+        </View>
+
         <Text style={styles.menuYazi}>{baslik}</Text>
-        <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
+
+        {rozet !== undefined && (
+          /* Sayı henüz gelmediyse "···". Boş bırakmak "hiç oturum yok"
+             gibi okunurdu; 0 yazmak düpedüz yanlış bilgi olurdu. */
+          <View style={styles.sayacRozet}>
+            <Text style={styles.sayacYazi}>{rozet === null ? '···' : rozet}</Text>
+          </View>
+        )}
+
+        <Ionicons name="chevron-forward" size={18} color={renkler.yaziGri} />
       </TouchableOpacity>
+    );
+  }
+
+  /* Grup = başlık şeridi + satırlar, hepsi tek kartın içinde. */
+  function menuGrubu(baslik, satirlar) {
+    return (
+      <View style={styles.grup}>
+        <View style={styles.grupBaslikSerit}>
+          <Text style={styles.grupBaslik}>{baslik}</Text>
+        </View>
+
+        {satirlar.map((s, i) =>
+          menuSatiri({ ...s, sonMu: i === satirlar.length - 1 })
+        )}
+      </View>
     );
   }
 
@@ -124,136 +157,102 @@ export default function HesabimEkrani({ navigation }) {
         {token ? (
           /* ============ ÜYE GÖRÜNÜMÜ ============ */
           <>
-            {/* ⭐ DEĞİŞTİ — KULLANICI KARTI ARTIK TIKLANABİLİR.
+            {/* ⭐ DEĞİŞTİ (GV/Faz 7.1) — KİMLİK KARTINA BAŞ HARF AVATARI.
 
-                Kart zaten ad, e-posta ve üyelik bilgisini gösteriyordu
-                ama basılamıyordu. Referans tasarımlarda bu kart profile
-                giden ana kapı; kullanıcının ilk dokunma refleksi kendi
-                adına basmak oluyor ve hiçbir şey olmaması "bozuk mu?"
-                hissi veriyordu.
+                ⚠️ Avatar zemini `lacivertYuzey` — yorum kartındakiyle
+                AYNI token. İki ekranda iki farklı avatar dili olmasın.
+                Turuncu yapılmadı: dekoratif ana renk Faz 1'de
+                düzeltilen hatanın ta kendisi.
 
-                ⚠️ Sağdaki chevron sadece süs değil — bir öğenin
-                tıklanabilir olduğunu söyleyen tek görsel işaret o.
-                Menü satırlarıyla aynı işaret kullanılıyor ki aynı
-                anlam aynı sembolle anlatılsın. */}
+                ⚠️ Harf toLocaleUpperCase('tr-TR') ile büyütülüyor —
+                "irem" → "İREM"; varsayılan büyütme "IREM" yapardı.
+
+                Kart tıklanabilir: kullanıcının ilk refleksi kendi adına
+                basmak ve hiçbir şey olmaması "bozuk mu?" hissi
+                veriyordu. Sağdaki chevron bunu söyleyen tek işaret. */}
             <TouchableOpacity
-              style={styles.kart}
+              style={styles.kimlikKart}
               onPress={() =>
                 navigation.navigate('ProfilDuzenle', { eposta: profil?.email })
               }
               activeOpacity={0.7}
             >
-              <View style={styles.kartIcerik}>
-                <Text style={styles.ad}>{kullanici?.fullName}</Text>
-
-                {profil?.email ? (
-                  <Text style={styles.eposta}>{profil.email}</Text>
-                ) : null}
-
-                <View style={styles.kartAlt}>
-                  <Text style={styles.rol}>Rol: {profil?.role || kullanici?.role}</Text>
-
-                  {profil?.createdAt ? (
-                    <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>
-                  ) : null}
-                </View>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarHarf}>
+                  {(kullanici?.fullName || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
+                </Text>
               </View>
 
-              <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
+              <View style={styles.kimlikOrta}>
+                <Text style={styles.ad} numberOfLines={1}>{kullanici?.fullName}</Text>
+
+                {profil?.email ? (
+                  <Text style={styles.eposta} numberOfLines={1}>{profil.email}</Text>
+                ) : null}
+
+                {profil?.createdAt ? (
+                  <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>
+                ) : null}
+              </View>
+
+              <Ionicons name="chevron-forward" size={18} color={renkler.yaziGri} />
             </TouchableOpacity>
 
-            {/* ⭐ DEĞİŞTİ — MENÜ ARTIK BAŞLIKLI GRUPLARDA.
+            {/* ⚠️ G1 — 5. SEKME YOK. Tasarım bazı ekranlarda
+                "Kategoriler" diye beşinci bir sekme çiziyor; bizde
+                kategoriler ana sayfadaki şeridin "Tümü" karosundan
+                açılıyor. Buradaki menü o kararı değiştirmiyor. */}
+            {menuGrubu('HESABIM', [
+              { ikon: 'receipt-outline', baslik: 'Siparişlerim', hedef: 'Siparislerim' },
 
-                Eskiden alışveriş satırları başlıksız bir blok, hesap
-                satırları "Hesap Ayarları" başlıklı ikinci bir bloktu.
-                İlk grubun başlığı olmayınca ikinci başlık, listenin
-                tamamının başlığıymış gibi okunabiliyordu.
+              /* ⚠️ Rota adı 'Favoriler', ekranda görünen başlık
+                 'Favorilerim'. Gezinme BAŞLIKLA değil ROTA ADIYLA
+                 yapılır — bu bir kez karıştırıldı ve "Şimdi Al" butonu
+                 çökmüştü ('Sepetim' yazılmıştı, doğrusu 'Sepet').
 
-                Göz bir listeyi gruplara göre tarar; her grubun adı
-                olmadan gruplama işe yaramaz. */}
-            <Text style={styles.grupBaslik}>HESABIM</Text>
-            <View style={styles.menu}>
-              {menuSatiri('receipt-outline', 'Siparişlerim', 'Siparislerim')}
+                 Favoriler alt sekmede zaten var; buraya da koyuyoruz
+                 çünkü kullanıcı "hesabımla ilgili her şey" ararken
+                 buraya bakıyor. İki giriş noktası tekrar değil, farklı
+                 iki arama yolunun aynı yere çıkması. */
+              { ikon: 'heart-outline', baslik: 'Favorilerim', hedef: 'Favoriler' },
 
-              {/* ⭐ YENİ — Favorilerim menüye eklendi.
-
-                  ⚠️ Rota adı 'Favoriler', ekranda görünen başlık
-                  'Favorilerim'. Gezinme BAŞLIKLA değil ROTA ADIYLA
-                  yapılır — bu ikisi bir kez karıştırıldı ve "Şimdi Al"
-                  butonu çöktü ('Sepetim' yazılmıştı, doğrusu 'Sepet').
-
-                  Favoriler alt sekmede zaten var; buraya da koyuyoruz
-                  çünkü kullanıcı "hesabımla ilgili her şey" ararken
-                  buraya bakıyor. İki giriş noktası olması tekrar değil,
-                  farklı iki arama yolunun aynı yere çıkması. */}
-              {menuSatiri('heart-outline', 'Favorilerim', 'Favoriler')}
-
-              {menuSatiri('location-outline', 'Adreslerim', 'Adreslerim')}
-              {menuSatiri('card-outline', 'Kartlarım', 'Kartlarim')}
-              {menuSatiri('wallet-outline', 'Ödemelerim', 'Odemelerim')}
-            </View>
+              { ikon: 'location-outline', baslik: 'Adreslerim', hedef: 'Adreslerim' },
+              { ikon: 'card-outline', baslik: 'Kartlarım', hedef: 'Kartlarim' },
+              { ikon: 'wallet-outline', baslik: 'Ödemelerim', hedef: 'Odemelerim' },
+            ])}
 
             {/* ⚠️ "GÜVENLİK" başlığı, eski "Hesap Ayarları"nın yerine.
                 Bu üç satırın ortak paydası hesap değil GÜVENLİK: kimlik
                 bilgisi, şifre ve oturumlar. "Ayarlar" adı, tema seçici
                 gibi zararsız tercihlerle aynı kefeye koyuyordu. */}
-            <Text style={styles.grupBaslik}>GÜVENLİK</Text>
-            <View style={styles.menu}>
-              {/* Profil ekranı e-postayı KİLİTLİ göstermek için biliyor
-                  olmalı; parametre olarak geçiyoruz. Orada ayrıca
-                  /auth/ben-kimim çağırmak gereksiz bir ağ turu olurdu. */}
-              <TouchableOpacity
-                style={styles.menuSatir}
-                onPress={() =>
-                  navigation.navigate('ProfilDuzenle', { eposta: profil?.email })
-                }
-                activeOpacity={0.7}
-              >
-                <Ionicons name="person-outline" size={22} color={renkler.anaRenk} />
-                <Text style={styles.menuYazi}>Profili Düzenle</Text>
-                <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
-              </TouchableOpacity>
-
-              {menuSatiri('lock-closed-outline', 'Şifre Değiştir', 'SifreDegistir')}
-
-              {/* ⭐ YENİ — Aktif Oturumlar + sayaç rozeti.
-                  
-                  menuSatiri yardımcısını kullanmıyoruz çünkü o sağ
-                  tarafa rozet koymuyor. Tek bir istisna için yardımcının
-                  imzasını değiştirip tüm çağrıları güncellemek yerine
-                  bu satırı elle yazıyoruz — "bir kere gereken şey için
-                  soyutlama değiştirilmez". */}
-              <TouchableOpacity
-                style={styles.menuSatir}
-                onPress={() => navigation.navigate('Oturumlarim')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="desktop-outline" size={22} color={renkler.anaRenk} />
-                <Text style={styles.menuYazi}>Aktif Oturumlar</Text>
-
-                {/* Sayı henüz gelmediyse "···" gösteriyoruz.
-                    Boş bırakmak "hiç oturum yok" gibi okunurdu;
-                    0 yazmak düpedüz yanlış bilgi olurdu. */}
-                <View style={styles.sayacRozet}>
-                  <Text style={styles.sayacYazi}>
-                    {oturumSayisi === null ? '···' : oturumSayisi}
-                  </Text>
-                </View>
-
-                <Ionicons name="chevron-forward" size={20} color={renkler.yaziGri} />
-              </TouchableOpacity>
-            </View>
+            {menuGrubu('GÜVENLİK', [
+              {
+                ikon: 'person-outline',
+                baslik: 'Profili Düzenle',
+                hedef: 'ProfilDuzenle',
+                /* Profil ekranı e-postayı KİLİTLİ göstermek için biliyor
+                   olmalı; parametre olarak geçiyoruz. Orada ayrıca
+                   /auth/ben-kimim çağırmak gereksiz bir ağ turu olurdu. */
+                parametre: { eposta: profil?.email },
+              },
+              { ikon: 'lock-closed-outline', baslik: 'Şifre Değiştir', hedef: 'SifreDegistir' },
+              {
+                ikon: 'desktop-outline',
+                baslik: 'Aktif Oturumlar',
+                hedef: 'Oturumlarim',
+                rozet: oturumSayisi,
+              },
+            ])}
           </>
         ) : (
-          /* ============ MİSAFİR GÖRÜNÜMÜ ============ */
+          /* ============ MİSAFİR GÖRÜNÜMÜ ============
+             ⚠️ B12 — tasarımdaki "Sana özel" öneri bölümü ÇİZİLMİYOR.
+             Öneri motoru yok; sahte bir liste göstermek "yanlış sayı,
+             eksik sayıdan tehlikelidir" kuralını çiğnerdi. */
           <>
             <View style={styles.misafirKart}>
-              <View style={styles.misafirIkonDaire}>
-                <Ionicons
-                  name="person-outline"
-                  size={38}
-                  color={renkler.anaRenk}
-                />
+              <View style={styles.misafirDaire}>
+                <Ionicons name="person-outline" size={38} color={renkler.yaziGri} />
               </View>
 
               <Text style={styles.misafirBaslik}>Hoş geldin!</Text>
@@ -266,7 +265,7 @@ export default function HesabimEkrani({ navigation }) {
               <TouchableOpacity
                 style={styles.anaButon}
                 onPress={() => navigation.navigate('Giris')}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <Text style={styles.anaButonYazi}>Giriş Yap</Text>
               </TouchableOpacity>
@@ -274,7 +273,7 @@ export default function HesabimEkrani({ navigation }) {
               <TouchableOpacity
                 style={styles.ikincilButon}
                 onPress={() => navigation.navigate('Kayit')}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <Text style={styles.ikincilButonYazi}>Kayıt Ol</Text>
               </TouchableOpacity>
@@ -287,44 +286,59 @@ export default function HesabimEkrani({ navigation }) {
         )}
 
         {/* ============ ORTAK: GÖRÜNÜM (TEMA) ============ */}
-        <Text style={styles.grupBaslik}>GÖRÜNÜM</Text>
-        <View style={styles.temaSatir}>
-          <TouchableOpacity
-            style={[styles.temaButon, temaAdi === 'acik' && styles.temaButonSecili]}
-            onPress={() => temaDegistir('acik')}
-          >
-            <Text style={[styles.temaYazi, temaAdi === 'acik' && styles.temaYaziSecili]}>
-              Açık
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.grup}>
+          <View style={styles.grupBaslikSerit}>
+            <Text style={styles.grupBaslik}>GÖRÜNÜM</Text>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.temaButon, temaAdi === 'koyu' && styles.temaButonSecili]}
-            onPress={() => temaDegistir('koyu')}
-          >
-            <Text style={[styles.temaYazi, temaAdi === 'koyu' && styles.temaYaziSecili]}>
-              Koyu
-            </Text>
-          </TouchableOpacity>
+          {/* ⭐ DEĞİŞTİ (GV/Faz 7.1) — TEMA SEÇİCİ TEK KUTUDA İKİ SEKME.
+
+              Eskiden iki ayrı çerçeveli buton yan yanaydı ve seçili
+              olan dolu turuncuya dönüyordu. İki kutu iki ayrı karar
+              gibi duruyordu; oysa bu tek bir seçim (açık VEYA koyu).
+              Tek kabın içindeki kayan seçim bunu doğru anlatıyor.
+
+              ⚠️ Seçili sekme dolu turuncu DEĞİL, beyaz yüzey + koyu
+              yazı. Turuncu burada "basılacak yer" derdi; oysa seçili
+              olan zaten basılmış olan. */}
+          <View style={styles.temaKutu}>
+            {['acik', 'koyu'].map((ad) => (
+              <TouchableOpacity
+                key={ad}
+                style={[styles.temaSekme, temaAdi === ad && styles.temaSekmeSecili]}
+                onPress={() => temaDegistir(ad)}
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: temaAdi === ad }}
+              >
+                <Ionicons
+                  name={ad === 'acik' ? 'sunny-outline' : 'moon-outline'}
+                  size={16}
+                  color={temaAdi === ad ? renkler.yaziKoyu : renkler.yaziGri}
+                />
+                <Text style={[styles.temaYazi, temaAdi === ad && styles.temaYaziSecili]}>
+                  {ad === 'acik' ? 'Açık' : 'Koyu'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* ============ SADECE ÜYE: ÇIKIŞ ============ */}
         {token ? (
           <>
-            <TouchableOpacity style={styles.cikisButon} onPress={cikisYap}>
+            <TouchableOpacity style={styles.cikisButon} onPress={cikisYap} activeOpacity={0.85}>
+              <Ionicons name="log-out-outline" size={18} color={renkler.hata} />
               <Text style={styles.cikisYazi}>Çıkış Yap</Text>
             </TouchableOpacity>
 
-            {/* ⭐ YENİ — TEHLİKELİ BÖLGE
-                
-                Tasarım kararları:
-                  · En ALTTA duruyor — kullanıcı buraya kazara gelmez,
-                    kaydırıp aramak gerekir
-                  · Büyük buton DEĞİL, ince bir metin bağlantısı — göze
-                    çarpmasın, yanlışlıkla basılmasın
-                  · Üstünde ayırıcı çizgi var — "burası farklı bir bölge"
-                  · Altında ne olacağı yazıyor — tıklamadan önce bilsin
-                
+            {/* ⭐ TEHLİKELİ BÖLGE
+
+                · En ALTTA duruyor — kullanıcı buraya kazara gelmez
+                · Büyük buton DEĞİL, ince bir metin bağlantısı
+                · Üstünde ayırıcı çizgi var — "burası farklı bir bölge"
+                · Altında ne olacağı yazıyor — tıklamadan önce bilsin
+
                 Yıkıcı işlemleri kolay erişilir yapmak kötü tasarımdır.
                 Zor bulunur ama BULUNABİLİR olmalı — gizlemek de yanlış. */}
             <View style={styles.tehlikeAyirac} />
@@ -334,8 +348,8 @@ export default function HesabimEkrani({ navigation }) {
               onPress={() => navigation.navigate('HesapKapat')}
               activeOpacity={0.7}
             >
-              <Ionicons name="trash-outline" size={18} color={renkler.hata} />
-              <Text style={styles.tehlikeSatirYazi}>Hesabımı Kapat</Text>
+              <Ionicons name="trash-outline" size={16} color={renkler.hata} />
+              <Text style={styles.tehlikeYazi}>Hesabımı Kapat</Text>
             </TouchableOpacity>
 
             <Text style={styles.tehlikeAciklama}>
@@ -352,270 +366,340 @@ export default function HesabimEkrani({ navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan
+    backgroundColor: renkler.arkaPlan,
   },
+
   icerik: {
-    padding: 16
+    padding: sayfaKenari,
+    paddingBottom: bosluk.dev,
   },
+
   baslik: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    marginBottom: 16,
-    color: renkler.yaziKoyu
+    color: renkler.yaziKoyu,
+    marginBottom: bosluk.normal,
   },
 
-  /* --- ÜYE GÖRÜNÜMÜ --- */
-  /* ⭐ DEĞİŞTİ — kart artık satır düzeninde (metin bloğu + chevron). */
-  kart: {
+
+  /* ---------- KİMLİK KARTI ---------- */
+
+  kimlikKart: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20
+    gap: bosluk.orta,
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+    marginBottom: bosluk.normal,
   },
 
-  /* Metin bloğu chevron'u sağa itiyor.
-     flex: 1 olmasaydı uzun bir e-posta chevron'u karttan taşırırdı. */
-  kartIcerik: {
-    flex: 1
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.lacivertYuzey,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+
+  avatarHarf: {
+    color: renkler.lacivertYuzeyUstuYazi,
+    fontSize: yazi.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+  },
+
+  /* minWidth: 0 olmadan flex çocuğu içeriğinden küçülmüyor ve uzun bir
+     e-posta chevron'u karttan taşırıyor. */
+  kimlikOrta: {
+    flex: 1,
+    minWidth: 0,
+  },
+
   ad: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
   },
+
   eposta: {
-    fontSize: 14,
+    fontSize: yazi.normal,
     color: renkler.yaziOrta,
-    marginTop: 2
+    marginTop: 2,
   },
-  kartAlt: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10
-  },
-  rol: {
-    fontSize: 15,
-    color: renkler.yaziOrta
-  },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.1) — "Rol:" satırı KALDIRILDI.
+     Müşterinin rolü her zaman "musteri"; kendisine söylemenin bir
+     bilgi değeri yok. Admin zaten panelden giriyor. */
   uyelik: {
-    fontSize: 13,
-    color: renkler.yaziGri
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: bosluk.mikro,
   },
-  menu: {
-    marginBottom: 24
+
+
+  /* ---------- MENÜ GRUPLARI ---------- */
+
+  /* Grup tek bir kart: başlık şeridi + satırlar.
+     overflow: satırların basılı zemini kartın yuvarlak köşesinden
+     taşmasın. */
+  grup: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    overflow: 'hidden',
+    marginBottom: bosluk.normal,
   },
+
+  /* ⚠️ Başlık artık kartın DIŞINDA değil İÇİNDE, kendi şeridinde.
+     Dışarıdayken satır kartlarıyla arasında sahipsiz bir boşluk
+     kalıyordu ve hangi gruba ait olduğu boşlukla anlatılıyordu. */
+  grupBaslikSerit: {
+    backgroundColor: renkler.acikKart,
+    paddingHorizontal: bosluk.normal,
+    paddingVertical: bosluk.kucuk,
+    borderBottomWidth: 1,
+    borderBottomColor: renkler.kenarlik,
+  },
+
+  /* Küçük + silik + BÜYÜK HARF + harf aralığı: başlık bir AYRAÇ, bir
+     eylem değil; satırlardan geri planda durmalı. */
+  grupBaslik: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziGri,
+    letterSpacing: 0.8,
+  },
+
   menuSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: renkler.kartArka,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik
-  },
-  menuYazi: {
-    flex: 1,
-    fontSize: 16,
-    color: renkler.yaziKoyu,
-    marginLeft: 12
+    gap: bosluk.orta,
+    paddingHorizontal: bosluk.normal,
+    paddingVertical: bosluk.orta,
   },
 
-  /* ⭐ YENİ — oturum sayacı rozeti.
-     minWidth: tek haneli ve iki haneli sayılarda rozet aynı genişlikte
+  /* ⚠️ Ayraç ikonun altından değil, YAZININ hizasından başlıyor
+     (tasarımdaki ml-14). Tam genişlikte bir çizgi listeyi dilimliyor;
+     içeriden başlayan çizgi satırları aynı grubun parçası gösteriyor. */
+  menuAyrac: {
+    borderBottomWidth: 1,
+    borderBottomColor: renkler.kenarlik,
+    marginLeft: 0,
+  },
+
+  menuIkon: {
+    width: 34,
+    height: 34,
+    borderRadius: kose.kucuk,
+    backgroundColor: renkler.acikKart,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  menuYazi: {
+    flex: 1,
+    fontSize: yazi.orta,
+    color: renkler.yaziKoyu,
+  },
+
+  /* minWidth: tek haneli ve iki haneli sayılarda rozet aynı genişlikte
      kalsın, satırlar arası zıplama olmasın. */
   sayacRozet: {
     minWidth: 26,
     paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 20,
+    paddingHorizontal: bosluk.kucuk,
+    borderRadius: kose.tam,
     backgroundColor: renkler.acikKart,
-    marginRight: 8,
-    alignItems: 'center'
-  },
-  sayacYazi: {
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: font.kalin,
-    color: renkler.yaziOrta
-  },
-
-
-
-  /* --- MİSAFİR GÖRÜNÜMÜ --- */
-  misafirKart: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 14,
-    padding: 24,
     alignItems: 'center',
-    marginBottom: 12
   },
-  misafirIkonDaire: {
+
+  sayacYazi: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziOrta,
+  },
+
+
+  /* ---------- TEMA SEÇİCİ ---------- */
+
+  temaKutu: {
+    flexDirection: 'row',
+    gap: bosluk.kucuk,
+    padding: bosluk.kucuk,
+  },
+
+  temaSekme: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: bosluk.kucuk,
+    paddingVertical: bosluk.orta,
+    borderRadius: kose.orta,
+    backgroundColor: renkler.acikKart,
+  },
+
+  temaSekmeSecili: {
+    backgroundColor: renkler.kartArka,
+    borderWidth: 1,
+    borderColor: renkler.anaRenk,
+  },
+
+  temaYazi: {
+    fontSize: yazi.normal,
+    color: renkler.yaziGri,
+  },
+
+  temaYaziSecili: {
+    color: renkler.yaziKoyu,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+  },
+
+
+  /* ---------- MİSAFİR GÖRÜNÜMÜ ---------- */
+
+  misafirKart: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.genis,
+    alignItems: 'center',
+    marginBottom: bosluk.orta,
+  },
+
+  /* ⚠️ Daire zemini acikKart, ikon gri: dekoratif bir daireyi turuncu
+     yapmak Faz 1'de düzeltilen hatanın aynısı olurdu. */
+  misafirDaire: {
     width: 78,
     height: 78,
-    borderRadius: 39,
-    backgroundColor: renkler.kartArka,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: bosluk.normal,
   },
+
   misafirBaslik: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: 8
+    marginBottom: bosluk.kucuk,
   },
+
   misafirAciklama: {
-    fontSize: 14,
+    fontSize: yazi.normal,
     color: renkler.yaziOrta,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 22
+    lineHeight: satir.normal,
+    marginBottom: bosluk.genis,
   },
+
   anaButon: {
     backgroundColor: renkler.anaRenk,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
     width: '100%',
-    marginBottom: 10
+    marginBottom: bosluk.kucuk,
   },
+
   anaButonYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
+
   ikincilButon: {
-    backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: renkler.anaRenk,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
-    width: '100%'
+    width: '100%',
   },
+
   ikincilButonYazi: {
     color: renkler.anaRenk,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
+
   misafirDipnot: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
     textAlign: 'center',
-    marginBottom: 24
+    marginBottom: bosluk.normal,
   },
 
-  /* ⭐ YENİ — GRUP BAŞLIĞI
 
-     ⚠️ Eski "bolumBaslik" 16px, kalın ve KOYU renkti — menü
-     satırlarıyla (16px) aynı puntodaydı ve onlarla yarışıyordu.
-     Başlık bir AYRAÇ, bir eylem değil; satırlardan geri planda
-     durmalı.
+  /* ---------- ÇIKIŞ ---------- */
 
-     Küçük + silik + BÜYÜK HARF + harf aralığı: punto düşse de büyük
-     harf ve aralık okunurluğu koruyor, renk ise onu satırların bir
-     adım gerisine itiyor. */
-  grupBaslik: {
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: font.kalin,
-    color: renkler.yaziGri,
-    letterSpacing: 0.8,
-    marginBottom: 8
-  },
-  temaSatir: {
-    flexDirection: 'row',
-    marginBottom: 24
-  },
-  temaButon: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    alignItems: 'center',
-    marginRight: 10
-  },
-  temaButonSecili: {
-    backgroundColor: renkler.anaRenk,
-    borderColor: renkler.anaRenk
-  },
-  temaYazi: {
-    fontSize: 15,
-    color: renkler.yaziOrta
-  },
-  temaYaziSecili: {
-    color: renkler.anaRenkUstuYazi,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-  },
-
-  /* --- ÇIKIŞ ---
-
-     ⭐ DEĞİŞTİ — dolu mavi buton yerine kırmızı çerçeveli buton.
-
-     ⚠️ Mavi bu uygulamada "asıl eylem" demek (sepete ekle, siparişi
-     tamamla). Çıkış bu ekranın asıl eylemi DEĞİL — kullanıcı buraya
-     genelde profilini görmeye ya da siparişlerine gitmeye geliyor.
-     Ekrandaki tek dolu mavi butonun çıkış olması, gözü yanlış yere
-     çekiyordu.
-
-     ⚠️ DOLU kırmızı da yapmadık. Dolu kırmızı "yıkıcı" demek ve o
-     ağırlık hesap kapatmaya ait. Çıkış geri alınabilir bir işlem:
-     uyarı rengi evet, yıkıcı ağırlık hayır. Çerçeveli hal ikisinin
-     arasında duruyor.
-
-     Hesabımı Kapat ise buton bile değil, ince bir metin bağlantısı —
-     üç seviye net biçimde ayrışıyor. */
+  /* ⚠️ Turuncu bu uygulamada "asıl eylem" demek. Çıkış bu ekranın asıl
+     eylemi DEĞİL — kullanıcı buraya genelde profilini görmeye geliyor.
+     ⚠️ DOLU kırmızı da yapılmadı: dolu kırmızı "yıkıcı" demek ve o
+     ağırlık hesap kapatmaya ait. Çıkış geri alınabilir. */
   cikisButon: {
-    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: bosluk.kucuk,
     borderWidth: 1.5,
     borderColor: renkler.hata,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center'
+    paddingVertical: bosluk.orta,
+    borderRadius: kose.orta,
   },
+
   cikisYazi: {
     color: renkler.hata,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 
-  /* --- ⭐ YENİ: TEHLİKELİ BÖLGE --- */
+
+  /* ---------- TEHLİKELİ BÖLGE ---------- */
+
   tehlikeAyirac: {
     height: 1,
     backgroundColor: renkler.kenarlik,
-    marginTop: 32,
-    marginBottom: 16
+    marginTop: bosluk.dev,
+    marginBottom: bosluk.normal,
   },
+
   tehlikeSatir: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12
+    gap: bosluk.kucuk,
+    paddingVertical: bosluk.orta,
   },
-  tehlikeSatirYazi: {
-    fontSize: 15,
-    color: renkler.hata,
-    fontWeight: '600',
+
+  tehlikeYazi: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
+    color: renkler.hata,
   },
+
   tehlikeAciklama: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 8
-  }
+    lineHeight: satir.kucuk,
+  },
 });

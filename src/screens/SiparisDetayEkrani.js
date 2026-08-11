@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { font } from '../theme/olculer';
+// ⭐ DEĞİŞTİ (GV/Faz 7.4) — dosyadaki elle yazılı ölçüler token'a bağlandı.
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -90,19 +91,32 @@ export default function SiparisDetayEkrani({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ⚠️ B8 — BAŞLIKTAKİ "?" YARDIM İKONU ÇİZİLMİYOR.
+          Tasarım sipariş detayının sağ üstüne bir destek ikonu
+          koyuyor; destek talepleri Aşama 8'in işi. Hiçbir yere
+          gitmeyen bir ikon, olmayan bir özelliği vaat etmek olurdu. */}
       <View style={styles.ustBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.geriButon}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.geriButon}
+          hitSlop={8}
+        >
           <Ionicons name="arrow-back" size={24} color={renkler.yaziKoyu} />
         </TouchableOpacity>
-        <Text style={styles.ustBaslik}>{siparis.orderNumber}</Text>
+
+        <View style={styles.ustOrta}>
+          <Text style={styles.ustBaslik}>{siparis.orderNumber}</Text>
+          <Text style={styles.ustAlt}>{tarihBicimle(siparis.createdAt)}</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.icerik}>
-        <Text style={styles.tarih}>Sipariş tarihi: {tarihBicimle(siparis.createdAt)}</Text>
-
-        {/* KARGO DURUMU / İPTAL KUTUSU */}
+        {/* KARGO DURUMU / İPTAL KUTUSU
+            ⭐ DEĞİŞTİ (GV/Faz 7.4) — sipariş tarihi buradan başlığın
+            alt satırına taşındı; içeriğin en üstünde sahipsiz bir
+            satır olarak duruyordu. */}
         <View style={styles.bolum}>
-          {!iptalMi && <Text style={styles.bolumBaslik}>Kargo Durumu</Text>}
+          {!iptalMi && <Text style={styles.bolumBaslik}>KARGO DURUMU</Text>}
           <KargoDurumu siparis={siparis} />
         </View>
 
@@ -117,7 +131,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
             Adres ve ödeme bilgisi ikincil — onları zaten biliyor. */}
         {siparis.trackingNumber ? (
           <View style={styles.bolum}>
-            <Text style={styles.bolumBaslik}>Kargo Takip</Text>
+            <Text style={styles.bolumBaslik}>KARGO TAKİP</Text>
 
             <View style={styles.kutu}>
               <View style={styles.satir}>
@@ -192,7 +206,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
             temel bir beklenti. */}
         {siparis.customerNote ? (
           <View style={styles.bolum}>
-            <Text style={styles.bolumBaslik}>Sipariş Notun</Text>
+            <Text style={styles.bolumBaslik}>SİPARİŞ NOTUN</Text>
 
             <View style={styles.kutu}>
               <Text style={styles.notMetin}>{siparis.customerNote}</Text>
@@ -204,7 +218,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
             Sipariş anında dondurulmuş bilgi — müşteri adresini sonradan
             değiştirse bile burada eski hali görünür ve görünmelidir. */}
         <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Teslimat Adresi</Text>
+          <Text style={styles.bolumBaslik}>TESLİMAT ADRESİ</Text>
 
           <View style={styles.kutu}>
             <View style={styles.satir}>
@@ -246,7 +260,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
 
         {/* ÖDEME */}
         <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Ödeme</Text>
+          <Text style={styles.bolumBaslik}>ÖDEME</Text>
           <View style={styles.kutu}>
             <View style={styles.satir}>
               <Text style={styles.etiket}>Durum</Text>
@@ -256,14 +270,14 @@ export default function SiparisDetayEkrani({ route, navigation }) {
             </View>
             <View style={styles.satir}>
               <Text style={styles.etiket}>Kart</Text>
-              <Text style={styles.deger}>**** **** **** {siparis.cardLast4}</Text>
+              <Text style={styles.deger}>•••• {siparis.cardLast4}</Text>
             </View>
           </View>
         </View>
 
         {/* ÜRÜNLER */}
         <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Ürünler ({siparis.items.length})</Text>
+          <Text style={styles.bolumBaslik}>ÜRÜNLER ({siparis.items.length})</Text>
           <View style={styles.kutu}>
             {siparis.items.map((u, i) => (
               <View key={i} style={styles.urunSatir}>
@@ -401,272 +415,331 @@ export default function SiparisDetayEkrani({ route, navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan
+    backgroundColor: renkler.arkaPlan,
   },
+
   ortala: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: renkler.arkaPlan
+    backgroundColor: renkler.arkaPlan,
   },
+
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
-    borderBottomColor: renkler.kenarlik
-  },
-  geriButon: {
-    marginRight: 12
-  },
-  ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu
-  },
-  icerik: {
-    padding: 16
-  },
-  tarih: {
-    fontSize: 13,
-    color: renkler.yaziGri,
-    marginBottom: 16
-  },
-  bolum: {
-    marginBottom: 20
+    borderBottomColor: renkler.kenarlik,
+    backgroundColor: renkler.kartArka,
   },
 
-  /* ⭐ YENİ — takip numarası.
-     
-     Eşit genişlikli font: numaralar karakter karakter okunuyor ve
-     "1" ile "l", "0" ile "O" ayrımı normal fontta zor. Yanlış okunan
-     tek karakter numarayı kullanılmaz yapar.
-     
-     letterSpacing: monospace'te bile uzun diziler birbirine yapışık
-     görünüyor; harfleri hafif açmak gözle takibi kolaylaştırıyor. */
-  takipNo: {
-    fontSize: 14,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+  geriButon: {
+    width: 32,
+  },
+
+  ustOrta: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  /* ⚠️ Sipariş numarası eşit genişlikli fontta: alt alta gelen
+     numaralar hizalı okunsun. Özel fontla kalınlık çalışmadığı için
+     fontWeight verilmiyor — duran ama etkisi olmayan bir satır
+     sonraki okuyucuyu yanıltır. */
+  ustBaslik: {
+    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+    fontSize: yazi.orta,
     letterSpacing: 0.5,
     color: renkler.yaziKoyu,
-    fontWeight: '600',
-    fontFamily: font.yari,
   },
 
-  /* ⭐ YENİ — uzun basma ipucu / kopyalandı onayı */
-  /* ⭐ YENİ (4.7) — ipucu satırı (ikon + metin).
+  ustAlt: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: 2,
+  },
 
-     ⚠️ marginTop metinden BURAYA taşındı. Metinde kalsaydı ikon
-     satırın tepesinde, metin 6px aşağıda durur ve ikisi hizasız
+  icerik: {
+    padding: sayfaKenari,
+    gap: bosluk.normal,
+  },
+
+  bolum: {
+    gap: bosluk.kucuk,
+  },
+
+  /* ⚠️ Bölüm etiketi KÜÇÜK ve BÜYÜK HARF — sipariş onay ekranıyla
+     aynı dil. Kartın içindeki asıl bilgi adres/ödeme; etiket yalnızca
+     "bu kart neyin kartı" diyor. Aynı puntoda olsalardı ikisi eşit
+     ağırlıkta okunurdu. */
+  bolumBaslik: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziGri,
+    letterSpacing: 0.5,
+  },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.4) — kutular artık kenarlıklı beyaz kart.
+     acikKart zeminli kutular sayfa zemininden zor ayrılıyordu ve
+     akışın geri kalanı (sepet, sipariş onayı) beyaz kart kullanıyor. */
+  kutu: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+  },
+
+  satir: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: bosluk.orta,
+    paddingVertical: bosluk.mikro,
+  },
+
+  etiket: {
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
+  },
+
+  deger: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.yaziKoyu,
+  },
+
+  /* ⚠️ DÜZELTME (GV/Faz 7.4): `fontFamily` burada İKİ KEZ yazılıydı —
+     önce Menlo/monospace, hemen ardından font.yari. İkincisi
+     birincisini eziyordu, yani takip numarası hiçbir zaman eşit
+     genişlikli fontla çizilmiyordu ve üstündeki yorum yalan
+     söylüyordu.
+
+     Eşit genişlikli font korundu: numara karakter karakter okunuyor
+     ve "1" ile "l", "0" ile "O" ayrımı normal fontta zor. Yanlış
+     okunan tek karakter numarayı kullanılmaz yapar. */
+  takipNo: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: yazi.normal,
+    letterSpacing: 0.5,
+    color: renkler.yaziKoyu,
+  },
+
+  /* ⚠️ marginTop metinden BURAYA taşınmıştı: metinde kalsaydı ikon
+     satırın tepesinde, metin aşağıda durur ve ikisi hizasız
      görünürdü. */
   kopyaIpucuSatir: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 4,
-    marginTop: 6
+    gap: bosluk.mikro,
+    marginTop: bosluk.kucuk,
   },
+
   kopyaIpucu: {
-    fontSize: 11,
+    fontSize: yazi.mikro,
     color: renkler.yaziGri,
-    textAlign: 'right'
+    textAlign: 'right',
   },
+
   kopyaIpucuBasarili: {
     color: renkler.basari,
-    fontWeight: '600',
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
   },
 
-  /* ⭐ YENİ — müşteri notu metni.
-     
-     pre-wrap yerine RN'de bir şey yapmaya gerek yok: React Native
-     Text bileşeni satır sonlarını ZATEN korur. Web'deki
-     white-space: pre-wrap ihtiyacı burada yok — RN'in metin
-     motoru HTML gibi boşlukları sıkıştırmıyor. */
+  /* React Native Text bileşeni satır sonlarını ZATEN koruyor;
+     web'deki white-space: pre-wrap ihtiyacı burada yok. */
   notMetin: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: renkler.yaziKoyu
+    fontSize: yazi.normal,
+    lineHeight: satir.orta,
+    color: renkler.yaziKoyu,
   },
 
-  bolumBaslik: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-    marginBottom: 8
-  },
-  kutu: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 14
-  },
-  satir: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6
-  },
-  etiket: {
-    fontSize: 15,
-    color: renkler.yaziOrta
-  },
-  deger: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu
-  },
   adresEtiket: {
-    fontSize: 13,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginTop: 12,
-    marginBottom: 4
+    marginTop: bosluk.orta,
+    marginBottom: bosluk.mikro,
   },
+
   adresMetin: {
-    fontSize: 14,
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
     color: renkler.yaziKoyu,
-    lineHeight: 20
   },
+
   bosYazi: {
-    fontSize: 16,
-    color: renkler.yaziGri
+    fontSize: yazi.orta,
+    color: renkler.yaziGri,
   },
+
+
+  /* ---------- ÜRÜN SATIRLARI ---------- */
+
   urunSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8
+    gap: bosluk.orta,
+    paddingVertical: bosluk.kucuk,
   },
+
   // ⭐ DEĞİŞTİ (GV/Faz 1) — ana renk zemin olmaktan çıkarıldı.
   // Gerekçe UrunKarti.resimYok'ta yazılı: turuncu eylem rengi,
   // resimsiz ürünün yer tutucusu bir eylem değil.
   harfKutu: {
     width: 44,
     height: 44,
-    borderRadius: 8,
+    borderRadius: kose.kucuk,
     backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
   },
+
   harfYazi: {
     color: renkler.yaziGri,
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
+
   urunOrta: {
-    flex: 1
+    flex: 1,
+    minWidth: 0,
   },
+
   urunAd: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.yaziKoyu,
   },
+
   urunBirim: {
-    fontSize: 13,
-    color: renkler.yaziOrta,
-    marginTop: 2
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: 2,
   },
+
   urunToplam: {
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: renkler.yaziKoyu
+    color: renkler.yaziKoyu,
   },
-  /* Artık birden fazla satır olabildiği için yatay dizilim
-     kaldırıldı; satırlar alt alta akıyor. Yatay hizalama
-     her satırın kendi içinde (toplamSatir / ozetSatir) yapılıyor. */
+
+
+  /* ---------- ALT BAR ---------- */
+
   altBar: {
-    padding: 16,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderTopWidth: 1,
     borderTopColor: renkler.kenarlik,
-    backgroundColor: renkler.kartArka
+    backgroundColor: renkler.kartArka,
   },
-  toplamSatir: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
+
   ozetSatir: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6
+    marginBottom: bosluk.mikro,
   },
+
   ozetEtiket: {
-    fontSize: 14,
-    color: renkler.yaziOrta
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
   },
+
   ozetDeger: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
-    color: renkler.yaziKoyu
+    color: renkler.yaziKoyu,
   },
+
   ozetAyirac: {
     height: 1,
     backgroundColor: renkler.kenarlik,
-    marginVertical: 8
+    marginVertical: bosluk.kucuk,
   },
+
+  toplamSatir: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
   toplamEtiket: {
-    fontSize: 15,
-    color: renkler.yaziOrta
-  },
-  toplamTutar: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: renkler.anaRenk
+    color: renkler.yaziKoyu,
   },
 
-  /* ⭐ YENİ — KDV kırılımı.
+  /* ⭐ DEĞİŞTİ (GV/Faz 7.4) — ödenen tutar turuncu olmaktan çıktı.
+     Kuralın bu ekranda kalan son ihlaliydi; aynı düzeltme sepette,
+     sipariş onayında ve başarı ekranında da yapıldı. 24 → yazi.baslik
+     (22): ölçekte 24 yok. */
+  toplamTutar: {
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
 
-     Toplamın altında ve belirgin şekilde daha silik: bu bir
+
+  /* ---------- KDV KIRILIMI ---------- */
+
+  /* Toplamın altında ve belirgin şekilde daha silik: bu bir
      bilgilendirme, ödenen tutara giren bir kalem değil. Aynı punto ve
      renkte olsaydı toplanan bir satır gibi okunurdu.
 
-     Üstteki ayraç kesikli DEĞİL çünkü React Native'de borderStyle
-     'dashed' Android'de güvenilir çalışmıyor (yuvarlatılmış köşelerle
-     birlikte hiç çizilmiyor). Aynı ayrımı incelik ve boşlukla
-     veriyoruz — admin panelde kesikli çizgi kullanabildik, burada
-     platform izin vermiyor. */
+     ⚠️ Üstteki ayraç kesikli DEĞİL: React Native'de borderStyle
+     'dashed' Android'de yuvarlatılmış köşelerle birlikte çizilmiyor.
+     Ayrımı incelik ve boşluk veriyor. */
   kdvBlok: {
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: bosluk.orta,
+    paddingTop: bosluk.kucuk,
     borderTopWidth: 1,
-    borderTopColor: renkler.kenarlik
+    borderTopColor: renkler.kenarlik,
   },
 
   kdvBaslik: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziGri,
-    marginBottom: 6,
+    marginBottom: bosluk.mikro,
     letterSpacing: 0.4,
-    textTransform: 'uppercase'
+    textTransform: 'uppercase',
   },
 
   kdvSatir: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.mikro,
   },
 
   kdvEtiket: {
     flex: 1,
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginRight: 8
   },
 
   kdvDeger: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
-    color: renkler.yaziOrta
-  }
+    color: renkler.yaziOrta,
+  },
 });
