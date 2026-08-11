@@ -17,6 +17,15 @@ export default function YorumBolumu({ urunId, onDegisti }) {
   const styles = stilOlustur(renkler);
 
   const [yorumlar, setYorumlar] = useState([]);
+
+  // ⭐ YENİ (GV/Faz 5.7 · B5) — puan dağılımı (5/4/3/2/1).
+  //
+  // ⚠️ Yorum listesinden TÜRETİLMİYOR, sunucudan geliyor. Burada
+  // sayabilirdik ama listeye bir gün sayfalama eklendiğinde ekrandaki
+  // 10 yorumu sayar ve "toplam 42 değerlendirme" yazan satırla
+  // çelişirdi. Sayım kimin elindeyse dağılım da onun.
+  const [dagilim, setDagilim] = useState([]);
+
   const [durum, setDurum] = useState(null);
   const [yeniPuan, setYeniPuan] = useState(0);
   const [yeniYorum, setYeniYorum] = useState('');
@@ -25,7 +34,15 @@ export default function YorumBolumu({ urunId, onDegisti }) {
   async function yorumlariGetir() {
     try {
       const veri = await apiGet('/products/' + urunId + '/reviews');
-      setYorumlar(veri);
+
+      // ⭐ DEĞİŞTİ (B5) — uç artık düz dizi değil, { yorumlar, dagilim }
+      // döndürüyor. Tek istekte iki bilgi: bölüm ikisini birden
+      // çiziyor, ayrı uç ikinci bir istek demekti.
+      //
+      // ⚠️ || [] güvenliği duruyor: alan hiç gelmezse map çağrısı
+      // "undefined is not a function" ile ekranı komple düşürürdü.
+      setYorumlar(veri.yorumlar || []);
+      setDagilim(veri.dagilim || []);
     } catch {}
   }
 
@@ -92,9 +109,64 @@ export default function YorumBolumu({ urunId, onDegisti }) {
     );
   }
 
+  // ⭐ YENİ (GV/Faz 5.7 · B5) — çubukların paydası.
+  //
+  // ⚠️ Ürünün reviewCount'u KULLANILMIYOR, dağılımın kendi toplamı
+  // alınıyor. İki sayı aynı sorgudan gelse bile ayrı isteklerle
+  // geliyor; arada bir yorum eklenirse yüzdeler %100'ü aşabilir ya da
+  // altında kalabilirdi. Bir oranın payı ve paydası aynı kaynaktan.
+  const toplamPuan = dagilim.reduce((t, d) => t + d.adet, 0);
+
   return (
     <View>
       <Text style={styles.bolumBaslik}>Değerlendirmeler</Text>
+
+      {/* ⭐ YENİ (GV/Faz 5.7 · B5) — PUAN DAĞILIMI ÇUBUKLARI.
+
+          ⚠️ Ayrı bir bileşen yapılmadı: tek tüketicisi burası.
+          "Kural tek yerde kullanılıyorsa orada durur; ikinci tüketici
+          çıktığı an ortak yere taşınır." İkinci bir ekran puan kırılımı
+          isterse `components/`e çıkar.
+
+          ⚠️ Hiç yorum yokken bölüm ÇİZİLMİYOR. Beş boş çubuk, "bu ürün
+          kötü puan almış" gibi okunabilecek bir görsel — oysa hiç puan
+          almamış.
+
+          ⚠️ Tasarım burada bir de büyük "4.8" ve yıldızları çiziyor.
+          Bizde YOK: aynı sayı bu ekranda zaten yukarıdaki bilgi
+          kartında duruyor. 5.3'te fiyat için verilen karar bu — aynı
+          sayıyı ekranda iki kez çizmiyoruz. Çubuklar yeni bilgi
+          taşıyor, ortalama taşımıyor.
+
+          ⚠️ Çubuk rengi yildizRengi: çubuk bir yıldız sayımı ve
+          yıldızlarla aynı dili konuşmalı. Turuncu YAPILMADI — turuncu
+          eylem demek, bu çubuklar tıklanmıyor. */}
+      {toplamPuan > 0 && (
+        <View style={styles.dagilim}>
+          {dagilim.map((d) => (
+            <View key={d.puan} style={styles.dagilimSatir}>
+              <Text style={styles.dagilimPuan}>{d.puan}</Text>
+
+              <View style={styles.cubukYol}>
+                {/* ⚠️ Yüzde string olarak veriliyor ('40%'): React
+                    Native genişlikte oran istiyorsa metin bekler,
+                    sayı verirsek 40 PİKSEL olur ve tüm çubuklar
+                    aynı boyda çıkardı. */}
+                <View style={[styles.cubukDolu, { width: `${(d.adet / toplamPuan) * 100}%` }]} />
+              </View>
+
+              {/* ⚠️ Sayı gösteriliyor, tasarımda yok.
+                  Tasarım 1.240 değerlendirmeyle çizilmiş; orada oran
+                  tek başına anlamlı. Bizde bir ürünün 2 yorumu var ve
+                  tek yorumluk bir çubuk ekranı baştan sona doldurup
+                  "%100 beş yıldız" diye okunuyor. Ham sayı o yanılgıyı
+                  kapatıyor. */}
+              <Text style={styles.dagilimAdet}>{d.adet}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {form()}
       {yorumlar.length === 0 ? (
         <Text style={styles.yorumYok}>Bu ürüne henüz yorum yapılmamış.</Text>
@@ -177,6 +249,54 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     marginBottom: bosluk.orta,
+  },
+
+  /* ⭐ YENİ (GV/Faz 5.7 · B5) — puan dağılımı çubukları. */
+  dagilim: {
+    gap: bosluk.mikro,
+    marginBottom: bosluk.normal,
+  },
+
+  dagilimSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+  },
+
+  /* ⚠️ Rakamlara sabit genişlik: beş satırın çubukları aynı yerden
+     başlamazsa göz uzunlukları karşılaştıramaz — çubuğun tek işi
+     zaten karşılaştırma. Sağdaki sayı da aynı sebeple sabit ve sağa
+     yaslı; 2 ile 12 alt alta gelince nokta kaymasın. */
+  dagilimPuan: {
+    width: 10,
+    textAlign: 'right',
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+  },
+
+  dagilimAdet: {
+    minWidth: 20,
+    textAlign: 'right',
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+  },
+
+  /* Boş yol + dolu kısım. Yol acikKart: sayfa zemininden bir tık
+     koyu, böylece %0'lık bir satırda bile çubuğun nerede olduğu
+     görünüyor. Tamamen görünmez bir yol, sıfırı "veri yok" gibi
+     gösterirdi. */
+  cubukYol: {
+    flex: 1,
+    height: 8,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.acikKart,
+    overflow: 'hidden',
+  },
+
+  cubukDolu: {
+    height: '100%',
+    borderRadius: kose.tam,
+    backgroundColor: renkler.yildizRengi,
   },
 
   durumNot: {

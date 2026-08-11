@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import {
   View,
   Text,
@@ -8,9 +8,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   TextInput,
-  Alert,
-  KeyboardAvoidingView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,6 +23,7 @@ import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 import AramaCubugu from '../components/AramaCubugu';
 import SepetSatiri from '../components/SepetSatiri';
 import OnayPenceresi from '../components/OnayPenceresi';
+import BosDurum from '../components/BosDurum';
 import { paraBicimle } from '../utils/bicimlendir';
 
 export default function SepetEkrani({ navigation }) {
@@ -36,12 +36,12 @@ export default function SepetEkrani({ navigation }) {
   const {
     sepet,
     yukleniyor,
-    pasifUrunSayisi,     // ⭐ YENİ
+    pasifUrunSayisi,
     sepetiYukle,
     adetGuncelle,
     sepettenCikar,
 
-    // ⭐ YENİ — kupon
+    // kupon
     kupon,
     kuponYukleniyor,
     kuponUyari,
@@ -50,16 +50,16 @@ export default function SepetEkrani({ navigation }) {
     kuponuKaldir,
     kuponUyariyiTemizle,
 
-    // ⭐ YENİ — kargo dahil özet (sunucudan geliyor)
+    // kargo dahil özet (sunucudan geliyor)
     ozet,
   } = useSepet();
 
   const [aramaMetni, setAramaMetni] = useState('');
 
-  // ⭐ YENİ — kupon giriş kutusundaki metin
+  // kupon giriş kutusundaki metin
   const [kuponGirdi, setKuponGirdi] = useState('');
 
-  // ⭐ YENİ — deneme sonucu mesajı: { tip: 'basari' | 'hata', metin }
+  // deneme sonucu mesajı: { tip: 'basari' | 'hata', metin }
   //
   // Bunu context'te DEĞİL burada tutuyoruz çünkü bu bir EKRAN olayı:
   // "az önceki denemenin sonucu". Başka ekranı ilgilendirmiyor ve
@@ -75,20 +75,11 @@ export default function SepetEkrani({ navigation }) {
     }, [token])
   );
 
-  // ⭐ DEĞİŞTİ (GV) — Alert.alert yerine tema uyumlu OnayPenceresi.
-  //
-  // ⚠️ Alert.alert işletim sisteminin penceresini açıyordu: koyu
-  // temada bile beyaz, markanın turuncusu yerine sistemin mavisi,
-  // Android'de büyük harfli "VAZGEÇ / ÇIKAR". Uygulamanın geri
-  // kalanı yeni tasarım dilindeyken o pencere tek başına eski
-  // kalıyordu.
-  //
   // ⚠️ Silinecek kalem STATE'TE tutuluyor, pencereye argüman olarak
   // geçilmiyor: pencere kapanırken hangi ürünün silineceğini hâlâ
   // bilmesi gerekiyor. null = pencere kapalı.
   const [silinecek, setSilinecek] = useState(null);
 
-  // ⭐ YENİ — kuponu dene
   async function kuponuDene() {
     const sonuc = await kuponUygula(kuponGirdi);
 
@@ -104,7 +95,6 @@ export default function SepetEkrani({ navigation }) {
     }
   }
 
-  // ⭐ YENİ — kuponu kaldır
   function kuponuCikar() {
     kuponuKaldir();
     setKuponMesaj(null);
@@ -117,7 +107,7 @@ export default function SepetEkrani({ navigation }) {
     : sepet;
 
 
-  // ⭐ YENİ — ÜCRETSİZ KARGO İLERLEMESİ
+  // ÜCRETSİZ KARGO İLERLEMESİ
   //
   // ⚠️ EŞİĞİ AYRI BİR İSTEKLE SORMUYORUZ.
   //
@@ -142,6 +132,12 @@ export default function SepetEkrani({ navigation }) {
     ? Math.min(1, indirimliTutar / kargoEsigi)
     : 0;
 
+  // ⭐ YENİ (GV/Faz 6.6) — sipariş akışı başlayabilir mi?
+  //
+  // Türetilmiş; ayrı state yok. Alt çubuk hem butonun kilidini hem de
+  // kendi şeklini buna göre kuruyor.
+  const siparisEngelli = pasifUrunSayisi > 0;
+
 
   // 🔒 MİSAFİR KAPISI — tüm hook'lardan SONRA, ilk return'den ÖNCE
   if (!token) {
@@ -162,10 +158,252 @@ export default function SepetEkrani({ navigation }) {
     );
   }
 
+  /* ⭐ YENİ (GV/Faz 6.2) — ÜCRETSİZ KARGO ŞERİDİ, LİSTENİN ÜSTÜNDE.
+     Eskiden alt panelin içindeydi ve toplamla birlikte ekranın
+     dibinde duruyordu. Tasarımda listenin başında: müşteri ürünlere
+     bakarken "biraz daha eklersem kargo bedava" bilgisini alıyor —
+     karardan önce, karardan sonra değil. */
+  function kargoSeridi() {
+    if (!ozet) return null;
+
+    if (ozet.ucretsizKargoyaKalan > 0) {
+      return (
+        <View style={styles.kart}>
+          <View style={styles.kargoUst}>
+            <Ionicons name="car-outline" size={16} color={renkler.yaziOrta} />
+            <Text style={styles.kargoYazi}>
+              Ücretsiz kargoya{' '}
+              <Text style={styles.kargoTutar}>
+                {paraBicimle(ozet.ucretsizKargoyaKalan)}
+              </Text>{' '}
+              kaldı
+            </Text>
+          </View>
+
+          {/* İlerleme çubuğu: dıştaki View ray, içteki dolgu.
+              Yüzdeyi string olarak veriyoruz — RN'de genişliğin
+              yüzde olarak verilmesinin yolu bu; sayı verseydik
+              piksel sayardı. */}
+          <View style={styles.kargoRay}>
+            <View
+              style={[styles.kargoDolgu, { width: `${Math.round(kargoOrani * 100)}%` }]}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (ozet.ucretsizKargoKazanildi) {
+      /* Kazanıldı hali: çubuk YOK, çünkü ilerleme kavramı bitti.
+         Dolu bir çubuk göstermek "hâlâ bir hedef var" izlenimi
+         verirdi. */
+      return (
+        <View style={[styles.kart, styles.kargoKazanildi]}>
+          <Ionicons name="gift-outline" size={16} color={renkler.basari} />
+          <Text style={styles.kargoKazanildiYazi}>Kargo bedava kazandın</Text>
+        </View>
+      );
+    }
+
+    return null;
+  }
+
+  /* ⭐ YENİ (GV/Faz 6.4 + 6.5) — KUPON KARTI VE SİPARİŞ ÖZETİ
+     LİSTENİN ALTINDA, KAYAN İÇERİĞİN İÇİNDE.
+
+     ⚠️ Bu fazın en büyük yapısal değişikliği. Eskiden uyarılar,
+     kupon, kargo şeridi, özet ve buton tek bir sabit alt panelde
+     duruyordu; panel ekranın yarısını yiyor ve listeye üç ürünlük
+     yer kalıyordu. Tasarım hepsini kayan içeriğe alıp altta yalnızca
+     toplam + onay butonu bırakıyor. */
+  function altIcerik() {
+    return (
+      <View style={styles.altIcerik}>
+        {/* SATIŞTAN KALDIRILMIŞ ÜRÜN UYARISI
+
+            Kupon uyarısının ÜSTÜNDE duruyor çünkü daha acil: kupon
+            uyarısı bir fırsatın kaçtığını söyler, bu ise siparişin
+            hiç verilemeyeceğini.
+
+            Kapatma (X) düğmesi BİLEREK yok: kupon uyarısı
+            bilgilendirmedir, kapatılabilir. Bu ise çözülene kadar
+            duran bir engeldir; kapatılabilir olsaydı müşteri
+            kapatır, sonra kilitli butonun sebebini anlamazdı. */}
+        {siparisEngelli && (
+          <View style={[styles.uyariKutu, { borderLeftColor: renkler.hata }]}>
+            <Ionicons name="close-circle" size={18} color={renkler.hata} />
+            <Text style={styles.uyariYazi}>
+              Sepetinde satıştan kaldırılmış {pasifUrunSayisi} ürün var.
+              Sipariş verebilmek için çöp kutusuna basıp çıkarman gerekiyor.
+            </Text>
+          </View>
+        )}
+
+        {/* OTOMATİK KALDIRMA UYARISI
+            Sepet değişince kupon geçersizleştiyse burada çıkar.
+            Sessizce kaldırsaydık müşteri indirimin nereye gittiğini
+            anlamazdı. */}
+        {kuponUyari !== '' && (
+          <View style={[styles.uyariKutu, { borderLeftColor: renkler.uyari }]}>
+            <Ionicons name="alert-circle" size={18} color={renkler.uyari} />
+            <Text style={styles.uyariYazi}>{kuponUyari}</Text>
+            <TouchableOpacity onPress={kuponUyariyiTemizle} hitSlop={8}>
+              <Ionicons name="close" size={18} color={renkler.yaziGri} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ---- KUPON ----
+            Türetilmiş görünüm: kupon varsa kart, yoksa giriş kutusu.
+            Ayrı bir "kuponKutusuAcik" state'i tutmuyoruz — gerçek
+            durum zaten kupon nesnesinin kendisi. */}
+        {kupon === null ? (
+          /* ⭐ DEĞİŞTİ (GV/Faz 6.4) — KUTU VE BUTON TEK KARTIN İÇİNDE.
+
+             Eskiden çerçeveli bir input ile dolu turuncu bir buton
+             yan yana duruyordu. Tasarımda ikisi tek bir kartın içinde
+             ve aralarını dikey bir ayraç bölüyor; "Uygula" dolu buton
+             değil, yazı düğmesi.
+
+             ⚠️ Turuncu dolu buton bilerek bırakıldı: sepette asıl
+             eylem "Sepeti Onayla" ve o alt çubukta dolu turuncu.
+             İkinci bir dolu turuncu buton, hangisinin ana eylem
+             olduğunu belirsizleştiriyordu. */
+          <View style={styles.kuponKart}>
+            <Ionicons name="pricetag-outline" size={18} color={renkler.yaziGri} />
+
+            <TextInput
+              style={styles.kuponInput}
+              value={kuponGirdi}
+              onChangeText={(metin) => {
+                setKuponGirdi(metin);
+                // Kullanıcı yazmaya başlayınca eski hata mesajını sil —
+                // düzeltmeye çalışırken hâlâ kırmızı yazı görmesin.
+                if (kuponMesaj) setKuponMesaj(null);
+              }}
+              placeholder="Kupon kodu"
+              placeholderTextColor={renkler.yaziGri}
+              /* Kupon kodları hep büyük harf — klavyeyi de öyle aç.
+                 autoCorrect kapalı çünkü kodlar sözlükte yok,
+                 telefon "düzeltmeye" kalkarsa kod bozulur. */
+              autoCapitalize="characters"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={kuponuDene}
+              editable={!kuponYukleniyor}
+            />
+
+            <View style={styles.kuponAyrac} />
+
+            <TouchableOpacity
+              style={styles.kuponButon}
+              onPress={kuponuDene}
+              disabled={kuponGirdi.trim() === '' || kuponYukleniyor}
+            >
+              {kuponYukleniyor ? (
+                <ActivityIndicator size="small" color={renkler.anaRenk} />
+              ) : (
+                <Text
+                  style={[
+                    styles.kuponButonYazi,
+                    kuponGirdi.trim() === '' && styles.kuponButonYaziPasif,
+                  ]}
+                >
+                  Uygula
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.kart, styles.kuponUygulandi]}>
+            <Ionicons name="checkmark-circle" size={20} color={renkler.basari} />
+
+            <View style={styles.kuponOrta}>
+              <Text style={styles.kuponKod}>{kupon.kod}</Text>
+              <Text style={styles.kuponAciklama} numberOfLines={1}>
+                {kupon.aciklama}
+              </Text>
+            </View>
+
+            <TouchableOpacity onPress={kuponuCikar} style={styles.kuponKaldir} hitSlop={8}>
+              <Text style={styles.kuponKaldirYazi}>Kaldır</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {kuponMesaj !== null && (
+          <Text
+            style={[
+              styles.kuponMesaj,
+              { color: kuponMesaj.tip === 'basari' ? renkler.basari : renkler.hata },
+            ]}
+          >
+            {kuponMesaj.metin}
+          </Text>
+        )}
+
+        {/* ---- SİPARİŞ ÖZETİ ----
+            ⚠️ Tutarlar sunucudan gelen özetten. Eskiden ara toplam
+            sepetten reduce ile, ödenecek de "toplam − indirim" ile
+            HESAPLANIYORDU. Kargo eşiği girince o formül yetmez oldu:
+            sipariş anında tahsil edilecek tutarı üreten kod sunucuda,
+            biz onun sonucunu gösteriyoruz.
+
+            Hesap sırası: ara toplam → indirim → kargo → toplam.
+            Kargo indirimden SONRA çünkü kupon kargoya inmiyor. */}
+        <View style={styles.kart}>
+          <Text style={styles.ozetBaslik}>Sipariş Özeti</Text>
+
+          <View style={styles.ozetSatir}>
+            <Text style={styles.ozetEtiket}>Ara toplam</Text>
+            <Text style={styles.ozetDeger}>{paraBicimle(ozet?.araToplam ?? 0)}</Text>
+          </View>
+
+          {/* İndirim satırı SADECE indirim varsa görünür.
+              "İndirim: 0,00 ₺" yazmak gereksiz gürültü olurdu.
+
+              ⚠️ G6 — İNDİRİM YEŞİL, TURUNCU DEĞİL. Tasarım sipariş
+              detayında turuncu çizmiş ama sepette yeşil; kendi içinde
+              tutarsız. Turuncu bu uygulamada eylem demek. */}
+          {indirimTutari > 0 && (
+            <View style={styles.ozetSatir}>
+              <Text style={styles.ozetEtiket}>İndirim</Text>
+              <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
+                −{paraBicimle(indirimTutari)}
+              </Text>
+            </View>
+          )}
+
+          {/* KARGO SATIRI — indirim satırının aksine KOŞULSUZ.
+              Kargo 0 olduğunda satırı gizlemek cazip ama yanlış:
+              "kargo yazmıyor, demek ki sonradan eklenecek" endişesi
+              yaratır. "Ücretsiz" yazmak bir bilgidir, hiç yazmamak
+              boşluktur. */}
+          <View style={styles.ozetSatir}>
+            <Text style={styles.ozetEtiket}>Kargo</Text>
+
+            {ozet && ozet.kargoUcreti > 0 ? (
+              <Text style={styles.ozetDeger}>{paraBicimle(ozet.kargoUcreti)}</Text>
+            ) : (
+              <Text style={[styles.ozetDeger, { color: renkler.basari }]}>Ücretsiz</Text>
+            )}
+          </View>
+
+          <View style={styles.ayirac} />
+
+          <View style={styles.ozetSatir}>
+            <Text style={styles.toplamEtiket}>Toplam</Text>
+            <Text style={styles.toplamTutar}>{paraBicimle(ozet?.toplam ?? 0)}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
-      {/* KeyboardAvoidingView: kupon kutusu ekranın altında olduğu için
-          klavye açılınca üstünü kapatabilir.
+      {/* KeyboardAvoidingView: kupon kutusu klavyenin altında
+          kalmasın.
           iOS'ta 'padding' davranışı gerekir; Android'de sistem zaten
           pencereyi yeniden boyutlandırdığı için undefined bırakıyoruz —
           ikisini birden verirsek Android'de çift kaydırma olur. */}
@@ -173,294 +411,147 @@ export default function SepetEkrani({ navigation }) {
         style={styles.kapsayici}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* ⭐ DEĞİŞTİ (GV/Faz 6.1) — BAŞLIK SATIRI.
+
+            ⚠️ G2 — GERİ OKU YOK. Tasarımda üstte bir geri oku
+            çizilmiş ama Sepetim bir SEKME KÖKÜ; geri gidilecek yer
+            yok.
+
+            ⚠️ G4 — BAŞLIKTA SEPET ROZETİ YOK. Tasarımda sağ üstte
+            sayaçlı bir sepet ikonu var. Zaten sepetteyiz; kaç ürün
+            olduğunu listenin kendisi söylüyor.
+
+            İkisi de tasarımdan bilinçli sapma, ikisi de genel
+            düzeltmeler listesinde yazılı. */}
         <Text style={styles.baslik}>Sepetim</Text>
 
-        {sepet.length > 0 && (
-          <AramaCubugu
-            value={aramaMetni}
-            onChangeText={setAramaMetni}
-            onSubmit={() => {}}
-            placeholder="Sepette ara..."
-          />
-        )}
-
         {sepet.length === 0 ? (
-          <View style={styles.ortala}>
-            <Ionicons name="cart-outline" size={64} color={renkler.yaziGri} />
-            <Text style={styles.bosYazi}>Sepetin boş.</Text>
-          </View>
+          /* ⭐ DEĞİŞTİ (GV/Faz 6.7) — BOŞ SEPET ARTIK ORTAK BİLEŞEN.
+             Eskiden yerinde çizilmiş bir ikon + tek satır yazı vardı
+             ve müşteriye gidecek bir yer önermiyordu. */
+          <BosDurum
+            ikon="bag-handle-outline"
+            baslik="Sepetin boş"
+            aciklama="Hemen alışverişe başla ve beğendiğin ürünleri sepetine ekle."
+            eylemYazisi="Alışverişe Başla"
+            onEylem={() => navigation.navigate('AnaSayfa', { screen: 'AnaSayfaMain' })}
+          />
         ) : (
           <>
             <FlatList
               data={filtreliSepet}
               keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <SepetSatiri
-                  item={item}
-                  onAdetDegistir={adetGuncelle}
-                  onSil={setSilinecek}
-                  onBas={(it) =>
-                    navigation.navigate('AnaSayfa', {
-                      screen: 'UrunDetay',
-                      params: { urunId: it.productId },
-                    })
-                  }
-                />
+
+              /* ⭐ DEĞİŞTİ (GV/Faz 6.3) — SATIRLAR TEK KARTIN İÇİNDE.
+
+                 Kartı ve satır aralarındaki ayracı LİSTE çiziyor,
+                 satır değil: gruplama listenin sorunu. İlk ve son
+                 satır köşeleri yuvarlatılıyor, aradakiler düz —
+                 böylece beş ayrı kart yerine beş satırlık tek bir
+                 kart görünüyor.
+
+                 ⚠️ FlatList korundu, ScrollView'a çevrilmedi.
+                 Sepette satır sayısının üst sınırı yok (adet sınırı
+                 var, kalem sınırı yok); sanallaştırmayı bırakmak
+                 uzun sepetlerde kaydırmayı bozardı. */
+              renderItem={({ item, index }) => (
+                <View
+                  style={[
+                    styles.satirKap,
+                    index === 0 && styles.ilkSatir,
+                    index === filtreliSepet.length - 1 && styles.sonSatir,
+                    index < filtreliSepet.length - 1 && styles.satirAyrac,
+                  ]}
+                >
+                  <SepetSatiri
+                    item={item}
+                    onAdetDegistir={adetGuncelle}
+                    onSil={setSilinecek}
+                    onBas={(it) =>
+                      navigation.navigate('AnaSayfa', {
+                        screen: 'UrunDetay',
+                        params: { urunId: it.productId },
+                      })
+                    }
+                  />
+                </View>
               )}
-              contentContainerStyle={styles.liste}
-              ListEmptyComponent={
-                <Text style={styles.bosYazi}>Sepetinde eşleşen ürün yok.</Text>
+
+              ListHeaderComponent={
+                <View style={styles.listeBasi}>
+                  <AramaCubugu
+                    value={aramaMetni}
+                    onChangeText={setAramaMetni}
+                    onSubmit={() => {}}
+                    placeholder="Sepette ara..."
+                  />
+                  {kargoSeridi()}
+                </View>
               }
+
+              /* ⚠️ Alt içerik ListFooterComponent'te, ayrı bir View'da
+                 DEĞİL. Ayrı koysaydık liste kendi yüksekliğiyle
+                 sınırlı kalır, özet kartı ekrana sabitlenir ve kısa
+                 sepetlerde ortada asılı dururdu. */
+              ListFooterComponent={filtreliSepet.length > 0 ? altIcerik() : null}
+
+              ListEmptyComponent={
+                /* Arama hiçbir şey bulamadı. Sepetin kendisi boş
+                   değil — o durum yukarıda, BosDurum ile. */
+                <Text style={styles.aramaBos}>Sepetinde eşleşen ürün yok.</Text>
+              }
+
+              contentContainerStyle={styles.liste}
+              keyboardShouldPersistTaps="handled"
             />
 
-            {/* ============ ALT PANEL ============ */}
-            <View style={styles.altPanel}>
+            {/* ⭐ YENİ (GV/Faz 6.6) — YAPIŞKAN ALT ÇUBUK:
+                SOLDA TOPLAM, SAĞDA "SEPETİ ONAYLA".
 
-              {/* ⭐ YENİ — SATIŞTAN KALDIRILMIŞ ÜRÜN UYARISI
-                  
-                  Kupon uyarısının ÜSTÜNDE duruyor çünkü daha acil:
-                  kupon uyarısı bir fırsatın kaçtığını söyler, bu ise
-                  siparişin hiç verilemeyeceğini. Ekranda yukarıdan aşağı
-                  okuma sırası, önem sırasıyla aynı olmalı.
-                  
-                  Kapatma (X) düğmesi BİLEREK yok: kupon uyarısı
-                  bilgilendirmedir, kapatılabilir. Bu ise çözülene kadar
-                  duran bir engeldir; kapatılabilir olsaydı müşteri
-                  kapatır, sonra kilitli butonun sebebini anlamazdı. */}
-              {pasifUrunSayisi > 0 && (
-                <View style={styles.pasifUyariKutu}>
-                  <Ionicons name="close-circle" size={18} color={renkler.hata} />
+                ⚠️ Engel varken çubuk TEK BUTONA düşüyor ve fiyat
+                kutusu gitmiyor — buton yerine metni değişiyor.
+                Soluk bir "Sepeti Onayla", neden çalışmadığını
+                söylemez; müşteri basıp durur. Aynı desen ürün
+                detayında tükenmiş üründe de var (5.10).
 
-                  <Text style={styles.pasifUyariYazi}>
-                    Sepetinde satıştan kaldırılmış {pasifUrunSayisi} ürün var.
-                    Sipariş verebilmek için çöp kutusuna basıp çıkarman gerekiyor.
+                ⚠️ Engeli burada da kontrol ediyoruz, sunucunun
+                reddetmesini beklemiyoruz. Sunucu zaten reddediyor —
+                asıl güvenlik orada. Ama müşteriyi adres seç, kart
+                seç, onayla adımlarından geçirip EN SONDA hata vermek
+                kötü bir deneyim. Engel, sorunun görüldüğü yerde
+                durmalı. */}
+            <View style={styles.altCubuk}>
+              {siparisEngelli ? (
+                <View style={styles.engelButon}>
+                  <Ionicons name="lock-closed" size={16} color={renkler.yaziGri} />
+                  <Text style={styles.engelYazi}>
+                    Önce satıştan kalkan ürünleri çıkar
                   </Text>
                 </View>
-              )}
-
-              {/* ---- OTOMATİK KALDIRMA UYARISI ---- */}
-              {/* Sepet değişince kupon geçersizleştiyse burada çıkar.
-                  Sessizce kaldırsaydık müşteri indirimin nereye
-                  gittiğini anlamazdı. */}
-              {kuponUyari !== '' && (
-                <View style={styles.uyariKutu}>
-                  <Ionicons name="alert-circle" size={18} color={renkler.uyari} />
-                  <Text style={styles.uyariYazi}>{kuponUyari}</Text>
-                  <TouchableOpacity onPress={kuponUyariyiTemizle}>
-                    <Ionicons name="close" size={18} color={renkler.yaziGri} />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* ---- KUPON ALANI ---- */}
-              {/* Türetilmiş görünüm: kupon varsa kart, yoksa giriş kutusu.
-                  Ayrı bir "kuponKutusuAcik" state'i tutmuyoruz —
-                  gerçek durum zaten kupon nesnesinin kendisi. */}
-              {kupon === null ? (
-                <View style={styles.kuponSatir}>
-                  <View style={styles.kuponInputSarmal}>
-                    <Ionicons name="pricetag-outline" size={18} color={renkler.yaziGri} />
-                    <TextInput
-                      style={styles.kuponInput}
-                      value={kuponGirdi}
-                      onChangeText={(metin) => {
-                        setKuponGirdi(metin);
-                        // Kullanıcı yazmaya başlayınca eski hata mesajını sil —
-                        // düzeltmeye çalışırken hâlâ kırmızı yazı görmesin.
-                        if (kuponMesaj) setKuponMesaj(null);
-                      }}
-                      placeholder="Kupon kodu"
-                      placeholderTextColor={renkler.yaziGri}
-                      /* Kupon kodları hep büyük harf — klavyeyi de öyle aç.
-                         autoCorrect kapalı çünkü kodlar sözlükte yok,
-                         telefon "düzeltmeye" kalkarsa kod bozulur. */
-                      autoCapitalize="characters"
-                      autoCorrect={false}
-                      returnKeyType="done"
-                      onSubmitEditing={kuponuDene}
-                      editable={!kuponYukleniyor}
-                    />
+              ) : (
+                <>
+                  <View style={styles.toplamKutu}>
+                    <Text style={styles.toplamEtiketKucuk}>Toplam</Text>
+                    <Text style={styles.toplamTutar}>
+                      {paraBicimle(ozet?.toplam ?? 0)}
+                    </Text>
                   </View>
 
                   <TouchableOpacity
-                    style={[
-                      styles.kuponButon,
-                      /* Kutu boşken veya istek sürerken buton soluk */
-                      (kuponGirdi.trim() === '' || kuponYukleniyor) && styles.kuponButonPasif,
-                    ]}
-                    onPress={kuponuDene}
-                    disabled={kuponGirdi.trim() === '' || kuponYukleniyor}
+                    style={styles.onayButon}
+                    onPress={() => navigation.navigate('AdresSec', { siparisAkisi: true })}
+                    activeOpacity={0.85}
                   >
-                    {kuponYukleniyor ? (
-                      <ActivityIndicator size="small" color={renkler.anaRenkUstuYazi} />
-                    ) : (
-                      <Text style={styles.kuponButonYazi}>Uygula</Text>
-                    )}
+                    <Text style={styles.onayYazi}>Sepeti Onayla</Text>
                   </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.kuponKart}>
-                  <Ionicons name="checkmark-circle" size={20} color={renkler.basari} />
-
-                  <View style={styles.kuponKartOrta}>
-                    <Text style={styles.kuponKod}>{kupon.kod}</Text>
-                    <Text style={styles.kuponAciklama} numberOfLines={1}>
-                      {kupon.aciklama}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity onPress={kuponuCikar} style={styles.kuponKaldirButon}>
-                    <Text style={styles.kuponKaldirYazi}>Kaldır</Text>
-                  </TouchableOpacity>
-                </View>
+                </>
               )}
-
-              {/* ---- DENEME SONUCU MESAJI ---- */}
-              {kuponMesaj !== null && (
-                <Text
-                  style={[
-                    styles.kuponMesaj,
-                    { color: kuponMesaj.tip === 'basari' ? renkler.basari : renkler.hata },
-                  ]}
-                >
-                  {kuponMesaj.metin}
-                </Text>
-              )}
-
-              {/* ⭐ YENİ — ÜCRETSİZ KARGO ŞERİDİ
-
-                  Toplamın ÜSTÜNDE duruyor: müşteri tutarı görmeden
-                  önce "biraz daha eklersem kargo bedava" bilgisini
-                  almalı. Toplamın altında olsaydı karar verildikten
-                  sonra gelen bir bilgi olurdu.
-
-                  İki hal birbirini dışlıyor: ya hedefe kalan var ya da
-                  kazanılmış. Aynı anda ikisi birden olamaz, o yüzden
-                  tek bir if/else — iki ayrı koşul yazsaydık sunucudan
-                  beklenmedik bir kombinasyon gelirse ikisi birden
-                  çizilirdi. */}
-              {ozet && ozet.ucretsizKargoyaKalan > 0 ? (
-                <View style={styles.kargoSerit}>
-                  <Text style={styles.kargoSeritYazi}>
-                    {paraBicimle(ozet.ucretsizKargoyaKalan)} daha ekle, kargo bedava!
-                  </Text>
-
-                  {/* İlerleme çubuğu: dıştaki View ray, içteki dolgu.
-                      Yüzdeyi string olarak veriyoruz — RN'de genişliğin
-                      yüzde olarak verilmesinin yolu bu. */}
-                  <View style={styles.kargoRay}>
-                    <View
-                      style={[
-                        styles.kargoDolgu,
-                        { width: `${Math.round(kargoOrani * 100)}%` },
-                      ]}
-                    />
-                  </View>
-                </View>
-              ) : ozet && ozet.ucretsizKargoKazanildi ? (
-                <View style={styles.kargoRozet}>
-                  <Ionicons name="gift" size={16} color={renkler.basari} />
-                  {/* ⭐ DEĞİŞTİ (4.7) — sondaki 🎉 kaldırıldı.
-                      Solda zaten bir hediye ikonu var; emoji ikinci
-                      bir kutlama işareti ekliyordu ve platformlar
-                      arasında farklı çiziliyordu. */}
-                  <Text style={styles.kargoRozetYazi}>Kargo bedava kazandın</Text>
-                </View>
-              ) : null}
-
-              {/* ---- ÖZET ---- */}
-              {/* ⭐ DEĞİŞTİ — tutarlar artık sunucudan gelen özetten.
-
-                  Eskiden ara toplam sepetten reduce ile, ödenecek de
-                  "toplam − indirim" ile HESAPLANIYORDU. Kargo eşiği
-                  girince o formül yetmez oldu ve elde tutmanın anlamı
-                  kalmadı: sipariş anında tahsil edilecek tutarı üreten
-                  kod sunucuda, biz de artık onun sonucunu gösteriyoruz.
-
-                  Hesap sırası: ara toplam → indirim → kargo → toplam.
-                  Kargo indirimden SONRA çünkü kupon kargoya inmiyor. */}
-              <View style={styles.ozet}>
-                <View style={styles.ozetSatir}>
-                  <Text style={styles.ozetEtiket}>Ara toplam</Text>
-                  <Text style={styles.ozetDeger}>
-                    {paraBicimle(ozet?.araToplam ?? 0)}
-                  </Text>
-                </View>
-
-                {/* İndirim satırı SADECE indirim varsa görünür.
-                    "İndirim: 0,00 ₺" yazmak gereksiz gürültü olurdu.
-                    Türetilmiş koşul — ayrı state yok. */}
-                {indirimTutari > 0 && (
-                  <View style={styles.ozetSatir}>
-                    <Text style={styles.ozetEtiket}>İndirim</Text>
-                    <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
-                      −{paraBicimle(indirimTutari)}
-                    </Text>
-                  </View>
-                )}
-
-                {/* ⭐ YENİ — KARGO SATIRI
-
-                    İndirim satırının aksine bu KOŞULSUZ görünüyor.
-                    Kargo 0 olduğunda satırı gizlemek cazip ama yanlış:
-                    "kargo yazmıyor, demek ki sonradan eklenecek"
-                    endişesi yaratır. "Ücretsiz" yazmak bir bilgidir,
-                    hiç yazmamak boşluktur. */}
-                <View style={styles.ozetSatir}>
-                  <Text style={styles.ozetEtiket}>Kargo</Text>
-
-                  {ozet && ozet.kargoUcreti > 0 ? (
-                    <Text style={styles.ozetDeger}>
-                      {paraBicimle(ozet.kargoUcreti)}
-                    </Text>
-                  ) : (
-                    <Text style={[styles.ozetDeger, { color: renkler.basari }]}>
-                      Ücretsiz
-                    </Text>
-                  )}
-                </View>
-
-                <View style={styles.ayirac} />
-
-                <View style={styles.ozetSatir}>
-                  <Text style={styles.odenecekEtiket}>Toplam</Text>
-                  <Text style={styles.odenecekTutar}>
-                    {paraBicimle(ozet?.toplam ?? 0)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* ⭐ Sepette pasif ürün varsa sipariş akışı hiç başlamasın.
-                  
-                  Neden burada engelliyoruz da sunucunun reddetmesini
-                  beklemiyoruz? Sunucu zaten reddediyor — asıl güvenlik
-                  orada. Ama müşteriyi adres seç, kart seç, onayla
-                  adımlarından geçirip EN SONDA hata vermek kötü bir
-                  deneyim. Engel, sorunun görüldüğü yerde durmalı.
-                  
-                  Buton metnini de değiştiriyoruz: soluk bir "Sipariş Ver"
-                  butonu neden çalışmadığını söylemez, kullanıcı butona
-                  basıp durur. */}
-              <TouchableOpacity
-                style={[
-                  styles.siparisButon,
-                  pasifUrunSayisi > 0 && styles.siparisButonPasif,
-                ]}
-                disabled={pasifUrunSayisi > 0}
-                onPress={() => navigation.navigate('AdresSec', { siparisAkisi: true })}
-              >
-                <Text style={styles.siparisYazi}>
-                  {pasifUrunSayisi > 0
-                    ? 'Önce satıştan kalkan ürünleri çıkar'
-                    : 'Sipariş Ver'}
-                </Text>
-              </TouchableOpacity>
             </View>
           </>
         )}
       </KeyboardAvoidingView>
 
-      {/* ⭐ YENİ (GV) — sepetten çıkarma onayı.
+      {/* Sepetten çıkarma onayı.
           Yıkıcı: onay butonu kırmızı. Sepete ekleme turuncu, sepetten
           çıkarma kırmızı — biri kazanç, diğeri kayıp. */}
       <OnayPenceresi
@@ -486,312 +577,390 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
   ortala: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: renkler.arkaPlan,
   },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.1) — elle yazılı 24 yerine ölçek basamağı.
+     yazi.baslik (22) ürün detayındaki ürün adıyla aynı: ikisi de
+     ekranın en üst başlığı, farklı puntoda olmaları için sebep yok. */
   baslik: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: sayfaKenari,
+    paddingTop: bosluk.orta,
+    paddingBottom: bosluk.kucuk,
   },
+
   liste: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
+    paddingHorizontal: sayfaKenari,
+    paddingBottom: bosluk.genis,
   },
-  bosYazi: {
-    fontSize: 16,
+
+  listeBasi: {
+    gap: bosluk.orta,
+    marginBottom: bosluk.orta,
+  },
+
+  aramaBos: {
+    fontSize: yazi.normal,
     color: renkler.yaziGri,
-    marginTop: 12,
     textAlign: 'center',
+    marginTop: bosluk.genis,
   },
 
 
-  /* ---------- ALT PANEL ---------- */
+  /* ---------- SATIRLARI SARAN TEK KART ---------- */
 
-  altPanel: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: renkler.kenarlik,
+  satirKap: {
     backgroundColor: renkler.kartArka,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: renkler.kenarlik,
+
+    /* ⚠️ overflow: satır pasifken sol kenarına kırmızı şerit
+       çiziliyor; kartın yuvarlak köşelerinden taşmasın. */
+    overflow: 'hidden',
+  },
+
+  ilkSatir: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: kose.buyuk,
+    borderTopRightRadius: kose.buyuk,
+  },
+
+  sonSatir: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: kose.buyuk,
+    borderBottomRightRadius: kose.buyuk,
+  },
+
+  /* Satır arası ince çizgi. Kartın kenarlığıyla aynı renk ama ayrı
+     bir stil: biri kabın sınırı, diğeri içerideki bölme. */
+  satirAyrac: {
+    borderBottomWidth: 1,
+    borderBottomColor: renkler.kenarlik,
   },
 
 
-  /* ---------- ⭐ SATIŞTAN KALDIRILMIŞ ÜRÜN UYARISI ---------- */
+  /* ---------- ORTAK KART KABUĞU ---------- */
 
-  /* Kupon uyarısıyla aynı iskelet, farklı renk.
-     Sol kenar çizgisi kırmızı: "bilgi" değil "engel" olduğunu söyler. */
-  pasifUyariKutu: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: renkler.acikKart,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: renkler.hata,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  pasifUyariYazi: {
-    flex: 1,
-    fontSize: 12,
-    color: renkler.yaziOrta,
-    lineHeight: 17,
+  /* Kargo şeridi, uygulanmış kupon ve özet aynı kabı paylaşıyor.
+     Üç ayrı kart görünümü olsaydı ekran parçalanırdı. */
+  kart: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.orta,
   },
 
-  /* ---------- OTOMATİK KALDIRMA UYARISI ---------- */
+  altIcerik: {
+    gap: bosluk.orta,
+    marginTop: bosluk.orta,
+  },
 
+
+  /* ---------- UYARI KUTULARI ---------- */
+
+  /* Sol kenar çizgisinin RENGİ çağrı yerinden geliyor (engel kırmızı,
+     bilgi sarı); burada yalnızca renkten bağımsız ölçüler duruyor.
+     İki ayrı stil objesi tutsaydık biri değişince diğeri geride
+     kalırdı. */
   uyariKutu: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: bosluk.kucuk,
     backgroundColor: renkler.acikKart,
-    borderRadius: 8,
+    borderRadius: kose.kucuk,
     borderLeftWidth: 3,
-    borderLeftColor: renkler.uyari,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    paddingVertical: bosluk.kucuk,
+    paddingHorizontal: bosluk.orta,
   },
+
   uyariYazi: {
     flex: 1,
-    fontSize: 12,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
     color: renkler.yaziOrta,
-    lineHeight: 17,
   },
 
 
-  /* ---------- KUPON GİRİŞİ ---------- */
+  /* ---------- KARGO ŞERİDİ ---------- */
 
-  kuponSatir: {
+  kargoUst: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
   },
-  kuponInputSarmal: {
+
+  kargoYazi: {
     flex: 1,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.yaziOrta,
+  },
+
+  /* Kalan tutar cümlenin içinde koyu ve kalın: müşterinin aradığı
+     sayı o, cümlenin kalanı bağlam. */
+  kargoTutar: {
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  /* İlerleme rayı. overflow hidden olmasa dolgu köşelerden taşardı. */
+  kargoRay: {
+    height: 6,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.acikKart,
+    overflow: 'hidden',
+  },
+
+  kargoDolgu: {
+    height: '100%',
+    borderRadius: kose.tam,
+    backgroundColor: renkler.anaRenk,
+  },
+
+  kargoKazanildi: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 44,
-    backgroundColor: renkler.arkaPlan,
+    gap: bosluk.kucuk,
+    borderColor: renkler.basari,
   },
+
+  kargoKazanildiYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.basari,
+  },
+
+
+  /* ---------- KUPON ---------- */
+
+  kuponKart: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    paddingLeft: bosluk.orta,
+    height: 52,
+  },
+
   kuponInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.yaziKoyu,
     /* Android'de TextInput varsayılan iç boşluk ekler,
        sıfırlamazsak metin dikeyde ortalanmaz */
     padding: 0,
   },
+
+  /* Dikey ayraç: kutu ile düğmeyi ayırıyor. Düğmeye kendi çerçevesini
+     vermek yerine bunu seçtik — tasarımın yaptığı da bu ve iki
+     çerçeve iç içe görünmüyor. */
+  kuponAyrac: {
+    width: 1,
+    height: '60%',
+    backgroundColor: renkler.kenarlik,
+  },
+
   kuponButon: {
-    backgroundColor: renkler.anaRenk,
-    height: 44,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingHorizontal: bosluk.normal,
+    height: '100%',
     justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 88,
   },
-  kuponButonPasif: {
-    opacity: 0.5,
-  },
+
   kuponButonYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
+    color: renkler.anaRenk,
   },
 
+  /* ⚠️ Pasif hâl için opacity değil AYRI RENK. Yazı düğmesinde
+     opacity 0.5 turuncuyu soluk turuncuya çevirir ve "yarı basılmış"
+     gibi durur; gri açıkça "şu an değil" diyor. */
+  kuponButonYaziPasif: {
+    color: renkler.pasif,
+  },
 
-  /* ---------- UYGULANMIŞ KUPON KARTI ---------- */
-
-  kuponKart: {
+  kuponUygulandi: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: renkler.acikKart,
-    borderRadius: 8,
-    borderWidth: 1,
+    gap: bosluk.kucuk,
     borderColor: renkler.basari,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
   },
-  kuponKartOrta: {
+
+  kuponOrta: {
     flex: 1,
+    minWidth: 0,
   },
+
   kuponKod: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
+    fontSize: yazi.orta,
     color: renkler.yaziKoyu,
     /* Kodlar karakter karakter okunur — eşit genişlikli font
        "1" ile "l", "0" ile "O" ayrımını kolaylaştırır */
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     letterSpacing: 0.5,
   },
+
   kuponAciklama: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
     marginTop: 2,
   },
-  kuponKaldirButon: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+
+  kuponKaldir: {
+    paddingVertical: bosluk.mikro,
+    paddingHorizontal: bosluk.kucuk,
   },
+
   kuponKaldirYazi: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.hata,
   },
 
   kuponMesaj: {
-    fontSize: 12,
-    marginTop: 8,
-    lineHeight: 17,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    paddingHorizontal: bosluk.mikro,
   },
 
 
-  /* ---------- ⭐ ÜCRETSİZ KARGO ŞERİDİ ---------- */
+  /* ---------- SİPARİŞ ÖZETİ ---------- */
 
-  /* Kupon/pasif uyarı kutularıyla aynı iskelet ama sol kenar çizgisi
-     YOK: onlar bir sorunu bildiriyor, bu bir fırsatı. Aynı görsel dili
-     kullansaydı müşteri bir an için "yine mi hata" diye bakardı. */
-  kargoSerit: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginTop: 14,
-  },
-  kargoSeritYazi: {
-    fontSize: 13,
-    fontWeight: '600',
-    fontFamily: font.yari,
+  ozetBaslik: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: 8,
+    paddingBottom: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
+    borderBottomWidth: 1,
+    borderBottomColor: renkler.kenarlik,
   },
 
-  /* İlerleme rayı. Sabit yükseklik + yarım yükseklik borderRadius =
-     iki ucu tam yuvarlak. overflow hidden olmasa dolgu köşelerden
-     taşardı. */
-  kargoRay: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: renkler.kenarlik,
-    overflow: 'hidden',
-  },
-  kargoDolgu: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: renkler.anaRenk,
-  },
-
-  /* Kazanıldı hali: çubuk yok, çünkü ilerleme kavramı bitti.
-     Dolu bir çubuk göstermek "hâlâ bir hedef var" izlenimi verirdi. */
-  kargoRozet: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: renkler.acikKart,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: renkler.basari,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginTop: 14,
-  },
-  kargoRozetYazi: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.basari,
-  },
-
-
-  /* ---------- ÖZET ---------- */
-
-  ozet: {
-    marginTop: 14,
-  },
   ozetSatir: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: bosluk.kucuk,
   },
+
   ozetEtiket: {
-    fontSize: 14,
+    fontSize: yazi.normal,
     color: renkler.yaziOrta,
   },
+
   ozetDeger: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
+
   ayirac: {
     height: 1,
     backgroundColor: renkler.kenarlik,
-    marginVertical: 8,
+    marginBottom: bosluk.kucuk,
   },
-  odenecekEtiket: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-  },
-  /* ⭐ DEĞİŞTİ (GV) — TOPLAM ARTIK TURUNCU DEĞİL.
-     ⚠️ Ürün kartı ve ürün detayında düzeltilen kural ihlalinin
-     üçüncüsü. Sepette toplamın hemen altında turuncu "Sipariş Ver"
-     butonu var; ikisi aynı renkte olunca hangisinin basılabilir
-     olduğu renkten okunamıyordu.
 
-     Fiyatın dikkat çekmesini punto (22) ve kalınlık sağlıyor,
-     renk değil. */
-  odenecekTutar: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  toplamEtiket: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
   },
 
 
-  /* ---------- SİPARİŞ BUTONU ---------- */
+  /* ---------- YAPIŞKAN ALT ÇUBUK ---------- */
 
-  siparisButon: {
-    backgroundColor: renkler.anaRenk,
-    paddingVertical: 14,
-    borderRadius: 8,
+  altCubuk: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 14,
+    justifyContent: 'space-between',
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
+    borderTopWidth: 1,
+    borderTopColor: renkler.kenarlik,
+    backgroundColor: renkler.kartArka,
   },
-  siparisYazi: {
+
+  toplamKutu: {
+    flexShrink: 1,
+  },
+
+  toplamEtiketKucuk: {
+    fontSize: yazi.mikro,
+    color: renkler.yaziGri,
+  },
+
+  /* ⚠️ TOPLAM TURUNCU DEĞİL.
+     Hemen yanında turuncu "Sepeti Onayla" butonu var; ikisi aynı
+     renkte olunca hangisinin basılabilir olduğu renkten okunamıyordu.
+     Dikkati punto ve kalınlık çekiyor, renk değil. Aynı ihlal ürün
+     kartında ve ürün detayında da düzeltilmişti. */
+  toplamTutar: {
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  onayButon: {
+    backgroundColor: renkler.anaRenk,
+    paddingVertical: bosluk.orta,
+    paddingHorizontal: bosluk.genis,
+    borderRadius: kose.orta,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  onayYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 
-  /* ⭐ YENİ — kilitli sipariş butonu.
-     
-     Kupon butonundaki 0.5 ile aynı değeri kullanıyoruz — aynı anlam
-     (bu düğme şu an çalışmıyor) uygulama genelinde aynı görünmeli. */
-  siparisButonPasif: {
-    opacity: 0.5,
+  /* Engel hâli: çubuk tek parçaya düşüyor. Buton DEĞİL — basılacak
+     bir şey yok, o yüzden TouchableOpacity da değil. Kilit ikonu ve
+     metin ne yapılması gerektiğini söylüyor. */
+  engelButon: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.acikKart,
+    borderRadius: kose.orta,
+    paddingVertical: bosluk.orta,
+  },
+
+  engelYazi: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.yaziGri,
   },
 });

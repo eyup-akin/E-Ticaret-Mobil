@@ -1,13 +1,23 @@
 import React, { useState, useCallback } from 'react';
-import { font } from '../theme/olculer';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 import { apiGet, apiPost, apiDelete } from '../services/api';
-
-
+import OnayPenceresi from '../components/OnayPenceresi';
 
 export default function AdresSecEkrani({ route, navigation }) {
   // siparisAkisi parametresi varsa SEÇİM modu, yoksa YÖNETİM modu
@@ -24,10 +34,17 @@ export default function AdresSecEkrani({ route, navigation }) {
   const [baslik, setBaslik] = useState('');
   const [acikAdres, setAcikAdres] = useState('');
   const [sehir, setSehir] = useState('');
-  const [telefon, setTelefon] = useState('');      // ⭐ YENİ
+  const [telefon, setTelefon] = useState('');
   const [kaydediliyor, setKaydediliyor] = useState(false);
 
-  
+  // ⭐ YENİ (GV/Faz 6.8) — silinecek adres. null = pencere kapalı.
+  //
+  // ⚠️ Alert.alert yerine OnayPenceresi. Sistem penceresi koyu temada
+  // bile beyaz açılıyor, markanın turuncusu yerine sistemin mavisini
+  // kullanıyor ve Android'de butonları büyük harfe çeviriyordu.
+  // Aynı değişiklik sepette de yapılmıştı; iki ekranda iki farklı
+  // onay penceresi olmasın.
+  const [silinecek, setSilinecek] = useState(null);
 
   async function adresleriGetir() {
     try {
@@ -59,12 +76,12 @@ export default function AdresSecEkrani({ route, navigation }) {
         title: baslik,
         fullAddress: acikAdres,
         city: sehir,
-        phone: telefon,              // ⭐
+        phone: telefon,
       });
       setBaslik('');
       setAcikAdres('');
       setSehir('');
-      setTelefon('');                // ⭐
+      setTelefon('');
       setFormAcik(false);
       await adresleriGetir();
     } catch (hata) {
@@ -74,7 +91,6 @@ export default function AdresSecEkrani({ route, navigation }) {
     }
   }
 
-
   function devamEt() {
     if (!seciliId) {
       Alert.alert('Adres seç', 'Devam etmek için bir teslimat adresi seçmelisin.');
@@ -83,60 +99,68 @@ export default function AdresSecEkrani({ route, navigation }) {
     navigation.navigate('KartSec', { adresId: seciliId });
   }
 
-
-  function adresSil(item) {
-    Alert.alert(
-      'Adresi sil',
-      `"${item.title}" adresi silinsin mi?`,
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Sil',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiDelete('/addresses/' + item.id);
-              await adresleriGetir();
-            } catch (hata) {
-              Alert.alert('Hata', hata.message);
-            }
-          },
-        },
-      ]
-    );
+  async function adresiSil(item) {
+    try {
+      await apiDelete('/addresses/' + item.id);
+      await adresleriGetir();
+    } catch (hata) {
+      Alert.alert('Hata', hata.message);
+    }
   }
 
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.8) — ADRES KARTI TASARIMA ÇEVRİLDİ.
 
-  function adresSatiri({ item }) {
+     Yerleşim: başlık solda, seçim işareti SAĞDA; altında adres ve
+     telefon.
+
+     ⚠️ Radyo düğmesi sola değil sağa alındı. Tasarımın tercihi ve
+     sebebi var: göz önce "Ev / İş" etiketini okuyup hangi adres
+     olduğunu anlıyor, seçim işareti ondan sonra geliyor. Solda
+     dururken ilk okunan şey boş bir daireydi.
+
+     ⚠️ Seçili kart KALIN kenarlık almıyor, RENK ve YUMUŞAK ZEMİN
+     değiştiriyor. Eskiden seçilince borderWidth 1'den 2'ye çıkıyordu
+     ve kart 1px büyüyüp altındakileri aşağı itiyordu — seçim
+     değiştikçe liste zıplıyordu. */
+  function adresKarti(item) {
     const secili = seciliId === item.id;
+
     return (
       <TouchableOpacity
-        style={[styles.satir, secimModu && secili && styles.satirSecili]}
+        key={item.id}
+        style={[styles.kart, secimModu && secili && styles.kartSecili]}
         onPress={() => secimModu && setSeciliId(item.id)}
-        activeOpacity={secimModu ? 0.8 : 1}
+        activeOpacity={secimModu ? 0.85 : 1}
+        accessibilityRole={secimModu ? 'radio' : undefined}
+        accessibilityState={secimModu ? { selected: secili } : undefined}
       >
-        {secimModu && (
-          <Ionicons
-            name={secili ? 'radio-button-on' : 'radio-button-off'}
-            size={22}
-            color={secili ? renkler.anaRenk : renkler.yaziGri}
-          />
-        )}
+        <View style={styles.kartUst}>
+          <Text style={styles.adresBaslik} numberOfLines={1}>{item.title}</Text>
 
-        <View style={[styles.satirIcerik, !secimModu && { marginLeft: 0 }]}>
-          <Text style={styles.adresBaslik}>{item.title}</Text>
-          <Text style={styles.adresMetin}>{item.fullAddress}</Text>
-          <Text style={styles.adresSehir}>{item.city}</Text>
-          {item.phone && (
-            <Text style={styles.adresTelefon}>{item.phone}</Text>
+          {secimModu ? (
+            <Ionicons
+              name={secili ? 'radio-button-on' : 'radio-button-off'}
+              size={22}
+              color={secili ? renkler.anaRenk : renkler.yaziGri}
+            />
+          ) : (
+            /* Yönetim modunda seçim yok, silme var. İki mod aynı
+               köşeyi kullanıyor: kartın sağ üstü "bu karta dair
+               eylem" yeri. */
+            <TouchableOpacity
+              onPress={() => setSilinecek(item)}
+              hitSlop={8}
+              accessibilityLabel="Adresi sil"
+            >
+              <Ionicons name="trash-outline" size={20} color={renkler.hata} />
+            </TouchableOpacity>
           )}
         </View>
 
-        {!secimModu && (
-          <TouchableOpacity onPress={() => adresSil(item)} style={styles.silButon}>
-            <Ionicons name="trash-outline" size={22} color={renkler.yaziGri} />
-          </TouchableOpacity>
-        )}
+        <Text style={styles.adresMetin}>{item.fullAddress}</Text>
+        <Text style={styles.adresSehir}>{item.city}</Text>
+
+        {item.phone ? <Text style={styles.adresTelefon}>{item.phone}</Text> : null}
       </TouchableOpacity>
     );
   }
@@ -151,278 +175,393 @@ export default function AdresSecEkrani({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ⚠️ G3'ün tersi burada geçerli: bu bir ALT EKRAN, sekme kökü
+          değil — geri oku DURUYOR. Sepetim'de kaldırılmıştı çünkü
+          orası sekme kökü. */}
       <View style={styles.ustBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.geriButon}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.geriButon}
+          hitSlop={8}
+        >
           <Ionicons name="arrow-back" size={24} color={renkler.yaziKoyu} />
         </TouchableOpacity>
-        <Text style={styles.ustBaslik}>
-          {secimModu ? 'Teslimat Adresi' : 'Adreslerim'}
-        </Text>
+
+        <View style={styles.ustOrta}>
+          <Text style={styles.ustBaslik}>
+            {secimModu ? 'Teslimat Adresi' : 'Adreslerim'}
+          </Text>
+
+          {/* Adım göstergesi başlığın ALTINA, küçük punto ile taşındı.
+              Ayrı bir satırdayken içerikle başlık arasında sahipsiz
+              duruyordu; artık başlığın alt satırı. */}
+          {secimModu && <Text style={styles.adimYazi}>1 / 3 — Adres seç</Text>}
+        </View>
       </View>
 
-      {/* Adım göstergesi */}
-      {secimModu && <Text style={styles.adimYazi}>1 / 3 — Adres seç</Text>}
+      <KeyboardAvoidingView
+        style={styles.kapsayici}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* ⭐ DEĞİŞTİ (GV/Faz 6.8) — FlatList KALDIRILDI.
 
-      <ScrollView contentContainerStyle={styles.icerik}>
-        <FlatList
-          data={adresler}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={adresSatiri}
-          scrollEnabled={false}
-          ListEmptyComponent={
-            <Text style={styles.bosYazi}>Henüz adresin yok. Aşağıdan ekleyebilirsin.</Text>
-          }
-        />
+            Liste zaten scrollEnabled={false} ile bir ScrollView'un
+            içindeydi: sanallaştırma çalışmıyordu, üstelik React Native
+            bu iç içe geçmeyi konsolda uyarı olarak basıyor. Adres
+            sayısı bir avuç; düz map doğru araç. */}
+        <ScrollView
+          contentContainerStyle={styles.icerik}
+          keyboardShouldPersistTaps="handled"
+        >
+          {adresler.length === 0 && !formAcik && (
+            <Text style={styles.bosYazi}>
+              Henüz adresin yok. Aşağıdan ekleyebilirsin.
+            </Text>
+          )}
 
-        {/* Yeni adres ekleme */}
-        {formAcik ? (
-          <View style={styles.form}>
-            <Text style={styles.formBaslik}>Yeni Adres</Text>
+          {adresler.map(adresKarti)}
 
-            <TextInput
-              style={styles.input}
-              placeholder="Başlık (Ev, İş...)"
-              placeholderTextColor={renkler.yaziGri}
-              value={baslik}
-              onChangeText={setBaslik}
-            />
-            <TextInput
-              style={[styles.input, styles.inputCok]}
-              placeholder="Açık adres"
-              placeholderTextColor={renkler.yaziGri}
-              value={acikAdres}
-              onChangeText={setAcikAdres}
-              multiline
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Şehir"
-              placeholderTextColor={renkler.yaziGri}
-              value={sehir}
-              onChangeText={setSehir}
-            />
+          {formAcik ? (
+            <View style={styles.form}>
+              <Text style={styles.formBaslik}>Yeni Adres</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Telefon (örn: 0532 123 45 67)"
-              placeholderTextColor={renkler.yaziGri}
-              value={telefon}
-              onChangeText={setTelefon}
-              keyboardType="phone-pad"
-              maxLength={20}
-            />
+              <TextInput
+                style={styles.input}
+                placeholder="Başlık (Ev, İş...)"
+                placeholderTextColor={renkler.yaziGri}
+                value={baslik}
+                onChangeText={setBaslik}
+              />
+              <TextInput
+                style={[styles.input, styles.inputCok]}
+                placeholder="Açık adres"
+                placeholderTextColor={renkler.yaziGri}
+                value={acikAdres}
+                onChangeText={setAcikAdres}
+                multiline
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Şehir"
+                placeholderTextColor={renkler.yaziGri}
+                value={sehir}
+                onChangeText={setSehir}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Telefon (örn: 0532 123 45 67)"
+                placeholderTextColor={renkler.yaziGri}
+                value={telefon}
+                onChangeText={setTelefon}
+                keyboardType="phone-pad"
+                maxLength={20}
+              />
 
-            <View style={styles.formButonlar}>
-              <TouchableOpacity style={styles.iptalButon} onPress={() => setFormAcik(false)}>
-                <Text style={styles.iptalYazi}>Vazgeç</Text>
-              </TouchableOpacity>
+              <View style={styles.formButonlar}>
+                <TouchableOpacity
+                  style={styles.iptalButon}
+                  onPress={() => setFormAcik(false)}
+                >
+                  <Text style={styles.iptalYazi}>Vazgeç</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.kaydetButon} onPress={adresEkle} disabled={kaydediliyor}>
-                {kaydediliyor
-                  ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-                  : <Text style={styles.kaydetYazi}>Kaydet</Text>}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.kaydetButon}
+                  onPress={adresEkle}
+                  disabled={kaydediliyor}
+                >
+                  {kaydediliyor ? (
+                    <ActivityIndicator color={renkler.anaRenkUstuYazi} />
+                  ) : (
+                    <Text style={styles.kaydetYazi}>Kaydet</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.ekleButon} onPress={() => setFormAcik(true)}>
-            <Ionicons name="add" size={20} color={renkler.anaRenk} />
-            <Text style={styles.ekleYazi}>Yeni adres ekle</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+          ) : (
+            /* ⭐ DEĞİŞTİ (GV/Faz 6.8) — "Yeni adres ekle" SATIRI.
 
-      {secimModu && (
-        <View style={styles.altBar}>
-          <TouchableOpacity
-            style={[styles.devamButon, !seciliId && styles.devamButonPasif]}
-            onPress={devamEt}
-            disabled={!seciliId}
-          >
-            <Text style={styles.devamYazi}>Devam Et</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+               Tasarım burayı KESİKLİ çerçeveyle çiziyor. Biz düz
+               çerçeve + yumuşak zemin kullanıyoruz.
+
+               ⚠️ Sebep tasarım sistemi skill'inde yazılı:
+               `borderStyle: 'dashed'` Android'de yuvarlatılmış
+               köşelerle birlikte ÇİZİLMİYOR. Kesikli yazsaydık iOS'ta
+               kesikli, Android'de düz görünürdü — yani iki platformda
+               iki farklı tasarım. Ayrımı zemin ve artı ikonu
+               veriyor. */
+            <TouchableOpacity
+              style={styles.ekleSatir}
+              onPress={() => setFormAcik(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.ekleYazi}>Yeni adres ekle</Text>
+              <Ionicons name="add" size={22} color={renkler.anaRenk} />
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+
+        {secimModu && (
+          <View style={styles.altBar}>
+            <TouchableOpacity
+              style={[styles.devamButon, !seciliId && styles.devamButonPasif]}
+              onPress={devamEt}
+              disabled={!seciliId}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.devamYazi}>Devam Et</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </KeyboardAvoidingView>
+
+      <OnayPenceresi
+        acik={silinecek !== null}
+        ikon="trash-outline"
+        yikici
+        baslik="Adres silinsin mi?"
+        mesaj={silinecek ? `"${silinecek.title}" adresi kalıcı olarak silinecek.` : ''}
+        onayYazisi="Sil"
+        onVazgec={() => setSilinecek(null)}
+        onOnayla={() => {
+          const adres = silinecek;
+          setSilinecek(null);
+          if (adres) adresiSil(adres);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
-  adresTelefon: {
-    fontSize: 13,
-    color: renkler.yaziGri,
-    marginTop: 2
-  },
   kapsayici: {
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+
   ortala: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: renkler.arkaPlan,
   },
+
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
-  },
-  geriButon: {
-    marginRight: 12,
-  },
-  ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-  },
-  adimYazi: {
-    fontSize: 13,
-    color: renkler.yaziOrta,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  icerik: {
-    padding: 12,
-  },
-  satir: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: renkler.kartArka,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
   },
-  silButon: {
-    padding: 6,
+
+  geriButon: {
+    width: 32,
   },
-  satirSecili: {
-    borderColor: renkler.anaRenk,
-    borderWidth: 2,
-  },
-  satirIcerik: {
+
+  ustOrta: {
     flex: 1,
-    marginLeft: 12,
   },
-  adresBaslik: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: font.yari,
+
+  ustBaslik: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: 4,
   },
-  adresMetin: {
-    fontSize: 14,
-    color: renkler.yaziOrta,
-    marginBottom: 2,
-  },
-  adresSehir: {
-    fontSize: 13,
+
+  adimYazi: {
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
+    marginTop: 2,
   },
+
+  icerik: {
+    padding: sayfaKenari,
+    gap: bosluk.orta,
+  },
+
   bosYazi: {
-    fontSize: 15,
+    fontSize: yazi.normal,
     color: renkler.yaziGri,
     textAlign: 'center',
-    marginVertical: 20,
+    marginVertical: bosluk.genis,
   },
-  ekleButon: {
+
+
+  /* ---------- ADRES KARTI ---------- */
+
+  kart: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+  },
+
+  /* ⚠️ Kenarlık KALINLAŞMIYOR, sadece rengi ve zemin değişiyor.
+     Kalınlık değişseydi kart 1px büyür ve seçim her değiştiğinde
+     liste aşağı yukarı zıplardı. */
+  kartSecili: {
+    borderColor: renkler.anaRenk,
+    backgroundColor: renkler.yumusakVurgu,
+  },
+
+  kartUst: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: renkler.anaRenk,
+    justifyContent: 'space-between',
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
   },
-  ekleYazi: {
-    fontSize: 15,
-    color: renkler.anaRenk,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    marginLeft: 6,
-  },
-  form: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 14,
-  },
-  formBaslik: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: font.yari,
+
+  adresBaslik: {
+    flex: 1,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: 12,
   },
+
+  adresMetin: {
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.yaziOrta,
+  },
+
+  adresSehir: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: 2,
+  },
+
+  adresTelefon: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: bosluk.kucuk,
+  },
+
+
+  /* ---------- YENİ ADRES SATIRI ---------- */
+
+  ekleSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: renkler.acikKart,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+  },
+
+  ekleYazi: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenk,
+  },
+
+
+  /* ---------- FORM ---------- */
+
+  form: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+  },
+
+  formBaslik: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+    marginBottom: bosluk.orta,
+  },
+
   input: {
     borderWidth: 1,
     borderColor: renkler.inputKenar,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    fontSize: 15,
+    borderRadius: kose.orta,
+    padding: bosluk.orta,
+    marginBottom: bosluk.kucuk,
+    fontSize: yazi.orta,
     color: renkler.yaziKoyu,
-    backgroundColor: renkler.kartArka,
+    backgroundColor: renkler.arkaPlan,
   },
+
   inputCok: {
     height: 80,
     textAlignVertical: 'top',
   },
+
   formButonlar: {
     flexDirection: 'row',
-    marginTop: 4,
+    gap: bosluk.kucuk,
+    marginTop: bosluk.mikro,
   },
+
   iptalButon: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: bosluk.orta,
+    borderRadius: kose.orta,
     borderWidth: 1,
     borderColor: renkler.inputKenar,
     alignItems: 'center',
-    marginRight: 10,
   },
+
   iptalYazi: {
     color: renkler.yaziOrta,
-    fontSize: 15,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
   },
+
   kaydetButon: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: bosluk.orta,
+    borderRadius: kose.orta,
     backgroundColor: renkler.anaRenk,
     alignItems: 'center',
   },
+
   kaydetYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
+
+
+  /* ---------- ALT ÇUBUK ---------- */
+
   altBar: {
-    padding: 16,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderTopWidth: 1,
     borderTopColor: renkler.kenarlik,
     backgroundColor: renkler.kartArka,
   },
+
   devamButon: {
     backgroundColor: renkler.anaRenk,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
   },
+
   devamButonPasif: {
     backgroundColor: renkler.pasif,
   },
+
   devamYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 });

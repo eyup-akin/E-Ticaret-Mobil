@@ -4,16 +4,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
-// ⭐ YENİ (5.4) — tasarım sistemi ölçüleri.
-//
-// ⚠️ Bu dosyanın ESKİ stilleri hâlâ ham sayı kullanıyor (fontSize: 15,
-// borderRadius: 14 ...). Onları bu turda topluca token'a çevirmedik —
-// fiyat uyarısıyla ilgisi olmayan 20 satırı değiştirmek, değişikliği
-// gözden geçirilemez hale getirirdi. Yeni eklenen stiller token
-// kullanıyor; dosyanın tamamı Aşama 4.7'de elden geçecek.
-import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
-// Sepetteki TEK bir satırın görünümü. Veri işi yok, sadece çizim + tıklama.
+/* Sepetteki TEK bir satırın görünümü. Veri işi yok, sadece çizim + tıklama.
+ *
+ * ⭐ DEĞİŞTİ (GV/Faz 6.3) — SATIR ARTIK KENDİ KARTI DEĞİL.
+ *
+ * Eskiden her satır ayrı bir kart (zemin + kenarlık + köşe + alt
+ * boşluk) çiziyordu. Tasarımda satırlar TEK bir kartın içinde,
+ * aralarında ince ayraçlarla duruyor. Kartı ve ayracı çizme işi
+ * artık listeye ait: gruplama listenin sorunu, satırın değil.
+ * Satır kendi kabını çizseydi liste "kartın içindeki kart"
+ * görünümünü düzeltmek için satırın stiline karışmak zorunda kalırdı.
+ *
+ * Yerleşim de tasarıma çevrildi:
+ *   [72dp görsel] [ad ................................ (sil)]
+ *                 [fiyat ....................... − n +]
+ */
 export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
@@ -61,151 +68,193 @@ export default function SepetSatiri({ item, onAdetDegistir, onSil, onBas }) {
       disabled={pasif}
       onPress={() => onBas && onBas(item)}
     >
-      {resim ? (
-        <Image
-          source={{ uri: resim }}
-          style={[styles.resim, pasif && styles.soluk]}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[styles.harfKutu, pasif && styles.soluk]}>
-          <Text style={styles.harfYazi}>{item.productName.charAt(0)}</Text>
-        </View>
-      )}
-
-      <View style={styles.orta}>
-        <Text
-          style={[styles.urunAd, pasif && styles.yaziPasif]}
-          numberOfLines={2}
-        >
-          {item.productName}
-        </Text>
-
-        {/* ⭐ DEĞİŞTİ (5.4) — fiyat değiştiyse ESKİ fiyat da gösteriliyor.
-
-            Üstü çizili eski fiyat + güncel fiyat yan yana. Sadece
-            "fiyat değişti" yazmak müşteriye ne kadar değiştiğini
-            söylemezdi; iki sayıyı yan yana koymak farkı tek bakışta
-            anlatıyor.
-
-            ⚠️ Güncel fiyat SAĞDA ve normal renkte — ödenecek olan o.
-            Eski fiyat soluk ve üstü çizili: bilgi veriyor ama
-            "geçersiz" olduğunu da söylüyor. */}
-        <View style={[styles.fiyatSatir, !fiyatDegisti && styles.fiyatSatirTekBasina]}>
-          {fiyatDegisti && (
-            <Text style={styles.eskiFiyat}>
-              {paraBicimle(item.eklenmeFiyati)}
-            </Text>
-          )}
-
-          <Text style={[styles.birimFiyat, pasif && styles.soluk]}>
-            {paraBicimle(item.productPrice)}
-          </Text>
-        </View>
-
-        {/* ⭐ YENİ (5.4) — fiyat değişikliği rozeti.
-
-            ⚠️ DÜŞÜŞ DE GÖSTERİLİYOR, SADECE ARTIŞ DEĞİL.
-            Yalnızca artışı gösterseydik uyarı bir "kötü haber
-            bildirimi" olurdu; müşteri fiyat düştüğünde bunu hiç
-            öğrenmezdi. Aynı mekanizma iyi haberi de taşıyor —
-            ve rozetin rengi hangisi olduğunu söylüyor. */}
-        {fiyatDegisti && (
-          <View
-            style={[
-              styles.fiyatRozet,
-              { borderColor: fiyatArtti ? renkler.uyari : renkler.basari },
-            ]}
-          >
-            <Ionicons
-              name={fiyatArtti ? 'arrow-up' : 'arrow-down'}
-              size={12}
-              color={fiyatArtti ? renkler.uyari : renkler.basari}
-            />
-            <Text
-              style={[
-                styles.fiyatRozetYazi,
-                { color: fiyatArtti ? renkler.uyari : renkler.basari },
-              ]}
-            >
-              {fiyatArtti ? 'Fiyat arttı' : 'Fiyat düştü'}
-            </Text>
-          </View>
-        )}
-
-        {/* ⭐ YENİ — pasifse adet kontrolü yerine uyarı rozeti.
-            
-            Neden adet butonlarını gizliyoruz da sadece kilitlemiyoruz?
-            Satın alınamayan bir ürünün adedini değiştirmenin hiçbir
-            anlamı yok. Soluk ama duran butonlar "belki basarsam olur"
-            hissi verir. Yerine yapılması GEREKEN şeyi söyleyen bir
-            uyarı koyuyoruz — boşluk doldurmuyor, yön gösteriyor. */}
-        {pasif ? (
-          <View style={styles.pasifRozet}>
-            <Ionicons name="close-circle" size={14} color={renkler.hata} />
-            <Text style={styles.pasifRozetYazi}>Satıştan kaldırıldı</Text>
-          </View>
+      <View style={styles.ustSatir}>
+        {resim ? (
+          <Image
+            source={{ uri: resim }}
+            style={[styles.resim, pasif && styles.soluk]}
+            resizeMode="cover"
+          />
         ) : (
-          <View style={styles.adetKutu}>
-            <TouchableOpacity
-              style={styles.adetButon}
-              onPress={() => onAdetDegistir(item, item.quantity - 1)}
-            >
-              <Ionicons name="remove" size={18} color={renkler.yaziKoyu} />
-            </TouchableOpacity>
-
-            <Text style={styles.adetYazi}>{item.quantity}</Text>
-
-            <TouchableOpacity
-              style={styles.adetButon}
-              onPress={() => onAdetDegistir(item, item.quantity + 1)}
-            >
-              <Ionicons name="add" size={18} color={renkler.yaziKoyu} />
-            </TouchableOpacity>
+          <View style={[styles.harfKutu, pasif && styles.soluk]}>
+            <Text style={styles.harfYazi}>{item.productName.charAt(0)}</Text>
           </View>
         )}
+
+        <View style={styles.orta}>
+          {/* ⭐ DEĞİŞTİ (GV/Faz 6.3) — SİL BUTONU ADIN YANINA, SAĞ ÜSTE.
+              Eskiden satırın en sağında, dikeyde ortadaydı ve adet
+              kontrolüyle aynı hizaya düşüyordu; iki farklı ağırlıktaki
+              eylem (adedi değiştir / tamamen çıkar) yan yana duruyordu.
+              Tasarım silmeyi yukarı, adı kesen köşeye alıyor. */}
+          <View style={styles.adSatir}>
+            <Text
+              style={[styles.urunAd, pasif && styles.yaziPasif]}
+              numberOfLines={2}
+            >
+              {item.productName}
+            </Text>
+
+            {/* Çöp kutusu — pasif satırda BİLEREK açık bırakıldı.
+                Müşterinin yapması gereken tek eylem bu; kapatmak onu
+                çıkmaza sokardı.
+
+                ⚠️ Renk artık token: burada elle yazılmış '#e74c3c'
+                duruyordu. Koyu temada değişmiyordu ve tasarım
+                sisteminin sabit renk yasağını çiğniyordu. */}
+            <TouchableOpacity
+              style={styles.silButon}
+              onPress={() => onSil(item)}
+              hitSlop={8}
+              accessibilityLabel="Sepetten çıkar"
+            >
+              <Ionicons name="trash-outline" size={18} color={renkler.hata} />
+            </TouchableOpacity>
+          </View>
+
+          {/* ⭐ DEĞİŞTİ (GV/Faz 6.3) — FİYAT VE ADET AYNI SATIRDA.
+              Tasarımın yerleşimi: solda fiyat, sağda sayaç. Eskiden
+              alt alta iki blok halindeydiler ve satır gereksiz
+              uzuyordu.
+
+              ⚠️ Eski fiyat, fiyat değiştiyse güncelin SOLUNDA ve üstü
+              çizili. Sadece "fiyat değişti" demek ne kadar değiştiğini
+              söylemezdi; iki sayı yan yana farkı tek bakışta anlatıyor. */}
+          <View style={styles.altSatir}>
+            <View style={styles.fiyatSatir}>
+              {fiyatDegisti && (
+                <Text style={styles.eskiFiyat}>
+                  {paraBicimle(item.eklenmeFiyati)}
+                </Text>
+              )}
+
+              <Text style={[styles.birimFiyat, pasif && styles.soluk]}>
+                {paraBicimle(item.productPrice)}
+              </Text>
+            </View>
+
+            {/* ⭐ YENİ — pasifse adet kontrolü yerine uyarı rozeti.
+
+                Neden adet butonlarını gizliyoruz da sadece kilitlemiyoruz?
+                Satın alınamayan bir ürünün adedini değiştirmenin hiçbir
+                anlamı yok. Soluk ama duran butonlar "belki basarsam olur"
+                hissi verir. Yerine yapılması GEREKEN şeyi söyleyen bir
+                uyarı koyuyoruz — boşluk doldurmuyor, yön gösteriyor. */}
+            {pasif ? (
+              <View style={styles.pasifRozet}>
+                <Ionicons name="close-circle" size={14} color={renkler.hata} />
+                <Text style={styles.pasifRozetYazi}>Satıştan kaldırıldı</Text>
+              </View>
+            ) : (
+              /* ⭐ DEĞİŞTİ (GV/Faz 6.3) — SAYAÇ TEK ÇERÇEVE İÇİNDE.
+                 Eskiden iki ayrı kutulu buton ve aralarında boşlukta
+                 duran bir sayı vardı. Tasarımda üçü tek bir çerçevenin
+                 içinde, aralarında dikey ayraçlarla — üçünün tek bir
+                 kontrol olduğu böyle okunuyor. */
+              <View style={styles.adetKutu}>
+                <TouchableOpacity
+                  style={styles.adetButon}
+                  onPress={() => onAdetDegistir(item, item.quantity - 1)}
+                  accessibilityLabel="Adedi azalt"
+                >
+                  <Ionicons name="remove" size={16} color={renkler.yaziKoyu} />
+                </TouchableOpacity>
+
+                <Text style={styles.adetYazi}>{item.quantity}</Text>
+
+                <TouchableOpacity
+                  style={styles.adetButon}
+                  onPress={() => onAdetDegistir(item, item.quantity + 1)}
+                  accessibilityLabel="Adedi artır"
+                >
+                  <Ionicons name="add" size={16} color={renkler.yaziKoyu} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
       </View>
 
-      {/* Çöp kutusu — pasif satırda BİLEREK açık bırakıldı.
-          Müşterinin yapması gereken tek eylem bu; kapatmak onu
-          çıkmaza sokardı. */}
-      <TouchableOpacity
-        style={styles.silButon}
-        onPress={() => onSil(item)}
-      >
-        <Ionicons name="trash-outline" size={22} color="#e74c3c" />
-      </TouchableOpacity>
+      {/* ⭐ DEĞİŞTİ (GV/Faz 6.3) — FİYAT DEĞİŞİKLİĞİ ARTIK YUMUŞAK
+          ZEMİNLİ BİR NOT, çerçeveli küçük bir rozet değil.
 
+          Tasarımda satırın altına tam genişlikte bir bilgi kutusu
+          konuyor. Rozet, ad ve fiyatla aynı sütunda sıkışıyordu ve
+          üç satırlık ürün adlarında kaybolabiliyordu.
+
+          ⚠️ DÜŞÜŞ DE GÖSTERİLİYOR, SADECE ARTIŞ DEĞİL. Yalnızca
+          artışı gösterseydik bu bir "kötü haber bildirimi" olurdu;
+          müşteri fiyat düştüğünde bunu hiç öğrenmezdi. Renk hangisi
+          olduğunu söylüyor: artış uyarı sarısı, düşüş başarı yeşili.
+
+          ⚠️ Tasarım burada tek bir sarı kutu çiziyor çünkü yalnızca
+          artışı düşünmüş. Yeşili biz ekledik; aynı mekanizmanın iyi
+          haberi de taşıması gerekiyor. */}
+      {fiyatDegisti && (
+        <View
+          style={[
+            styles.fiyatNot,
+            {
+              backgroundColor: fiyatArtti
+                ? renkler.yumusakUyari
+                : renkler.yumusakBasari,
+            },
+          ]}
+        >
+          <Ionicons
+            name={fiyatArtti ? 'trending-up' : 'trending-down'}
+            size={14}
+            color={fiyatArtti ? renkler.uyari : renkler.basari}
+          />
+          <Text
+            style={[
+              styles.fiyatNotYazi,
+              { color: fiyatArtti ? renkler.uyari : renkler.basari },
+            ]}
+          >
+            {fiyatArtti
+              ? 'Sepete eklediğinden beri fiyatı arttı'
+              : 'Sepete eklediğinden beri fiyatı düştü'}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.3) — kart kabuğu (zemin, kenarlık, köşe,
+     alt boşluk) SİLİNDİ. Artık liste tarafında; bkz. dosya başı. */
   satir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: renkler.kartArka,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik
+    paddingVertical: bosluk.orta,
+    paddingHorizontal: bosluk.normal,
   },
 
-  /* ⭐ YENİ — pasif satırın kenarlığı kırmızıya döner.
-     
-     Neden tüm satıra opacity vermiyoruz?
-     Uyarı rozetinin ve çöp kutusunun TAM görünür kalması lazım —
-     müşterinin görmesi ve basması gereken şeyler onlar. Soluklaştırmayı
-     sadece "artık önemsiz" olan parçalara (resim, fiyat) uyguluyoruz. */
+  /* ⭐ DEĞİŞTİ — pasif satırın işareti artık SOL KENAR ÇİZGİSİ.
+
+     Tam çerçeve, kartın içindeki bir satıra kutu içinde kutu
+     görünümü veriyordu. Sol kenar çizgisi sepet ekranındaki uyarı
+     kutularının diliyle aynı: kırmızı şerit "burada bir engel var"
+     demek.
+
+     ⚠️ Tüm satıra opacity verilmiyor: uyarı rozetinin ve çöp
+     kutusunun TAM görünür kalması lazım — müşterinin görmesi ve
+     basması gereken şeyler onlar. Soluklaştırma sadece "artık
+     önemsiz" olan parçalara (resim, fiyat) uygulanıyor. */
   satirPasif: {
-    borderColor: renkler.hata,
-    backgroundColor: renkler.acikKart
+    backgroundColor: renkler.acikKart,
+    borderLeftWidth: 3,
+    borderLeftColor: renkler.hata,
+  },
+
+  ustSatir: {
+    flexDirection: 'row',
+    gap: bosluk.orta,
   },
 
   /* Tek bir öğeyi soluklaştırmak için ortak yardımcı stil */
   soluk: {
-    opacity: 0.45
+    opacity: 0.45,
   },
 
   /* Ürün adı: soluk + üstü çizili.
@@ -214,66 +263,92 @@ const stilOlustur = (renkler) => StyleSheet.create({
      çizgiyi yine de görür. */
   yaziPasif: {
     opacity: 0.45,
-    textDecorationLine: 'line-through'
+    textDecorationLine: 'line-through',
   },
 
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.3) — 84 → 72dp, tasarımın ölçüsü.
+     Satır artık kendi kartı olmadığı için görsel de küçüldü;
+     84'lük kare, ayraçla bölünmüş bir listede fazla baskındı. */
   resim: {
-    width: 84,
-    height: 84,
-    borderRadius: 12,
-    marginRight: 12,
-    backgroundColor: renkler.acikGri
+    width: 72,
+    height: 72,
+    borderRadius: kose.orta,
+    backgroundColor: renkler.acikGri,
   },
+
   // ⭐ DEĞİŞTİ (GV/Faz 1) — ana renk zemin olmaktan çıkarıldı.
   // Gerekçe UrunKarti.resimYok'ta yazılı.
   harfKutu: {
-    width: 84,
-    height: 84,
-    borderRadius: 12,
+    width: 72,
+    height: 72,
+    borderRadius: kose.orta,
     backgroundColor: renkler.acikKart,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
   },
+
   harfYazi: {
     color: renkler.yaziGri,
-    fontSize: 30,
-    fontWeight: 'bold',
+    fontSize: yazi.baslik,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
+
+  /* ⚠️ minWidth: 0 — flex çocuğu olmadan içeriğinden küçülmüyor ve
+     numberOfLines devreye girmiyor; uzun bir ürün adı sil butonunu
+     ekranın dışına iterdi. Aynı tuzağa yorum kartında düşülmüştü. */
   orta: {
-    flex: 1
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'space-between',
   },
+
+  adSatir: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: bosluk.kucuk,
+  },
+
   urunAd: {
-    fontSize: 15,
-    fontWeight: '600',
+    flex: 1,
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
-    marginBottom: 4
-  },
-  birimFiyat: {
-    fontSize: 13,
-    color: renkler.yaziGri
   },
 
-  /* ⭐ YENİ (5.4) — eski fiyat + güncel fiyat aynı satırda.
+  silButon: {
+    padding: bosluk.mikro,
+  },
 
-     ⚠️ Alt boşluk buradan KALKTI (eskiden birimFiyat'taydı) çünkü
-     artık iki farklı durum var: rozet varsa boşluğu rozet veriyor,
-     yoksa fiyatSatirTekBasina veriyor. Boşluğu fiyat metninin
-     üstünde bırakırsak rozetli durumda 10 + 8 = 18px'lik bir
-     kopukluk oluşurdu. */
-  fiyatSatir: {
+  /* Fiyat ile sayaç arasındaki mesafe: ürün adı iki satır olsa da
+     olmasa da bu satır satırın dibinde kalıyor (orta:
+     space-between). Sabit bir marginTop verseydik tek satırlık
+     adlarda sayaç yukarı kayardı. */
+  altSatir: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: bosluk.kucuk,
-    marginBottom: bosluk.mikro
+    marginTop: bosluk.kucuk,
   },
 
-  /* Rozet çizilmediğinde satırın eski alt boşluğu korunuyor —
-     fiyat değişmeyen satırların yerleşimi hiç değişmesin diye. */
-  fiyatSatirTekBasina: {
-    marginBottom: 10
+  fiyatSatir: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: bosluk.kucuk,
+    flexShrink: 1,
+  },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.3) — 13 → yazi.orta (15) ve kalın.
+     Tasarımda satırın fiyatı ürün adından BÜYÜK; sepette müşterinin
+     aradığı sayı o. Eskiden adın altında soluk gri bir yan bilgiydi. */
+  birimFiyat: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
   },
 
   /* Eski fiyat: soluk + üstü çizili.
@@ -282,90 +357,76 @@ const stilOlustur = (renkler) => StyleSheet.create({
   eskiFiyat: {
     fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    opacity: 0.7,
-    textDecorationLine: 'line-through'
+    textDecorationLine: 'line-through',
   },
 
-  /* ⭐ YENİ (5.4) — fiyat değişikliği rozeti.
-
-     Kenarlık rengi çağrı yerinden geliyor (artış turuncu, düşüş
-     yeşil); burada yalnızca renkten BAĞIMSIZ olan ölçüler duruyor.
-     Rengi buraya sabitleseydik iki ayrı stil objesi gerekirdi. */
-  fiyatRozet: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: bosluk.mikro,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: kose.kucuk,
-    paddingVertical: 3,
-    paddingHorizontal: bosluk.kucuk,
-    marginBottom: 10
-  },
-  fiyatRozetYazi: {
-    fontSize: yazi.mikro,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-  },
-
-  /* ⭐ YENİ — "Satıştan kaldırıldı" rozeti.
-     
-     Adet kontrolünün kapladığı dikey alanla benzer yükseklikte
-     tutuyoruz ki satır yükseklikleri listede zıplamasın. */
+  /* ⭐ YENİ — "Satıştan kaldırıldı" rozeti. */
   pasifRozet: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: renkler.arkaPlan,
-    borderWidth: 1,
-    borderColor: renkler.hata,
-    borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 9
-  },
-  pasifRozetYazi: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.hata
+    gap: bosluk.mikro,
+    backgroundColor: renkler.yumusakHata,
+    borderRadius: kose.kucuk,
+    paddingVertical: bosluk.mikro,
+    paddingHorizontal: bosluk.kucuk,
   },
 
+  pasifRozetYazi: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.hata,
+  },
+
+  /* ⚠️ overflow: 'hidden' — içteki butonların basılı zemini
+     çerçevenin yuvarlak köşelerinden taşmasın. */
   adetKutu: {
     flexDirection: 'row',
-    alignItems: 'center'
-  },
-  adetButon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: renkler.inputKenar,
-    justifyContent: 'center',
-    alignItems: 'center'
+    borderRadius: kose.kucuk,
+    overflow: 'hidden',
   },
+
+  adetButon: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  /* ⚠️ Sayının yanları dikey ayraçlı ve sabit genişlikte: adet
+     1'den 10'a çıkınca kutu genişleyip satırı zıplatmasın. */
   adetYazi: {
-    fontSize: 16,
-    fontWeight: '600',
+    minWidth: 32,
+    textAlign: 'center',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
-    marginHorizontal: 14,
-    minWidth: 20,
-    textAlign: 'center'
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: renkler.inputKenar,
+    paddingVertical: bosluk.kucuk,
   },
-  sag: {
-    alignSelf: 'stretch',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginLeft: 8
+
+  /* ⭐ YENİ (GV/Faz 6.3) — fiyat değişikliği notu. */
+  fiyatNot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    borderRadius: kose.kucuk,
+    paddingVertical: bosluk.kucuk,
+    paddingHorizontal: bosluk.orta,
+    marginTop: bosluk.orta,
   },
-  silButon: {
-    padding: 4
+
+  fiyatNotYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
   },
-  satirToplam: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-    color: renkler.anaRenk
-  }
 });

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPost } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
 import { paraBicimle } from '../utils/bicimlendir';
-// ⭐ YENİ (5.4) — tasarım sistemi ölçüleri. Bu dosyanın eski stilleri
-// ham sayı kullanıyor; yalnızca yeni eklenenler token'a bağlandı.
-import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
+import { resimUrl } from '../utils/resim';
+// ⭐ DEĞİŞTİ (GV/Faz 6.11) — dosyadaki elle yazılı ölçüler token'a
+// bağlandı. Ekranı zaten baştan giydiriyorduk; yarısı token yarısı
+// sabit sayı bir StyleSheet bırakmak sonraki okuyucuya "burada iki
+// kural var" demek olurdu.
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 
 
 // ⭐ YENİ — ÇİFT SİPARİŞ KORUMASI ANAHTARI ÜRETİCİSİ
@@ -306,14 +309,24 @@ export default function SiparisOnayEkrani({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ⭐ DEĞİŞTİ (GV/Faz 6.11) — adım göstergesi başlığın ALT
+          SATIRINA taşındı. Ayrı bir satırdayken başlıkla içerik
+          arasında sahipsiz duruyordu. Adres ve kart ekranlarındaki
+          üst barla da artık birebir aynı. */}
       <View style={styles.ustBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.geriButon}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.geriButon}
+          hitSlop={8}
+        >
           <Ionicons name="arrow-back" size={24} color={renkler.yaziKoyu} />
         </TouchableOpacity>
-        <Text style={styles.ustBaslik}>Sipariş Özeti</Text>
-      </View>
 
-      <Text style={styles.adimYazi}>3 / 3 — Onayla</Text>
+        <View style={styles.ustOrta}>
+          <Text style={styles.ustBaslik}>Sipariş Özeti</Text>
+          <Text style={styles.adimYazi}>3 / 3 — Onayla</Text>
+        </View>
+      </View>
 
       {/* ⭐ automaticallyAdjustKeyboardInsets: iOS'ta klavye açılınca
           ScrollView'un alt boşluğunu otomatik büyütür, böylece not
@@ -334,41 +347,115 @@ export default function SiparisOnayEkrani({ route, navigation }) {
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
       >
-        {/* Teslimat adresi */}
-        <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Teslimat Adresi</Text>
-          <View style={styles.kutu}>
-            <Text style={styles.kutuBaslik}>{adres?.title}</Text>
-            <Text style={styles.kutuMetin}>{adres?.fullAddress}</Text>
-            <Text style={styles.kutuAlt}>{adres?.city}</Text>
+        {/* ⭐ DEĞİŞTİ (GV/Faz 6.11) — KART KART ÖZET + "DEĞİŞTİR"
+            BAĞLANTILARI.
+
+            Tasarımın deseni: her kartın üstünde küçük harfli bir
+            bölüm etiketi, sağında "Değiştir".
+
+            ⚠️ "Değiştir" navigation.navigate ile gidiyor, push ile
+            değil. Stack'te AdresSec zaten var (akış oradan başladı);
+            navigate onu bulup geri sarıyor. push deseydik aynı
+            ekranın ikinci kopyası açılır ve geri tuşu müşteriyi
+            adres seçimine iki kez uğratırdı.
+
+            ⚠️ Adrese giderken siparisAkisi: true tekrar veriliyor.
+            Parametresiz gidersek ekran YÖNETİM moduna düşer, seçim
+            radyoları ve "Devam Et" kaybolurdu — müşteri akışın
+            ortasında çıkmaza girerdi. */}
+        <View style={styles.kart}>
+          <View style={styles.kartUst}>
+            <Text style={styles.kartEtiket}>TESLİMAT ADRESİ</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AdresSec', { siparisAkisi: true })}
+              hitSlop={8}
+            >
+              <Text style={styles.degistirYazi}>Değiştir</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.kartGovde}>
+            <View style={styles.kartIkon}>
+              <Ionicons name="location-outline" size={20} color={renkler.yaziOrta} />
+            </View>
+
+            <View style={styles.kartOrta}>
+              <Text style={styles.kartBaslik}>{adres?.title}</Text>
+              <Text style={styles.kartMetin}>{adres?.fullAddress}</Text>
+              <Text style={styles.kartAlt}>
+                {adres?.city}
+                {adres?.phone ? ` · ${adres.phone}` : ''}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Ödeme */}
-        <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Ödeme</Text>
-          <View style={styles.kutu}>
-            <Text style={styles.kutuBaslik}>**** **** **** {kart?.last4Digits}</Text>
-            <Text style={styles.kutuMetin}>{kart?.cardHolderName}</Text>
-            <Text style={styles.kutuAlt}>{kart?.cardType}</Text>
+        <View style={styles.kart}>
+          <View style={styles.kartUst}>
+            <Text style={styles.kartEtiket}>ÖDEME YÖNTEMİ</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('KartSec', { adresId })}
+              hitSlop={8}
+            >
+              <Text style={styles.degistirYazi}>Değiştir</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.kartGovde}>
+            <View style={styles.kartIkon}>
+              <Ionicons name="card-outline" size={20} color={renkler.yaziOrta} />
+            </View>
+
+            <View style={styles.kartOrta}>
+              <Text style={styles.kartBaslik}>•••• {kart?.last4Digits}</Text>
+              <Text style={styles.kartMetin}>{kart?.cardHolderName}</Text>
+              <Text style={styles.kartAlt}>{kart?.cardType}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Ürünler */}
-        <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Ürünler ({sepet.length})</Text>
-          <View style={styles.kutu}>
-            {sepet.map((s) => (
-              <View key={s.id} style={styles.urunSatir}>
-                <Text style={styles.urunAd} numberOfLines={1}>
-                  {s.productName} × {s.quantity}
-                </Text>
+        {/* ⭐ DEĞİŞTİ (GV/Faz 6.11) — ÜRÜNLERE GÖRSEL GELDİ.
+
+            Eskiden "ad × adet ......... tutar" biçiminde düz metin
+            satırlarıydı. Onay ekranı müşterinin "doğru şeyleri mi
+            alıyorum" sorusunu cevapladığı yer; küçük bir görsel bu
+            soruyu metinden hızlı cevaplıyor.
+
+            ⚠️ Burada "Değiştir" YOK. Ürünü değiştirmek sepete dönmek
+            demek ve sepete dönünce bu akış baştan başlıyor; adres
+            veya kart gibi yerinde düzeltilebilen bir şey değil. */}
+        <View style={styles.kart}>
+          <Text style={[styles.kartEtiket, styles.urunEtiket]}>
+            ÜRÜNLER ({sepet.length})
+          </Text>
+
+          {sepet.map((s, i) => {
+            const resim = resimUrl(s.productImageUrl);
+
+            return (
+              <View
+                key={s.id}
+                style={[styles.urunSatir, i < sepet.length - 1 && styles.urunAyrac]}
+              >
+                {resim ? (
+                  <Image source={{ uri: resim }} style={styles.urunResim} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.urunResim, styles.urunResimYok]}>
+                    <Text style={styles.urunHarf}>{s.productName.charAt(0)}</Text>
+                  </View>
+                )}
+
+                <View style={styles.urunOrta}>
+                  <Text style={styles.urunAd} numberOfLines={2}>{s.productName}</Text>
+                  <Text style={styles.urunAdet}>{s.quantity} adet</Text>
+                </View>
+
                 <Text style={styles.urunFiyat}>
                   {paraBicimle(s.productPrice * s.quantity)}
                 </Text>
               </View>
-            ))}
-          </View>
+            );
+          })}
         </View>
 
         {/* ⭐ YENİ — KUPON BÖLÜMÜ
@@ -376,18 +463,15 @@ export default function SiparisOnayEkrani({ route, navigation }) {
             kupon nesnesinin varlığı zaten bilginin kendisi,
             ayrı bir "kuponVarMi" state'ine gerek yok. */}
         {kupon !== null && (
-          <View style={styles.bolum}>
-            <Text style={styles.bolumBaslik}>Kupon</Text>
-            <View style={[styles.kutu, styles.kuponKutu]}>
-              <Ionicons name="pricetag" size={20} color={renkler.basari} />
-              <View style={styles.kuponOrta}>
-                <Text style={styles.kuponKod}>{kupon.kod}</Text>
-                <Text style={styles.kuponAciklama} numberOfLines={1}>
-                  {kupon.aciklama}
-                </Text>
-              </View>
-              <Text style={styles.kuponIndirim}>−{paraBicimle(indirimTutari)}</Text>
+          <View style={[styles.kart, styles.kuponKart]}>
+            <Ionicons name="pricetag" size={20} color={renkler.basari} />
+            <View style={styles.kuponOrta}>
+              <Text style={styles.kuponKod}>{kupon.kod}</Text>
+              <Text style={styles.kuponAciklama} numberOfLines={1}>
+                {kupon.aciklama}
+              </Text>
             </View>
+            <Text style={styles.kuponIndirim}>−{paraBicimle(indirimTutari)}</Text>
           </View>
         )}
 
@@ -398,10 +482,12 @@ export default function SiparisOnayEkrani({ route, navigation }) {
             kullanıcıların (çoğunluk) her seferinde üstünden atlaması
             gerekirdi. Zorunlu bilgiler üstte, isteğe bağlılar altta —
             akış hızı çoğunluğa göre ayarlanır. */}
-        <View style={styles.bolum}>
-          <Text style={styles.bolumBaslik}>Sipariş Notu (isteğe bağlı)</Text>
+        <View style={styles.kart}>
+          <Text style={[styles.kartEtiket, styles.urunEtiket]}>
+            SİPARİŞ NOTU (İSTEĞE BAĞLI)
+          </Text>
 
-          <View style={styles.kutu}>
+          <View style={styles.notKutu}>
             <TextInput
               style={styles.notGirdi}
               value={not}
@@ -580,114 +666,231 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    gap: bosluk.orta,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
+    backgroundColor: renkler.kartArka,
   },
   geriButon: {
-    marginRight: 12,
+    width: 32,
+  },
+  ustOrta: {
+    flex: 1,
   },
   ustBaslik: {
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: font.yari,
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
     color: renkler.yaziKoyu,
   },
   adimYazi: {
-    fontSize: 13,
-    color: renkler.yaziOrta,
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: 2,
   },
   icerik: {
-    padding: 16,
-  },
-  bolum: {
-    marginBottom: 20,
-  },
-  bolumBaslik: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-    marginBottom: 8,
-  },
-  kutu: {
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 14,
-  },
-  kutuBaslik: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-    marginBottom: 4,
-  },
-  kutuMetin: {
-    fontSize: 14,
-    color: renkler.yaziOrta,
-    marginBottom: 2,
-  },
-  kutuAlt: {
-    fontSize: 13,
-    color: renkler.yaziGri,
-  },
-  urunSatir: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  urunAd: {
-    flex: 1,
-    fontSize: 14,
-    color: renkler.yaziKoyu,
-    marginRight: 10,
-  },
-  urunFiyat: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
+    padding: sayfaKenari,
+    gap: bosluk.orta,
   },
 
 
-  /* ---------- KUPON KUTUSU ---------- */
+  /* ---------- ORTAK KART ---------- */
 
-  kuponKutu: {
+  /* Adres, ödeme, ürünler, kupon ve not aynı kabı paylaşıyor.
+     Beş ayrı görünüm olsaydı ekran parçalanırdı; onay ekranının işi
+     "her şey doğru mu" sorusunu tek bakışta taratmak. */
+  kart: {
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
+  },
+
+  kartUst: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
+    justifyContent: 'space-between',
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.orta,
+  },
+
+  /* ⚠️ Bölüm etiketi KÜÇÜK ve BÜYÜK HARF, başlık gibi değil.
+     Kartın içindeki asıl bilgi adres/kart; etiket yalnızca "bu kart
+     neyin kartı" diyor. Aynı puntoda olsalardı ikisi eşit ağırlıkta
+     okunurdu. */
+  kartEtiket: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziGri,
+    letterSpacing: 0.5,
+  },
+
+  urunEtiket: {
+    marginBottom: bosluk.orta,
+  },
+
+  /* ⚠️ Altı çizili DEĞİL, sadece ana renk. Tasarım altını çiziyor
+     ama bu uygulamada "turuncu = tıklanabilir" kuralı zaten var ve
+     altı çizili metin mobilde bağlantıdan çok düzeltme işareti gibi
+     duruyor. */
+  degistirYazi: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenk,
+  },
+
+  kartGovde: {
+    flexDirection: 'row',
+    gap: bosluk.orta,
+  },
+
+  kartIkon: {
+    width: 40,
+    height: 40,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.acikKart,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  kartOrta: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  kartBaslik: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  kartMetin: {
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.yaziOrta,
+    marginTop: 2,
+  },
+
+  kartAlt: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: 2,
+  },
+
+
+  /* ---------- ÜRÜN SATIRLARI ---------- */
+
+  urunSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.orta,
+    paddingVertical: bosluk.kucuk,
+  },
+
+  urunAyrac: {
+    borderBottomWidth: 1,
+    borderBottomColor: renkler.kenarlik,
+  },
+
+  urunResim: {
+    width: 48,
+    height: 48,
+    borderRadius: kose.kucuk,
+    backgroundColor: renkler.acikGri,
+  },
+
+  urunResimYok: {
+    backgroundColor: renkler.acikKart,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  urunHarf: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziGri,
+  },
+
+  urunOrta: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  urunAd: {
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.yaziKoyu,
+  },
+
+  urunAdet: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    marginTop: 2,
+  },
+
+  urunFiyat: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+
+  /* ---------- KUPON KARTI ---------- */
+
+  kuponKart: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.orta,
     borderColor: renkler.basari,
   },
   kuponOrta: {
     flex: 1,
+    minWidth: 0,
   },
   kuponKod: {
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     letterSpacing: 0.5,
   },
   kuponAciklama: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
     marginTop: 2,
   },
   kuponIndirim: {
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.basari,
+  },
+
+  /* Not girişinin kabı: kartın içinde ikinci bir yüzey. Girdi
+     alanının nerede başladığı görünmeli, yoksa müşteri metnin
+     yazılabilir olduğunu anlamıyor. */
+  notKutu: {
+    backgroundColor: renkler.arkaPlan,
+    borderWidth: 1,
+    borderColor: renkler.inputKenar,
+    borderRadius: kose.orta,
+    padding: bosluk.orta,
   },
 
 
   /* ---------- ALT BAR ---------- */
 
   altBar: {
-    padding: 16,
+    paddingHorizontal: sayfaKenari,
+    paddingVertical: bosluk.orta,
     borderTopWidth: 1,
     borderTopColor: renkler.kenarlik,
     backgroundColor: renkler.kartArka,
@@ -696,7 +899,7 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: bosluk.mikro,
   },
 
   /* ⭐ YENİ — kupon sonrası kargo bilgisi.
@@ -707,54 +910,67 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kargoBilgi: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: bosluk.kucuk,
     backgroundColor: renkler.acikKart,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    marginBottom: 10,
+    borderRadius: kose.kucuk,
+    paddingVertical: bosluk.kucuk,
+    paddingHorizontal: bosluk.orta,
+    marginBottom: bosluk.kucuk,
   },
   kargoBilgiYazi: {
     flex: 1,
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziOrta,
-    lineHeight: 17,
+    lineHeight: satir.kucuk,
   },
   ozetEtiket: {
-    fontSize: 14,
+    fontSize: yazi.normal,
     color: renkler.yaziOrta,
   },
   ozetDeger: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
   ayirac: {
     height: 1,
     backgroundColor: renkler.kenarlik,
-    marginVertical: 8,
+    marginVertical: bosluk.kucuk,
   },
   toplamSatir: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: bosluk.orta,
   },
   toplamEtiket: {
-    fontSize: 15,
-    color: renkler.yaziOrta,
-  },
-  toplamTutar: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: renkler.anaRenk,
+    color: renkler.yaziKoyu,
+  },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.11) — ÖDENECEK TUTAR ARTIK TURUNCU DEĞİL.
+
+     ⚠️ Kuralın bu ekranda kalan son ihlaliydi. Hemen altında turuncu
+     "Siparişi Tamamla" butonu duruyor; ikisi aynı renkte olunca
+     hangisinin basılabilir olduğu renkten okunamıyordu. Aynı
+     düzeltme ürün kartında, ürün detayında ve sepette de yapıldı.
+
+     Dikkati punto (22) ve kalınlık çekiyor. 24 → yazi.baslik (22):
+     ölçekte 24 yok, ara değer uydurmak yerine bir basamak inildi. */
+  toplamTutar: {
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
   },
   tamamlaButon: {
     backgroundColor: renkler.anaRenk,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
   },
 
@@ -817,15 +1033,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
   tamamlaYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 
   /* ⭐ YENİ — sipariş notu girişi */
   notGirdi: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
     color: renkler.yaziKoyu,
 
     /* Android'de multiline TextInput varsayılan iç boşluk ekler;
@@ -836,17 +1052,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   notSayac: {
-    fontSize: 11,
+    fontSize: yazi.mikro,
     color: renkler.yaziGri,
     textAlign: 'right',
-    marginTop: 8
+    marginTop: bosluk.kucuk
   },
 
   notIpucu: {
-    fontSize: 12,
+    fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginTop: 6,
-    lineHeight: 17
+    marginTop: bosluk.kucuk,
+    lineHeight: satir.kucuk
   },
 
 

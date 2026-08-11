@@ -1,6 +1,6 @@
 import React from 'react';
-import { font } from '../theme/olculer';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
@@ -40,15 +40,25 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
-      <View style={styles.icerik}>
+      {/* ⭐ DEĞİŞTİ (GV/Faz 6.13) — içerik kaydırılabilir.
+          Eskiden flex:1 ile dikeyde ortalanmış sabit bir bloktu:
+          indirim ve tasarruf rozeti birlikte çıktığında küçük
+          ekranlarda alttaki satırlar butonların altına giriyordu. */}
+      <ScrollView contentContainerStyle={styles.icerik}>
         <View style={styles.tikKutu}>
-          <Ionicons name="checkmark" size={64} color={renkler.anaRenkUstuYazi} />
+          <Ionicons name="checkmark" size={56} color={renkler.anaRenkUstuYazi} />
         </View>
 
         <Text style={styles.baslik}>Siparişin alındı!</Text>
         <Text style={styles.altYazi}>Ödemen başarıyla gerçekleşti.</Text>
 
         <View style={styles.kutu}>
+          {/* ⚠️ G5 — SİPARİŞ NUMARASI BİZİM FORMATIMIZDA.
+              Tasarım "#TR-2023-84920" yazıyor; bizimki
+              SP-YYMMDD-NNNN ve veritabanında öyle duruyor. Numara
+              sunucudan geldiği gibi basılıyor, burada biçimlenmiyor —
+              biçimlenseydi ekrandaki numara ile kayıttaki numara
+              ayrışabilirdi. */}
           <View style={styles.kutuSatir}>
             <Text style={styles.etiket}>Sipariş No</Text>
             <Text style={styles.deger}>{siparisNo}</Text>
@@ -124,7 +134,7 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             </Text>
           </View>
         )}
-      </View>
+      </ScrollView>
 
       <View style={styles.altBar}>
         <TouchableOpacity
@@ -150,75 +160,89 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flex: 1,
     backgroundColor: renkler.arkaPlan,
   },
+  /* flexGrow + justifyContent: içerik kısaysa dikeyde ortalı kalıyor,
+     uzunsa kaydırılıyor. Sadece flex:1 verseydik uzun içerik
+     kırpılırdı; sadece flexGrow verseydik kısa içerik tepeye
+     yapışırdı. */
   icerik: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: bosluk.genis,
   },
   tikKutu: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 96,
+    height: 96,
+    borderRadius: kose.tam,
     backgroundColor: renkler.basari,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: bosluk.genis,
   },
+  /* 26 → yazi.dev (30): ölçekte 26 yok. Bu ekranın tek işi iyi haberi
+     vermek; başlığın büyük olması doğru. */
   baslik: {
-    fontSize: 26,
-    fontWeight: 'bold',
+    fontSize: yazi.dev,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: 8,
+    textAlign: 'center',
   },
   altYazi: {
-    fontSize: 15,
+    fontSize: yazi.orta,
     color: renkler.yaziOrta,
-    marginBottom: 32,
+    marginTop: bosluk.kucuk,
+    marginBottom: bosluk.dev,
   },
   kutu: {
     width: '100%',
-    backgroundColor: renkler.acikKart,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    padding: bosluk.normal,
   },
   kutuSatir: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    gap: bosluk.orta,
+    paddingVertical: bosluk.kucuk,
   },
   etiket: {
-    fontSize: 15,
+    fontSize: yazi.normal,
     color: renkler.yaziOrta,
   },
   deger: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
   },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 6.13) — ÖDENEN TUTAR TURUNCU DEĞİL.
+     Altında turuncu "Siparişlerime Git" butonu var; ikisi aynı
+     renkte olunca hangisinin basılabilir olduğu renkten okunamıyordu.
+     Aynı düzeltmenin sepet ve onay ekranındaki eşi. */
   degerVurgu: {
-    fontSize: 17,
-    fontWeight: 'bold',
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: renkler.anaRenk,
+    color: renkler.yaziKoyu,
   },
   degerIndirim: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.basari,
   },
   tasarrufRozet: {
     width: '100%',
-    backgroundColor: renkler.acikKart,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: renkler.basari,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginTop: 12,
+    backgroundColor: renkler.yumusakBasari,
+    borderRadius: kose.orta,
+    paddingVertical: bosluk.orta,
+    paddingHorizontal: bosluk.normal,
+    marginTop: bosluk.orta,
 
     /* ⭐ DEĞİŞTİ (4.7) — satır düzeni.
        Emoji metnin İÇİNDEYKEN tek bir Text yeterliydi. İkon ayrı bir
@@ -227,42 +251,45 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: bosluk.kucuk,
   },
   tasarrufYazi: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.basari,
     textAlign: 'center',
   },
   altBar: {
-    padding: 16,
+    padding: sayfaKenari,
+    gap: bosluk.kucuk,
+    borderTopWidth: 1,
+    borderTopColor: renkler.kenarlik,
+    backgroundColor: renkler.kartArka,
   },
   siparisButon: {
     backgroundColor: renkler.anaRenk,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
-    marginBottom: 10,
   },
   siparisYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
   anaButon: {
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: bosluk.normal,
+    borderRadius: kose.orta,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: renkler.inputKenar,
   },
   anaYazi: {
     color: renkler.yaziKoyu,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
     fontFamily: font.yari,
   },
 });

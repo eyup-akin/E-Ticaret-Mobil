@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
 import AnaSayfaStack from './AnaSayfaStack';
@@ -11,6 +12,30 @@ import SepetIkonu from '../components/SepetIkonu';
 import FavoriIkonu from '../components/FavoriIkonu';
 
 const Tab = createBottomTabNavigator();
+
+/* ⭐ YENİ (GV/Faz 6.9 · G3) — ÖDEME AKIŞINDA SEKME ÇUBUĞU GİZLENİYOR.
+ *
+ * Adres seç → Kart seç → Onay → Başarılı: bunlar sekme kökü değil,
+ * bir akışın adımları. Altlarında sekme çubuğu dururken müşteri
+ * ödemenin ortasında "Favorilerim"e atlayabiliyordu ve akış sessizce
+ * yarıda kalıyordu.
+ *
+ * ⚠️ `tabBarStyle`'ı stack ekranının kendi options'ına yazmak
+ * ÇALIŞMIYOR: sekme çubuğu stack'in değil, sekme navigatörünün
+ * çocuğu. Karar burada, sekme seviyesinde verilmek zorunda.
+ *
+ * ⚠️ `getFocusedRouteNameFromRoute` ilk açılışta undefined döner
+ * (stack henüz bir ekran adı yazmamıştır). O yüzden liste "gizlenecek
+ * ekranlar" üzerinden kuruluyor, "gösterilecekler" üzerinden değil:
+ * undefined listede olmadığı için çubuk görünür kalıyor. Ters
+ * yazsaydık uygulama sepet sekmesini çubuksuz açardı.
+ */
+const CUBUK_GIZLENEN_EKRANLAR = [
+  'AdresSec',
+  'KartSec',
+  'SiparisOnay',
+  'SiparisBasarili',
+];
 
 export default function MainTabNavigator() {
   const { renkler } = useTema();
@@ -68,7 +93,23 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen name="AnaSayfa" component={AnaSayfaStack} options={{ title: 'Ana Sayfa' }} />
       <Tab.Screen name="Favoriler" component={FavorilerimEkrani} options={{ title: 'Favorilerim' }} />
-      <Tab.Screen name="Sepet" component={SepetStack} options={{ title: 'Sepetim' }} />
+      <Tab.Screen
+        name="Sepet"
+        component={SepetStack}
+        options={({ route }) => {
+          const ekran = getFocusedRouteNameFromRoute(route);
+
+          return {
+            title: 'Sepetim',
+            tabBarStyle: CUBUK_GIZLENEN_EKRANLAR.includes(ekran)
+              ? { display: 'none' }
+              : {
+                  backgroundColor: renkler.kartArka,
+                  borderTopColor: renkler.kenarlik,
+                },
+          };
+        }}
+      />
       <Tab.Screen name="Hesabim" component={HesabimStack} options={{ title: 'Hesabım' }} />
     </Tab.Navigator>
   );
