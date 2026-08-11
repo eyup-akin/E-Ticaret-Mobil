@@ -220,6 +220,21 @@ export default function UrunDetayEkrani({ route, navigation }) {
   // yazabilirdi — aynı ürün için iki farklı indirim iddiası.
   const { indirimliMi, eskiFiyat, yuzde } = indirimBilgisi(urun);
 
+  // ⭐ YENİ (GV/Faz 5.6) — açıklama tek yerde hazırlanıyor.
+  //
+  // Eskiden urun.description üç ayrı yerde okunuyordu: bölümün
+  // çizilip çizilmeyeceği, metnin kendisi ve uzunluk eşiği. Üçü de
+  // ayrı ayrı trim etmiyordu — sadece boşluktan ibaret bir açıklama
+  // "var" sayılıp boş bir kart çiziyordu ve eşik ölçümü baştaki
+  // boşlukları da sayıyordu.
+  const aciklama = (urun.description || '').trim();
+
+  // Metin gerçekten uzun mu? Katlama kontrolü SADECE bunun için var;
+  // kısa açıklamada chevron çizilmiyor ve başlık satırı basılabilir
+  // değil. Basınca hiçbir şey değişmeyen bir kontrol, "bozuk"
+  // izlenimi verir.
+  const aciklamaUzun = aciklama.length > ACIKLAMA_ESIGI;
+
   return (
     /* ⭐ DEĞİŞTİ (GV/Faz 5.1) — edges'ten 'top' ÇIKARILDI.
 
@@ -330,21 +345,67 @@ export default function UrunDetayEkrani({ route, navigation }) {
           </View>
         </View>
 
-        {/* ⭐ YENİ — ÜRÜN AÇIKLAMASI */}
+        {/* ÜRÜN AÇIKLAMASI */}
         {/*
           ⚠️ Açıklama boşsa bölüm HİÇ ÇİZİLMİYOR.
 
           "Açıklama yok" yazan boş bir kart koymak, kullanıcıya
           bilgi vermeyen bir kutu göstermek demek. "İşi olmayan
           ekran yapılmaz" — burada da işi olmayan kart yapılmıyor.
-
-          urun.description null gelebilir; ?. ile güvenli okuyup
-          trim ediyoruz ki sadece boşluktan ibaret metinler de
-          "yok" sayılsın.
         */}
-        {urun.description && urun.description.trim() !== '' && (
+        {aciklama !== '' && (
           <View style={styles.aciklamaKart}>
-            <Text style={styles.aciklamaBaslik}>Ürün Açıklaması</Text>
+            {/* ⭐ DEĞİŞTİ (GV/Faz 5.6) — KATLAMA KONTROLÜ BAŞLIK
+                SATIRINA TAŞINDI.
+
+                Eski hali: başlık düz yazıydı, metnin ALTINDA
+                "Devamını gör / Daha az göster" bağlantısı vardı.
+                Tasarımda başlık satırının kendisi bir düğme: solda
+                "Ürün Açıklaması", sağda chevron.
+
+                ⚠️ Alttaki bağlantı KALDIRILDI, ikisi birden
+                bırakılmadı. İkisi de aynı state'i çeviriyordu; aynı
+                işi yapan iki kontrol, 5.5'te "Adet" satırını
+                elemekte kullanılan gerekçenin aynısıyla düşüyor.
+                Kalan taraf başlık satırı çünkü hem tasarımın
+                söylediği bu, hem de dokunma hedefi kartın tam
+                genişliği — bağlantı yalnızca yazı kadardı.
+
+                ⚠️ KAPALIYKEN METİN TAMAMEN GİZLENMİYOR, 4 satır
+                görünüyor. Tasarımın chevron'u tam katlama ima
+                ediyor ama tam katlarsak müşteri açıklamanın ilgisini
+                çekip çekmediğini öğrenmek için dokunmak zorunda
+                kalır. Dört satırlık önizleme çoğu soruyu zaten
+                cevaplıyor. Davranış da bu fazın kuralı gereği
+                değişmiyor: kapalı hâl 5.6 öncesindekiyle aynı.
+
+                ⚠️ Kısa açıklamada satır basılabilir DEĞİL ve
+                chevron yok — disabled, accessibilityRole 'header'e
+                düşüyor. Ekran okuyucuya "burada bir düğme var" deyip
+                hiçbir şey yapmamak, gören kullanıcıya ölü bir ok
+                göstermekten daha kötü. */}
+            <TouchableOpacity
+              style={styles.aciklamaBaslikSatir}
+              onPress={() => setAciklamaAcik(!aciklamaAcik)}
+              disabled={!aciklamaUzun}
+              activeOpacity={0.7}
+              accessibilityRole={aciklamaUzun ? 'button' : 'header'}
+              accessibilityState={aciklamaUzun ? { expanded: aciklamaAcik } : undefined}
+            >
+              <Text style={styles.aciklamaBaslik}>Ürün Açıklaması</Text>
+
+              {/* ⚠️ Chevron anaRenk — tasarımdaki soluk gri değil.
+                  Tasarım sisteminde ana renk "tıklanabilir" demek ve
+                  bu satırın tıklanabilir olduğunu söyleyen tek işaret
+                  bu ok. Gri bırakılsaydı süs gibi okunurdu. */}
+              {aciklamaUzun && (
+                <Ionicons
+                  name={aciklamaAcik ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={renkler.anaRenk}
+                />
+              )}
+            </TouchableOpacity>
 
             <Text
               style={styles.aciklamaMetin}
@@ -354,28 +415,8 @@ export default function UrunDetayEkrani({ route, navigation }) {
                  metni tamamen gizlerdi. */
               numberOfLines={aciklamaAcik ? undefined : 4}
             >
-              {urun.description}
+              {aciklama}
             </Text>
-
-            {/* Buton sadece metin GERÇEKTEN uzunsa çizilsin.
-                Üç satırlık bir açıklamanın altına "Devamını gör"
-                koymak kullanıcıyı boşuna tıklatır. */}
-            {urun.description.length > ACIKLAMA_ESIGI && (
-              <TouchableOpacity
-                style={styles.aciklamaButon}
-                onPress={() => setAciklamaAcik(!aciklamaAcik)}
-              >
-                <Text style={styles.aciklamaButonYazi}>
-                  {aciklamaAcik ? 'Daha az göster' : 'Devamını gör'}
-                </Text>
-
-                <Ionicons
-                  name={aciklamaAcik ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={renkler.anaRenk}
-                />
-              </TouchableOpacity>
-            )}
           </View>
         )}
 
@@ -598,36 +639,48 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderColor: renkler.kenarlik,
   },
 
-  aciklamaBaslik: {
-    fontSize: 16,
-    fontWeight: '600', fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-    marginBottom: 10,
-  },
+  /* ⭐ YENİ (GV/Faz 5.6) — başlık + chevron satırı.
 
-  aciklamaMetin: {
-    fontSize: 14,
-    // Uzun metinde satır aralığı okunabilirliğin yarısı.
-    // Varsayılan aralık paragraf metni için çok sıkışık.
-    lineHeight: 22,
-    color: renkler.yaziOrta,
-  },
+     ⚠️ justifyContent 'space-between': chevron sağ kenara yapışıyor,
+     böylece dokunma hedefi kartın TAM genişliği oluyor. Başlığa
+     flex: 1 verip oku yanına koysaydık, uzun bir başlıkta ok
+     ortalarda bir yerde kalırdı.
 
-  aciklamaButon: {
+     ⚠️ paddingBottom var, paddingTop yok. Kartın kendi dolgusu
+     zaten üstte duruyor; ikisini toplasaydık başlık aşağı kayar ve
+     kartın üstünde ölü bir şerit kalırdı. Dokunma yüksekliği
+     18px yazı + 12dp alt dolgu + kartın 16dp üst dolgusu ile
+     40dp'yi geçiyor. */
+  aciklamaBaslikSatir: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 10,
-
-    // Dokunma hedefini büyüt: sadece yazı kadar olsaydı
-    // parmakla ıskalanırdı.
-    paddingVertical: 6,
+    justifyContent: 'space-between',
+    paddingBottom: bosluk.orta,
   },
 
-  aciklamaButonYazi: {
-    fontSize: 14,
-    fontWeight: '600', fontFamily: font.yari,
-    color: renkler.anaRenk,
+  /* ⭐ DEĞİŞTİ (GV/Faz 5.6) — 16/'600' yerine ölçek: 18/kalin.
+     Bir alttaki "Değerlendirmeler" başlığıyla (YorumBolumu →
+     bolumBaslik) AYNI değerler. İki bölüm başlığı yan yana iki
+     farklı punto ile duruyordu; hangisinin daha önemli olduğu
+     yanlışlıkla söyleniyordu — ikisi de eşit. */
+  aciklamaBaslik: {
+    fontSize: yazi.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+  },
+
+  /* ⭐ DEĞİŞTİ (GV/Faz 5.6) — elle yazılı 14/22 yerine token.
+     Değerler AYNI (yazi.normal = 14, satir.orta = 22); görünüm
+     değişmedi, kaynak değişti.
+
+     ⚠️ satir.orta bilerek: satir.normal (20) paragraf metni için
+     sıkışık. Yorum metni 20 kullanıyor ama orası birkaç cümle,
+     burası tam sayfa açıklama olabiliyor. */
+  aciklamaMetin: {
+    fontSize: yazi.normal,
+    lineHeight: satir.orta,
+    color: renkler.yaziOrta,
   },
   /* ⭐ DEĞİŞTİ (GV/Faz 5.3) — elle yazılı 22 yerine ölçek basamağı.
      Değer AYNI (yazi.baslik = 22), yani görünüm değişmedi; ama artık
