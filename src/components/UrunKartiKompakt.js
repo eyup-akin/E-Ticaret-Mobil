@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ (B1) — indirim kuralı ızgara kartıyla ortak
+import { indirimBilgisi } from '../utils/indirim';
 import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
 // ============================================================
@@ -48,6 +50,9 @@ function UrunKartiKompaktIc({ urun, onPress }) {
   const resim = resimUrl(urun.mainImageUrl);
   const tukendi = urun.stokDurumu === 'yok';
 
+  // ⭐ YENİ (B1) — indirim durumu (kural utils/indirim.js'te).
+  const { indirimliMi, eskiFiyat } = indirimBilgisi(urun);
+
   function kalbeBasildi() {
     if (!token) {
       navigation.navigate('Giris');
@@ -85,7 +90,28 @@ function UrunKartiKompaktIc({ urun, onPress }) {
       </View>
 
       <Text style={styles.urunAd} numberOfLines={2}>{urun.name}</Text>
-      <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
+
+      {/* ⭐ YENİ (B1) — indirimli üründe eski fiyat da görünüyor.
+
+          ⚠️ YÜZDE ROZETİ BURADA YOK — ızgara kartından farkı bu.
+          Kart 140dp ve zaten kalp, tükendi perdesi ve iki satırlık
+          ad taşıyor; dördüncü bir öğe şeridi kalabalıklaştırırdı.
+          Ayrıca rozet bir DİKKAT ÇEKME aracı: müşteri gezerken
+          "buraya bak" der. Bu şerit gezme değil HATIRLATMA — müşteri
+          zaten baktığı ürünlere bakıyor. İki fiyat farkı zaten
+          söylüyor; rozet o bilgiyi tekrar ederdi.
+
+          ⚠️ Eski fiyat satırı yalnızca indirimlide açılıyor, yer
+          ayrılmıyor. Yatay şeritte kartlar kabın içinde aynı
+          yüksekliğe geriliyor (varsayılan 'stretch'), yani alt
+          hizada bir tırtık oluşmuyor. */}
+      {indirimliMi && (
+        <Text style={styles.eskiFiyat}>{paraBicimle(eskiFiyat)}</Text>
+      )}
+
+      <Text style={[styles.fiyat, indirimliMi && styles.fiyatIndirimli]}>
+        {paraBicimle(urun.price)}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -186,5 +212,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.kalin,
     lineHeight: satir.orta,
     color: renkler.yaziKoyu,
+  },
+
+  /* ⭐ YENİ (B1) — ızgara kartındaki eski fiyatla aynı dil:
+     soluk + üstü çizili. Punto bir basamak küçük (mikro), çünkü
+     bu kartın kendi fiyatı da bir basamak küçük. */
+  eskiFiyat: {
+    fontSize: yazi.mikro,
+    color: renkler.yaziGri,
+    lineHeight: satir.kucuk,
+    textDecorationLine: 'line-through',
+  },
+
+  fiyatIndirimli: {
+    color: renkler.basari,
   },
 });

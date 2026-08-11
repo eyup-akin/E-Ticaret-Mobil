@@ -10,11 +10,14 @@ import { useTema } from '../context/TemaContext';
 import { useSepet } from '../context/SepetContext';
 import { useAuth } from '../context/AuthContext';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ (B1) — indirim kuralı ürün kartlarıyla ortak
+import { indirimBilgisi, yuzdeYazisi } from '../utils/indirim';
 // ⭐ YENİ (5.1) — ortak adet kontrolü
 import AdetKontrolu from '../components/AdetKontrolu';
 import UrunGaleri from '../components/UrunGaleri';
 import YorumBolumu from '../components/YorumBolumu';
 import Yildizlar from '../components/Yildizlar';
+import Rozet from '../components/Rozet';
 
 // ⭐ YENİ — açıklamanın "uzun" sayıldığı karakter eşiği.
 //
@@ -209,6 +212,14 @@ export default function UrunDetayEkrani({ route, navigation }) {
   // yeniden hesaplanıyor.
   const sepetteVar = sepet.some((s) => s.productId === urun.id);
 
+  // ⭐ YENİ (B1) — indirim durumu.
+  //
+  // Kural utils/indirim.js'te: ürün kartı, kompakt kart ve bu ekran
+  // aynı soruyu soruyor. Burada tekrar hesaplasaydık yuvarlama
+  // yönünü değiştirdiğimizde kartta "-%16", detayda "-%17"
+  // yazabilirdi — aynı ürün için iki farklı indirim iddiası.
+  const { indirimliMi, eskiFiyat, yuzde } = indirimBilgisi(urun);
+
   return (
     /* ⭐ DEĞİŞTİ (GV/Faz 5.1) — edges'ten 'top' ÇIKARILDI.
 
@@ -381,8 +392,36 @@ export default function UrunDetayEkrani({ route, navigation }) {
 
       {/* ALT BAR: FİYAT + SEPETE EKLE */}
       <View style={styles.altBar}>
+        {/* ⭐ DEĞİŞTİ (B1) — indirimli üründe fiyat kutusu iki satır.
+
+            ÜST SATIR : üstü çizili eski fiyat + yüzde rozeti
+            ALT SATIR : ödenecek tutar (yeşil)
+
+            ⚠️ ROZET KIRMIZI, TASARIMDAKİ GİBİ YEŞİL DEĞİL.
+            Tasarım ürün detayında rozeti yeşil, ürün kartında
+            kırmızı çizmiş — kendi içinde tutarsız. Kırmızı seçildi
+            çünkü rozet ile fiyat FARKLI işler yapıyor: rozet dikkat
+            çeker, fiyat kazancı söyler. İkisi de yeşil olsaydı
+            rozetin "bak buraya" işlevi kaybolurdu. Aynı karar
+            tema.js'te indirimArka token'ının yanında yazılı.
+
+            ⚠️ GENİŞLİK BÜYÜMÜYOR. Üst satır (12px fiyat + küçük
+            hap) altındaki 22px'lik fiyattan dar kalıyor; alt
+            çubuktaki "Şimdi Al" ve sepet kontrolü daralmıyor.
+            Rozeti fiyatın YANINA koysaydık kutu genişler, iki
+            butonun payı azalırdı. */}
         <View style={styles.fiyatKutu}>
-          <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
+          {indirimliMi && (
+            <View style={styles.indirimSatir}>
+              <Text style={styles.eskiFiyat}>{paraBicimle(eskiFiyat)}</Text>
+
+              {yuzde > 0 && <Rozet tip="indirim" yazi={yuzdeYazisi(yuzde)} />}
+            </View>
+          )}
+
+          <Text style={[styles.fiyat, indirimliMi && styles.fiyatIndirimli]}>
+            {paraBicimle(urun.price)}
+          </Text>
         </View>
 
         {/* ⭐ DEĞİŞTİ (5.1 + 5.2) — tek buton yerine iki eylem.
@@ -702,5 +741,34 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.kalin,
     lineHeight: satir.baslik,
     color: renkler.yaziKoyu,
+  },
+
+  /* ⭐ YENİ (B1) — eski fiyat + yüzde rozeti aynı satırda.
+
+     Rozet fiyatın ÜSTÜNDE değil, eski fiyatın yanında: ikisi de
+     "bu ürün ucuzladı" cümlesinin parçası, ödenecek tutar ise ayrı
+     bir bilgi. Aynı cümlenin parçaları aynı satırda durur. */
+  indirimSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    marginBottom: 2,
+  },
+
+  /* Soluk + üstü çizili — ürün kartındaki dilin aynısı.
+     Renk tek bilgi kanalı değil: çizgi renkten bağımsız olarak
+     "bu tutar artık geçerli değil" diyor. */
+  eskiFiyat: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    lineHeight: satir.kucuk,
+    textDecorationLine: 'line-through',
+  },
+
+  /* ⚠️ İndirimli fiyat YEŞİL, turuncu değil. Alt çubukta fiyatın
+     yanında "Şimdi Al" ve "Sepete Ekle" var; fiyat da turuncu
+     olsaydı hangisinin basılabilir olduğu renkten okunamazdı. */
+  fiyatIndirimli: {
+    color: renkler.basari,
   },
 });

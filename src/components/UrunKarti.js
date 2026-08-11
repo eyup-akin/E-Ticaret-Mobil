@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 import { resimUrl } from '../utils/resim';
 import { paraBicimle } from '../utils/bicimlendir';
+// ⭐ YENİ (B1) — indirim kuralı ve yüzde hesabı tek dosyada
+import { indirimBilgisi, yuzdeYazisi } from '../utils/indirim';
 // ⭐ YENİ — tasarım sistemi
-import { bosluk, kose, yazi, agirlik, font } from '../theme/olculer';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 import Rozet from './Rozet';
 // ⭐ YENİ — puan şeridi için ortak bileşen (yorum ekranında da kullanılıyor).
 import Yildizlar from './Yildizlar';
@@ -44,6 +46,12 @@ function UrunKartiIc({ urun, onPress }) {
   // ⭐ Puan satırı: backend averageRating + reviewCount gönderince yanacak.
   //    Şu an yorum sistemi yokken bu değerler undefined → satır görünmez.
   const puanVar = urun.reviewCount > 0;
+
+  // ⭐ YENİ (B1) — indirim durumu.
+  //
+  // Hesap burada yapılmıyor: kural utils/indirim.js'te, çünkü aynı
+  // soruyu kompakt kart ve ürün detayı da soruyor.
+  const { indirimliMi, eskiFiyat, yuzde } = indirimBilgisi(urun);
 
   function kalbeBasildi() {
     if (!token) {
@@ -102,14 +110,37 @@ function UrunKartiIc({ urun, onPress }) {
             fiyatın yanındaki boşluğa yerleşebildi.
 
             ⚠️ Sol üst seçildi, sağ üst değil: sağ üstte kalp var. */}
-        {(tukendi || azKaldi) && (
+        {/* ⭐ DEĞİŞTİ (B1) — SOL ÜST ARTIK BİR ROZET SÜTUNU.
+
+            İki rozet aynı köşeye talip: indirim (tasarımda sol üst)
+            ve stok. Aralarında seçim YAPILMADI, alt alta konuldular.
+            Biri diğerini gizleseydi ekran duruma göre yalan söylerdi:
+            indirim rozeti stok rozetini bastırsaydı "son 2 ürün"
+            uyarısı tam da aciliyetin en yüksek olduğu üründe
+            kaybolurdu.
+
+            ⚠️ İNDİRİM ÜSTTE. Dolu kırmızı hap, yumuşak zeminli stok
+            rozetinden görsel olarak ağır; ağır olan üstte durunca
+            sütun dengeli okunuyor.
+
+            ⚠️ TÜKENMİŞ ÜRÜNDE DE ÇİZİLİYOR. "Şu an alınamaz" ile
+            "fiyatı düştü" farklı iki gerçek; ikincisi stok gelince
+            hâlâ geçerli olacak ve müşteri "stoka gelince haber ver"
+            kararını buna bakarak veriyor. */}
+        {(indirimliMi && yuzde > 0) || tukendi || azKaldi ? (
           <View style={styles.rozetYeri}>
-            <Rozet
-              tip={tukendi ? 'notr' : 'uyari'}
-              yazi={tukendi ? 'Tükendi' : `Son ${urun.kalanAdet} ürün`}
-            />
+            {indirimliMi && yuzde > 0 && (
+              <Rozet tip="indirim" yazi={yuzdeYazisi(yuzde)} />
+            )}
+
+            {(tukendi || azKaldi) && (
+              <Rozet
+                tip={tukendi ? 'notr' : 'uyari'}
+                yazi={tukendi ? 'Tükendi' : `Son ${urun.kalanAdet} ürün`}
+              />
+            )}
           </View>
-        )}
+        ) : null}
       </View>
 
       {/* ---------- BİLGİ ALANI ---------- */}
@@ -175,8 +206,41 @@ function UrunKartiIc({ urun, onPress }) {
 
             Tükenmiş üründe AdetKontrolu null dönüyor; satırda
             yalnızca fiyat kalıyor. */}
+        {/* ⭐ DEĞİŞTİ (B1) — SOLDAKİ FİYAT ARTIK BİR SÜTUN.
+
+            İndirimli üründe eski fiyat GÜNCELİN ÜSTÜNDE, altında
+            değil. Tasarımda da böyle ve sebebi okuma sırası: göz
+            önce küçük soluk sayıyı geçip kalın olanda duruyor,
+            yani son okuduğu şey ödeyeceği tutar oluyor.
+
+            ⚠️ YAN YANA KOYULMADI. Kart ~181dp, bilgi alanı ~157dp;
+            iki fiyat + sepet hapı (~68dp) aynı satıra sığmıyordu.
+            Sığdırmak için fiyatı daraltmak gerekirdi ve karttaki en
+            kritik bilgiyi kırpmak kabul edilemez (Faz 2.1 kararı).
+
+            ⚠️ İNDİRİMSİZ KARTTA FAZLADAN SATIR AÇILMIYOR — eski
+            fiyat satırı için yer AYRILMIYOR. Yer ayırsaydık
+            kartların çoğunda (indirimli ürün azınlıktır) yine ölü
+            bir şerit oluşurdu; Faz 2.1'de kaldırdığımız hatanın
+            aynısı. Izgarada kartlar satır kabında zaten aynı
+            yüksekliğe geriliyor, hizasızlık kartın içinde kalıyor. */}
         <View style={styles.fiyatSatir}>
-          <Text style={styles.fiyat}>{paraBicimle(urun.price)}</Text>
+          <View style={styles.fiyatKutu}>
+            {indirimliMi && (
+              <Text style={styles.eskiFiyat}>{paraBicimle(eskiFiyat)}</Text>
+            )}
+
+            {/* ⚠️ İNDİRİMLİ FİYAT YEŞİL, TURUNCU DEĞİL.
+                Turuncu bu uygulamada "eylem" demek ve fiyatın
+                hemen yanında sepet butonu var; ikisi aynı renk
+                olsaydı hangisinin basılabilir olduğu renkten
+                okunamazdı. Yeşil "kazandın" der ve turuncuyu
+                eyleme bırakır. */}
+            <Text style={[styles.fiyat, indirimliMi && styles.fiyatIndirimli]}>
+              {paraBicimle(urun.price)}
+            </Text>
+          </View>
+
           <AdetKontrolu urun={urun} boyut="kart" />
         </View>
       </View>
@@ -358,6 +422,38 @@ const stilOlustur = (renkler) => StyleSheet.create({
     flexShrink: 0,
   },
 
+  /* ⭐ YENİ (B1) — eski fiyat + güncel fiyat sütunu.
+
+     ⚠️ flexShrink: 0 sütunun kendisinde de var. Eski fiyat
+     satırı güncel fiyattan dar olduğu için sütunun genişliğini
+     fiyat belirliyor; esnemeye izin verilseydi sepet hapı geniş
+     olduğunda daralan taraf yine fiyat olurdu. */
+  fiyatKutu: {
+    flexShrink: 0,
+  },
+
+  /* ⭐ YENİ (B1) — indirim öncesi fiyat.
+
+     ⚠️ ÜSTÜ ÇİZİLİ + SOLUK: iki işaret birden.
+     Yalnızca soluk yapsaydık renk tek bilgi kanalı olurdu ve
+     renk körü kullanıcı iki fiyattan hangisinin geçerli olduğunu
+     ayırt edemezdi. Çizgi renkten bağımsız çalışıyor.
+     (SepetSatiri'ndeki fiyat değişikliği satırıyla aynı desen.) */
+  eskiFiyat: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+    lineHeight: satir.kucuk,
+    textDecorationLine: 'line-through',
+  },
+
+  /* ⭐ YENİ (B1) — indirimli güncel fiyat.
+     Yalnızca RENK değişiyor; punto ve kalınlık aynı kalıyor ki
+     indirimli ve indirimsiz kartların fiyatları ızgarada aynı
+     ağırlıkta okunsun. */
+  fiyatIndirimli: {
+    color: renkler.basari,
+  },
+
   /* ⭐ YENİ (GV/Faz 2.1) — fiyat ve sepet butonu aynı satırda.
 
      Fiyatın sağındaki boşluk artık butonun yeri. Rozet buradan
@@ -381,5 +477,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
     position: 'absolute',
     top: bosluk.kucuk,
     left: bosluk.kucuk,
+
+    /* ⭐ YENİ (B1) — iki rozet alt alta durabiliyor.
+
+       ⚠️ alignItems: 'flex-start' şart. Rozet kendi genişliğinde
+       (alignSelf: 'flex-start') ama sütun içinde varsayılan
+       'stretch' onları en genişin boyuna gerdiriyordu; "-%18" ile
+       "Son 3 ürün" yan yana gelince kısa olan hap uzayıp boş
+       zeminli görünüyordu. */
+    alignItems: 'flex-start',
+    gap: bosluk.mikro,
   },
 });
