@@ -266,24 +266,68 @@ export default function UrunDetayEkrani({ route, navigation }) {
             </View>
           </View>
 
-          {/* ⭐ DEĞİŞTİ — ham stok sayısı yerine üç durumlu metin.
+          {/* ⭐ DEĞİŞTİ (GV/Faz 5.3) — STOK DURUMU ARTIK ROZET.
 
-              Eskiden "Stokta 847 adet var" yazıyordu. İki sorun:
-              rakip stok takibi yapabiliyordu ve büyük sayı aciliyeti
-              öldürüyordu. Artık sunucu üç durumdan birini gönderiyor
-              ve tam sayı yalnızca eşiğin altındayken (kalanAdet)
-              geliyor. */}
-          <Text
-            style={
-              tukendi ? styles.stokYok : azKaldi ? styles.stokAz : styles.stokVar
-            }
-          >
-            {tukendi
-              ? 'Tükendi'
-              : azKaldi
-              ? `Son ${urun.kalanAdet} ürün`
-              : 'Stokta var'}
-          </Text>
+              Eskiden renkli düz yazıydı. Tasarımda hap biçiminde bir
+              rozet var ve ürün kartında da rozet kullanılıyor; aynı
+              bilgi iki ekranda iki farklı biçimde çizilmemeli.
+
+              ⚠️ Ham sayı yine yok: sunucu üç durumdan birini
+              gönderiyor, tam sayı yalnızca eşiğin altındayken
+              (kalanAdet) geliyor.
+
+              ⚠️ "Stokta var" rozeti BURADA duruyor ama ürün
+              kartında YOK — 5.4b'de bilerek kaldırılmıştı. Fark:
+              kartta o rozet neredeyse her üründe çıkıyor ve
+              yanındaki "Son 3 ürün" uyarısını değersizleştiriyordu.
+              Burada tek ürün var, seyreltecek bir komşusu yok ve
+              müşteri tam da satın alma kararını veriyor. */}
+          <View style={styles.stokRozetYeri}>
+            <Rozet
+              tip={tukendi ? 'notr' : azKaldi ? 'uyari' : 'basari'}
+              yazi={
+                tukendi
+                  ? 'Tükendi'
+                  : azKaldi
+                  ? `Son ${urun.kalanAdet} ürün`
+                  : 'Stokta var'
+              }
+            />
+          </View>
+
+          {/* ⭐ YENİ (GV/Faz 5.3 + 5.4) — FİYAT BLOĞU ALT ÇUBUKTAN
+              BURAYA TAŞINDI.
+
+              ⚠️ ALT ÇUBUKTA ARTIK FİYAT YOK — bilinçli.
+
+              Tasarım fiyatı içeriğe koyuyor, alt çubuğu yalnızca
+              eyleme ayırıyor. İkisinde birden gösterseydik aynı sayı
+              ekranda iki kez dururdu; dahası alt çubuk üç şeyi
+              (fiyat + Şimdi Al + Sepete Ekle) taşımaya çalıştığı
+              için sıkışıktı.
+
+              ⚠️ Bu değişiklik G10'u da çözüyor: yer açılınca
+              "Sepete Ekle" butonu yazısıyla birlikte rahat sığıyor.
+              İkon-only buton erişilebilirlik açısından zayıftı.
+
+              ⚠️ Sıra: önce ÖDENECEK tutar, sonra eski fiyat.
+              Ürün kartında ters (eski fiyat üstte) çünkü orada
+              alt alta iki satır var ve göz yukarıdan aşağı okuyor;
+              burada yan yanalar ve en soldaki önce okunuyor. İki
+              yerde de son sözü ödenecek tutar söylüyor. */}
+          <View style={styles.fiyatBlok}>
+            <Text style={[styles.fiyat, indirimliMi && styles.fiyatIndirimli]}>
+              {paraBicimle(urun.price)}
+            </Text>
+
+            {indirimliMi && (
+              <Text style={styles.eskiFiyat}>{paraBicimle(eskiFiyat)}</Text>
+            )}
+
+            {indirimliMi && yuzde > 0 && (
+              <Rozet tip="indirim" yazi={yuzdeYazisi(yuzde)} />
+            )}
+          </View>
         </View>
 
         {/* ⭐ YENİ — ÜRÜN AÇIKLAMASI */}
@@ -390,44 +434,20 @@ export default function UrunDetayEkrani({ route, navigation }) {
         />
       </TouchableOpacity>
 
-      {/* ALT BAR: FİYAT + SEPETE EKLE */}
+      {/* ⭐ DEĞİŞTİ (GV/Faz 5.3) — ALT BAR ARTIK SADECE EYLEM.
+
+          Fiyat yukarı, içeriğe taşındı. Çubuk üç şey taşımaya
+          çalışırken sıkışıktı; şimdi iki butonun ikisi de rahat.
+
+          ⚠️ Tasarım "Sepete Ekle"yi SOLA, "Şimdi Al"ı sağa koyuyor;
+          biz tersini koruduk. Sebep 5.2'de yazılı: asıl eylem sağda
+          duruyor çünkü baş parmak oraya uzanıyor. Tasarımın
+          sıralaması gerekçesiz, bizimki gerekçeli. */}
       <View style={styles.altBar}>
-        {/* ⭐ DEĞİŞTİ (B1) — indirimli üründe fiyat kutusu iki satır.
-
-            ÜST SATIR : üstü çizili eski fiyat + yüzde rozeti
-            ALT SATIR : ödenecek tutar (yeşil)
-
-            ⚠️ ROZET KIRMIZI, TASARIMDAKİ GİBİ YEŞİL DEĞİL.
-            Tasarım ürün detayında rozeti yeşil, ürün kartında
-            kırmızı çizmiş — kendi içinde tutarsız. Kırmızı seçildi
-            çünkü rozet ile fiyat FARKLI işler yapıyor: rozet dikkat
-            çeker, fiyat kazancı söyler. İkisi de yeşil olsaydı
-            rozetin "bak buraya" işlevi kaybolurdu. Aynı karar
-            tema.js'te indirimArka token'ının yanında yazılı.
-
-            ⚠️ GENİŞLİK BÜYÜMÜYOR. Üst satır (12px fiyat + küçük
-            hap) altındaki 22px'lik fiyattan dar kalıyor; alt
-            çubuktaki "Şimdi Al" ve sepet kontrolü daralmıyor.
-            Rozeti fiyatın YANINA koysaydık kutu genişler, iki
-            butonun payı azalırdı. */}
-        <View style={styles.fiyatKutu}>
-          {indirimliMi && (
-            <View style={styles.indirimSatir}>
-              <Text style={styles.eskiFiyat}>{paraBicimle(eskiFiyat)}</Text>
-
-              {yuzde > 0 && <Rozet tip="indirim" yazi={yuzdeYazisi(yuzde)} />}
-            </View>
-          )}
-
-          <Text style={[styles.fiyat, indirimliMi && styles.fiyatIndirimli]}>
-            {paraBicimle(urun.price)}
-          </Text>
-        </View>
-
         {/* ⭐ DEĞİŞTİ (5.1 + 5.2) — tek buton yerine iki eylem.
 
-            ÜSTTE  : Şimdi Al   → sepete ekler + sepete gider
-            ALTTA  : AdetKontrolu → sepete ekle / − [n] +
+            SOLDA  : Şimdi Al   → sepete ekler + sepete gider
+            SAĞDA  : AdetKontrolu → sepete ekle / − [n] +
 
             ⚠️ "Şimdi Al" AYRI BİR ÖDEME AKIŞI DEĞİL.
             Sepete ekleyip sepet ekranına gidiyor. Ayrı bir akış
@@ -609,7 +629,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: '600', fontFamily: font.yari,
     color: renkler.anaRenk,
   },
-  urunAd: { fontSize: 22, fontWeight: 'bold', fontFamily: font.kalin, color: renkler.yaziKoyu, marginBottom: 8 },
+  /* ⭐ DEĞİŞTİ (GV/Faz 5.3) — elle yazılı 22 yerine ölçek basamağı.
+     Değer AYNI (yazi.baslik = 22), yani görünüm değişmedi; ama artık
+     ölçek değişirse başlık da onunla değişiyor. Fiyatı bir basamak
+     yukarı aldığım için hiyerarşinin iki ucu da token'a bağlı olmalı:
+     biri sabit sayı kalsaydı ikisi zamanla ayrışırdı. */
+  urunAd: {
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+    marginBottom: bosluk.kucuk,
+  },
   ortalamaSatir: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   ortalamaYazi: { fontSize: 15, fontWeight: '700', fontFamily: font.kalin, color: renkler.yaziKoyu, marginLeft: 6 },
 
@@ -618,12 +650,34 @@ const stilOlustur = (renkler) => StyleSheet.create({
   metaYazi: { fontSize: 13, color: renkler.yaziGri, marginLeft: 5 },
   metaNokta: { width: 3, height: 3, borderRadius: 2, backgroundColor: renkler.yaziGri, marginHorizontal: 10 },
 
-  stokVar: { fontSize: 15, color: renkler.basari, fontWeight: '600', fontFamily: font.yari },
-  stokYok: { fontSize: 15, color: renkler.yaziGri, fontWeight: '600', fontFamily: font.yari },
+  /* ⭐ DEĞİŞTİ (GV/Faz 5.3) — stokVar / stokAz / stokYok stilleri
+     SİLİNDİ. Renk ve punto artık Rozet bileşeninin içinde; burada
+     yalnızca rozetin nereye oturacağı kaldı.
 
-  /* ⭐ YENİ — az kaldı hali. Turuncu "acele et" der; yeşil (rahat ol)
-     ile gri (yok) arasındaki üçüncü durum. */
-  stokAz: { fontSize: 15, color: renkler.uyari, fontWeight: '600', fontFamily: font.yari },
+     ⚠️ alignSelf: 'flex-start' sarmalayıcıda: Rozet kendi
+     genişliğinde ama satırı kaplayan bir View içinde otursaydı
+     altındaki fiyat bloğuyla arasındaki boşluk rozetin değil
+     kabın boşluğu olurdu. */
+  stokRozetYeri: {
+    alignSelf: 'flex-start',
+    marginBottom: bosluk.orta,
+  },
+
+  /* ⭐ YENİ (GV/Faz 5.3) — içerikteki fiyat bloğu.
+
+     ⚠️ alignItems: 'baseline' — 'center' DEĞİL.
+     22px fiyat ile 12px eski fiyat yan yana; ortalasaydık küçük
+     yazı büyüğün ortasında asılı kalırdı. Taban çizgisine
+     hizalanınca iki sayı aynı satırda yazılmış gibi okunuyor.
+
+     ⚠️ flexWrap: dar ekranda uzun fiyat + eski fiyat + rozet
+     sığmazsa alta kayıyor; sıkıştırıp kırpmıyor (G9). */
+  fiyatBlok: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: bosluk.kucuk,
+  },
 
   /* ⭐ YENİ (5.1/5.2) — alt bardaki iki eylem.
 
@@ -721,53 +775,48 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.kartArka,
   },
 
-  fiyatKutu: { marginRight: bosluk.orta },
+  /* ⭐ SİLİNDİ (GV/Faz 5.3) — fiyatKutu.
+     Alt çubukta artık fiyat yok; kutu da yok. Yerinde bırakmak,
+     kimsenin kullanmadığı bir stili ilerideki okuyucuya "burada
+     bir fiyat var" diye göstermek olurdu. */
 
-  /* ⭐ DEĞİŞTİ (GV/Faz 5.3) — FİYAT ARTIK TURUNCU DEĞİL.
-     ⚠️ Bu bir kural ihlaliydi ve palet değişince görünür oldu.
+  /* ⭐ DEĞİŞTİ (GV/Faz 5.3) — FİYAT İÇERİĞE TAŞINDI VE BÜYÜDÜ.
 
-     Turuncu bu uygulamada EYLEM demek. Alt çubukta fiyatın hemen
-     yanında "Şimdi Al" ve "Sepete Ekle" butonları var; üçü de
-     turuncu olunca hangisine basılacağı renkten okunamıyordu.
-     Ürün kartında bu kural zaten uygulanmıştı, detay ekranı
-     atlanmış.
+     22 → 30 (yazi.dev): fiyat artık alt çubukta bir yan bilgi
+     değil, içeriğin en büyük rakamı. Tasarımda da başlıktan
+     büyük — sayfadaki ilk cevap "kaça?" sorusuna.
 
-     ⚠️ "Fiyat" etiketi de KALDIRILDI: altındaki sayı zaten ₺ ile
-     bitiyor, neyin fiyat olduğu belli. Etiket yalnızca alt çubuğu
-     iki satır yapıyordu. */
+     ⚠️ TURUNCU DEĞİL. Turuncu bu uygulamada EYLEM demek; alt
+     çubukta "Şimdi Al" ve "Sepete Ekle" zaten turuncu. Fiyat da
+     turuncu olsaydı hangisine basılacağı renkten okunamazdı. Bu
+     kural bir kez ihlal edilmişti ve palet değişince görünür oldu.
+
+     ⚠️ "Fiyat" etiketi yok: sayı zaten ₺ ile bitiyor. */
   fiyat: {
-    fontSize: yazi.baslik,
+    fontSize: yazi.dev,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     lineHeight: satir.baslik,
     color: renkler.yaziKoyu,
   },
 
-  /* ⭐ YENİ (B1) — eski fiyat + yüzde rozeti aynı satırda.
-
-     Rozet fiyatın ÜSTÜNDE değil, eski fiyatın yanında: ikisi de
-     "bu ürün ucuzladı" cümlesinin parçası, ödenecek tutar ise ayrı
-     bir bilgi. Aynı cümlenin parçaları aynı satırda durur. */
-  indirimSatir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: bosluk.kucuk,
-    marginBottom: 2,
-  },
-
   /* Soluk + üstü çizili — ürün kartındaki dilin aynısı.
      Renk tek bilgi kanalı değil: çizgi renkten bağımsız olarak
-     "bu tutar artık geçerli değil" diyor. */
+     "bu tutar artık geçerli değil" diyor.
+
+     ⚠️ Punto kucuk değil ORTA (15): kartta 12'ydi çünkü orada kart
+     181dp ve fiyat 18px. Burada fiyat 30px; 12'lik bir eski fiyat
+     onun yanında okunmayacak kadar küçük kalırdı. Ölçek aynı,
+     basamak farklı. */
   eskiFiyat: {
-    fontSize: yazi.kucuk,
+    fontSize: yazi.orta,
     color: renkler.yaziGri,
-    lineHeight: satir.kucuk,
+    lineHeight: satir.orta,
     textDecorationLine: 'line-through',
   },
 
-  /* ⚠️ İndirimli fiyat YEŞİL, turuncu değil. Alt çubukta fiyatın
-     yanında "Şimdi Al" ve "Sepete Ekle" var; fiyat da turuncu
-     olsaydı hangisinin basılabilir olduğu renkten okunamazdı. */
+  /* ⚠️ İndirimli fiyat YEŞİL, turuncu değil — ürün kartıyla aynı
+     kural, aynı token. */
   fiyatIndirimli: {
     color: renkler.basari,
   },
