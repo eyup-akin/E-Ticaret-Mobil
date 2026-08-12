@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
-import { bosluk, yazi, satir, sayfaKenari } from '../theme/olculer';
+import { bosluk, sayfaKenari } from '../theme/olculer';
 import {
   bosFiltre, varsayilanSiralama, filtreSorgusuKur, aktifFiltreSayisi,
 } from '../services/urunFiltresi';
@@ -17,6 +17,8 @@ import FiltrePaneli from '../components/FiltrePaneli';
 import BannerSeridi from '../components/BannerSeridi';
 import KategoriSeridi from '../components/KategoriSeridi';
 import BolumBasligi from '../components/BolumBasligi';
+import BosDurum from '../components/BosDurum';
+import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 
 // ============================================================
 //  ANA SAYFA — vitrin
@@ -49,6 +51,14 @@ export default function AnaSayfaEkrani({ navigation }) {
 
   const [urunler, setUrunler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
+
+  // ⭐ YENİ (GV/Faz 9.4) — istek patladı mı?
+  //
+  // "Boş liste" ile "bağlanamadık" AYRI durumlar ve ayrı cevapları
+  // var: birinde filtreyi gevşetmek, diğerinde tekrar denemek
+  // gerekiyor. Tek bir boş listeyle ikisini birden anlatmak,
+  // müşteriye çözemeyeceği bir yol göstermek olurdu.
+  const [agHatasi, setAgHatasi] = useState(false);
   const [aramaMetni, setAramaMetni] = useState('');
   const [uygulananArama, setUygulananArama] = useState('');
 
@@ -148,6 +158,7 @@ export default function AnaSayfaEkrani({ navigation }) {
   async function urunleriGetir(arama, aktifFiltre, aktifSiralama) {
     try {
       setYukleniyor(true);
+      setAgHatasi(false);
 
       const yol = '/products' + filtreSorgusuKur(aktifFiltre, {
         arama,
@@ -157,7 +168,16 @@ export default function AnaSayfaEkrani({ navigation }) {
       const veri = await apiGet(yol);
       setUrunler(veri);
     } catch (hata) {
+      // ⚠️⚠️ BURASI ESKİDEN SESSİZCE YUTUYORDU (⭐ DEĞİŞTİ 9.4)
+      //
+      // İstek patladığında `urunler` eski hâlinde ya da boş kalıyor,
+      // ekran da "Ürün bulunamadı" yazıyordu. Bu YALAN: sunucuya
+      // ulaşamamakla mağazada ürün olmaması aynı şey değil ve
+      // müşteri, bizim hatamızı "burada bir şey yok" diye okuyordu.
+      // Kural nettir: yanlış bilgi, eksik bilgiden tehlikelidir.
       console.log('Ürünler alınamadı:', hata.message);
+      setUrunler([]);
+      setAgHatasi(true);
     } finally {
       setYukleniyor(false);
     }
@@ -377,15 +397,47 @@ export default function AnaSayfaEkrani({ navigation }) {
            konuma bağlı değişen hiçbir şey yok. */
         onScroll={(olay) => { kaydirmaY.current = olay.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={16}
+        /* ⭐ DEĞİŞTİ (GV/Faz 9) — ÜÇ AYRI DURUM, ÜÇ AYRI CEVAP.
+
+           Eskiden ikisi vardı: dönen çark ve tek satırlık bir yazı.
+           Çark ne geleceğini söylemiyordu, yazı ise ağ hatasını da
+           "ürün yok" diye gösteriyordu.
+
+           · yükleniyor  → ızgara iskeleti (ne geleceğini gösterir)
+           · ağ hatası   → "Bağlanamadık" + Tekrar Dene
+           · gerçekten boş → filtre varsa "gevşet", yoksa "ürün yok" */
         ListEmptyComponent={
           yukleniyor ? (
-            <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
+            <UrunIzgarasiIskeleti />
+          ) : agHatasi ? (
+            <BosDurum
+              ikon="cloud-offline-outline"
+              baslik="Bağlanamadık"
+              aciklama="Ürünler yüklenemedi. İnternet bağlantını kontrol edip tekrar dene."
+              eylemYazisi="Tekrar Dene"
+              onEylem={() => urunleriGetir(uygulananArama, filtre, siralama)}
+            />
+          ) : aktifFiltreSayisi(filtre) > 0 ? (
+            /* ⚠️ Burada eylem butonu VAR çünkü gidilecek bir yer var:
+               filtreyi temizlemek. Aramada sonuç yoksa (aşağıdaki
+               dal) buton yok — 7.8'de favorilerde verilen karar. */
+            <BosDurum
+              ikon="funnel-outline"
+              baslik="Sonuç bulunamadı"
+              aciklama="Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene."
+              eylemYazisi="Filtreleri Temizle"
+              onEylem={() => setFiltre(bosFiltre)}
+            />
           ) : (
-            <Text style={styles.bosYazi}>
-              {aktifFiltreSayisi(filtre) > 0
-                ? 'Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene.'
-                : 'Ürün bulunamadı.'}
-            </Text>
+            <BosDurum
+              ikon="search-outline"
+              baslik="Ürün bulunamadı"
+              aciklama={
+                uygulananArama
+                  ? 'Aramana uyan bir ürün yok. Farklı kelimelerle tekrar dene.'
+                  : 'Şu an gösterilecek bir ürün yok.'
+              }
+            />
           )
         }
       />
@@ -437,10 +489,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     gap: bosluk.orta,
   },
 
-  cark: {
-    marginTop: bosluk.dev,
-  },
-
   // ⚠️ sayfaKenari — banner, arama ve kategori şeridiyle aynı
   // dikey çizgi. Önce bosluk.kucuk yazılıydı ve tesadüfen aynı
   // değerdeydi; token'a bağlamak, kenar boşluğu değişince hizanın
@@ -452,14 +500,5 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   satir: {
     justifyContent: 'space-between',
-  },
-
-  bosYazi: {
-    textAlign: 'center',
-    marginTop: bosluk.dev,
-    marginHorizontal: bosluk.genis,
-    color: renkler.yaziGri,
-    fontSize: yazi.orta,
-    lineHeight: satir.orta,
   },
 });

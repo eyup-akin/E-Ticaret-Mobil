@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, SectionList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, SectionList, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import BosDurum from '../components/BosDurum';
+import { SatirListesiIskeleti } from '../components/Iskelet';
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';
 
 /* ⭐ YENİ (GV/Faz 7.9) — ÖDEMELERİ AYA GÖRE GRUPLA.
@@ -58,18 +59,33 @@ export default function OdemelerimEkrani({ navigation }) {
   const [odemeler, setOdemeler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
 
-  useEffect(() => {
-    async function getir() {
-      try {
-        const veri = await apiGet('/payments');
-        setOdemeler(veri);
-      } catch (hata) {
-        console.log('Ödemeler alınamadı:', hata.message);
-      } finally {
-        setYukleniyor(false);
-      }
+  // ⭐ YENİ (GV/Faz 9.4)
+  const [agHatasi, setAgHatasi] = useState(false);
+
+  // ⚠️ Efektin DIŞINDA tanımlı: "Tekrar Dene" butonu da bunu
+  // çağırıyor. Efektin içinde kalsaydı ikinci bir kopya yazmak
+  // gerekirdi.
+  async function odemeleriGetir() {
+    try {
+      setYukleniyor(true);
+      const veri = await apiGet('/payments');
+      setOdemeler(veri);
+      setAgHatasi(false);
+    } catch (hata) {
+      // ⭐ DEĞİŞTİ (GV/Faz 9.4) — eskiden ekran "Henüz ödeme geçmişin
+      // yok" diyordu. Ödeme geçmişi bir muhasebe kaydı; olmayan bir
+      // geçmişi varmış gibi göstermek kadar, olanı yokmuş gibi
+      // göstermek de yanlış bilgidir.
+      console.log('Ödemeler alınamadı:', hata.message);
+      setOdemeler([]);
+      setAgHatasi(true);
+    } finally {
+      setYukleniyor(false);
     }
-    getir();
+  }
+
+  useEffect(() => {
+    odemeleriGetir();
   }, []);
 
   // Başarılı ödemeler toplamı ve iade toplamı.
@@ -139,9 +155,16 @@ export default function OdemelerimEkrani({ navigation }) {
       </View>
 
       {yukleniyor ? (
-        <View style={styles.ortala}>
-          <ActivityIndicator size="large" color={renkler.anaRenk} />
-        </View>
+        /* ⭐ DEĞİŞTİ (GV/Faz 9.2) — çark yerine satır iskeleti. */
+        <SatirListesiIskeleti />
+      ) : agHatasi ? (
+        <BosDurum
+          ikon="cloud-offline-outline"
+          baslik="Bağlanamadık"
+          aciklama="Ödeme geçmişin yüklenemedi. İnternet bağlantını kontrol edip tekrar dene."
+          eylemYazisi="Tekrar Dene"
+          onEylem={odemeleriGetir}
+        />
       ) : odemeler.length === 0 ? (
         <BosDurum
           ikon="wallet-outline"

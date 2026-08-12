@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 import AramaCubugu from '../components/AramaCubugu';
 import BosDurum from '../components/BosDurum';
 import UrunKarti from '../components/UrunKarti';   // ⭐ ana sayfadaki kartın aynısı
+import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 
 export default function FavorilerimEkrani({ navigation }) {
   const { token } = useAuth();
@@ -23,12 +24,21 @@ export default function FavorilerimEkrani({ navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
 
+  // ⭐ YENİ (GV/Faz 9.4)
+  const [agHatasi, setAgHatasi] = useState(false);
+
   async function favorileriGetir() {
     try {
       const veri = await apiGet('/favorites');
       setFavoriler(veri);
+      setAgHatasi(false);
     } catch (hata) {
+      // ⭐ DEĞİŞTİ (GV/Faz 9.4) — sessiz yutma bitti. Eskiden ekran
+      // "Henüz favorin yok" diyordu; favorileri duruyor, ulaşamayan
+      // biziz. Yanlış bilgi, eksik bilgiden tehlikelidir.
       console.log('Favoriler alınamadı:', hata.message);
+      setFavoriler([]);
+      setAgHatasi(true);
     } finally {
       setYukleniyor(false);
     }
@@ -88,11 +98,17 @@ export default function FavorilerimEkrani({ navigation }) {
     );
   }
 
+  /* ⭐ DEĞİŞTİ (GV/Faz 9.1) — çark yerine ızgara iskeleti.
+     Bu ekranın içeriği iki sütunluk kart ızgarası; iskelet de onu
+     taklit ediyor ki yükleme bitince yerleşim zıplamasın. */
   if (yukleniyor) {
     return (
-      <View style={styles.ortala}>
-        <ActivityIndicator size="large" color={renkler.anaRenk} />
-      </View>
+      <SafeAreaView style={styles.kapsayici} edges={['top']}>
+        <View style={styles.ustBar}>
+          <Text style={styles.ustBaslik}>Favorilerim</Text>
+        </View>
+        <UrunIzgarasiIskeleti adet={4} />
+      </SafeAreaView>
     );
   }
 
@@ -133,8 +149,19 @@ export default function FavorilerimEkrani({ navigation }) {
              müşteriyi ürünlere yolluyoruz; arama sonuç vermediyse
              gidilecek bir yer yok, sadece aramayı değiştirmesi gerek —
              o yüzden orada eylem butonu çizilmiyor. Tek bir metin
-             göstermek ikisini aynı şey sanmak olurdu. */
-          favoriler.length === 0 ? (
+             göstermek ikisini aynı şey sanmak olurdu.
+
+             ⭐ EKLENDİ (GV/Faz 9.4) — ÜÇÜNCÜ boşluk: bağlanamadık.
+             O da ayrı bir cevap istiyor (tekrar dene). */
+          agHatasi ? (
+            <BosDurum
+              ikon="cloud-offline-outline"
+              baslik="Bağlanamadık"
+              aciklama="Favorilerin yüklenemedi. İnternet bağlantını kontrol edip tekrar dene."
+              eylemYazisi="Tekrar Dene"
+              onEylem={() => { setYukleniyor(true); favorileriGetir(); }}
+            />
+          ) : favoriler.length === 0 ? (
             <BosDurum
               ikon="heart-outline"
               baslik="Henüz favorin yok"

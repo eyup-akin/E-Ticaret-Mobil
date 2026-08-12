@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
@@ -12,6 +12,8 @@ import AramaCubugu from '../components/AramaCubugu';
 import UrunKarti from '../components/UrunKarti';
 import SiralamaSeridi from '../components/SiralamaSeridi';
 import FiltrePaneli from '../components/FiltrePaneli';
+import BosDurum from '../components/BosDurum';
+import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 
 export default function KategoriUrunleriEkrani({ route, navigation }) {
   // Kategoriler ekranından gelen bilgiler
@@ -21,6 +23,10 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
 
   const [urunler, setUrunler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
+
+  // ⭐ YENİ (GV/Faz 9.4) — bkz. AnaSayfaEkrani'ndaki gerekçe:
+  // "boş kategori" ile "bağlanamadık" ayrı durumlar.
+  const [agHatasi, setAgHatasi] = useState(false);
   const [aramaMetni, setAramaMetni] = useState(baslangicArama || '');
   const [uygulananArama, setUygulananArama] = useState(baslangicArama || '');
 
@@ -42,8 +48,11 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
 
       const veri = await apiGet(yol);
       setUrunler(veri);
+      setAgHatasi(false);
     } catch (hata) {
       console.log('Ürünler alınamadı:', hata.message);
+      setUrunler([]);
+      setAgHatasi(true);
     } finally {
       setYukleniyor(false);
     }
@@ -88,7 +97,8 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
       <SiralamaSeridi secili={siralama} onSec={setSiralama} />
 
       {yukleniyor ? (
-        <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
+        /* ⭐ DEĞİŞTİ (GV/Faz 9.1) — çark yerine ızgara iskeleti. */
+        <UrunIzgarasiIskeleti />
       ) : (
         <FlatList
           data={urunler}
@@ -97,12 +107,37 @@ export default function KategoriUrunleriEkrani({ route, navigation }) {
           numColumns={2}
           columnWrapperStyle={styles.satir}
           contentContainerStyle={styles.liste}
+          /* ⭐ DEĞİŞTİ (GV/Faz 9.3/9.4) — üç durum, üç cevap.
+             Ana sayfadaki ayrımın aynısı; ikisi aynı soruyu
+             cevapladığı için aynı dili konuşmaları gerekiyor. */
           ListEmptyComponent={
-            <Text style={styles.bosYazi}>
-              {aktifFiltreSayisi(filtre) > 0
-                ? 'Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene.'
-                : 'Bu kategoride ürün bulunamadı.'}
-            </Text>
+            agHatasi ? (
+              <BosDurum
+                ikon="cloud-offline-outline"
+                baslik="Bağlanamadık"
+                aciklama="Ürünler yüklenemedi. İnternet bağlantını kontrol edip tekrar dene."
+                eylemYazisi="Tekrar Dene"
+                onEylem={() => urunleriGetir(uygulananArama, filtre, siralama)}
+              />
+            ) : aktifFiltreSayisi(filtre) > 0 ? (
+              <BosDurum
+                ikon="funnel-outline"
+                baslik="Sonuç bulunamadı"
+                aciklama="Seçtiğin filtrelere uyan ürün yok. Filtreleri gevşetmeyi dene."
+                eylemYazisi="Filtreleri Temizle"
+                onEylem={() => setFiltre(bosFiltre)}
+              />
+            ) : (
+              <BosDurum
+                ikon="search-outline"
+                baslik="Bu kategoride ürün yok"
+                aciklama={
+                  uygulananArama
+                    ? 'Aramana uyan bir ürün bulunamadı. Farklı kelimelerle dene.'
+                    : 'Bu kategoriye henüz ürün eklenmemiş.'
+                }
+              />
+            )
           }
         />
       )}
@@ -148,21 +183,10 @@ const stilOlustur = (renkler) => StyleSheet.create({
     lineHeight: satir.buyuk,
     color: renkler.yaziKoyu,
   },
-  cark: {
-    marginTop: bosluk.dev,
-  },
   liste: {
     padding: bosluk.kucuk,
   },
   satir: {
     justifyContent: 'space-between',
-  },
-  bosYazi: {
-    textAlign: 'center',
-    marginTop: bosluk.dev,
-    marginHorizontal: bosluk.genis,
-    color: renkler.yaziGri,
-    fontSize: yazi.orta,
-    lineHeight: satir.orta,
   },
 });

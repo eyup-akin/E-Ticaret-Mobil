@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Platform, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Platform, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 import AramaCubugu from '../components/AramaCubugu';
 import BosDurum from '../components/BosDurum';
+import { SatirListesiIskeleti } from '../components/Iskelet';
 import Chip from '../components/Chip';
 import Rozet from '../components/Rozet';
 import { durumYazisi, odemeYazisi, odemeRengi } from '../utils/durum';
@@ -67,6 +68,11 @@ export default function SiparislerimEkrani({ navigation }) {
   // null = "Tümü". Durum kodu tutuluyor (teslim_edildi gibi).
   const [seciliDurum, setSeciliDurum] = useState(null);
 
+  // ⭐ YENİ (GV/Faz 9.4) — liste isteği patladı mı?
+  // Özet isteğinin hatası buraya YANSIMAZ: o bir süs, listenin
+  // kendisi asıl içerik (yukarıdaki allSettled gerekçesi).
+  const [agHatasi, setAgHatasi] = useState(false);
+
   async function siparisleriGetir() {
     try {
       // ⚠️ İki istek PARALEL, arka arkaya değil — aralarında
@@ -85,8 +91,15 @@ export default function SiparislerimEkrani({ navigation }) {
 
       if (listeSonuc.status === 'fulfilled') {
         setSiparisler(listeSonuc.value);
+        setAgHatasi(false);
       } else {
+        // ⭐ DEĞİŞTİ (GV/Faz 9.4) — hata artık ekrana çıkıyor.
+        // Eskiden yalnızca konsola yazılıyordu ve müşteri "Henüz
+        // siparişin yok" görüyordu; oysa siparişleri duruyor,
+        // ulaşamayan biziz.
         console.log('Siparişler alınamadı:', listeSonuc.reason?.message);
+        setSiparisler([]);
+        setAgHatasi(true);
       }
 
       if (ozetSonuc.status === 'fulfilled') {
@@ -188,15 +201,34 @@ export default function SiparislerimEkrani({ navigation }) {
     );
   }
 
+  /* ⭐ DEĞİŞTİ (GV/Faz 9.2) — çark yerine satır iskeleti.
+     Başlık da iskeletin üstünde duruyor: eskiden yükleme boyunca
+     ekran tamamen boştu ve "Siparişlerim" yazısı içerikle birlikte
+     birden beliriyordu. */
   if (yukleniyor) {
-    return <View style={styles.ortala}><ActivityIndicator size="large" color={renkler.anaRenk} /></View>;
+    return (
+      <SafeAreaView style={styles.kapsayici} edges={['top']}>
+        <Text style={styles.baslik}>Siparişlerim</Text>
+        <SatirListesiIskeleti />
+      </SafeAreaView>
+    );
   }
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <Text style={styles.baslik}>Siparişlerim</Text>
 
-      {siparisler.length === 0 ? (
+      {agHatasi ? (
+        /* ⚠️ Ağ hatası "sipariş yok" DEĞİL. Ayrı bir ikon, ayrı bir
+           cümle ve gerçekten yapılabilecek bir eylem: tekrar dene. */
+        <BosDurum
+          ikon="cloud-offline-outline"
+          baslik="Bağlanamadık"
+          aciklama="Siparişlerin yüklenemedi. İnternet bağlantını kontrol edip tekrar dene."
+          eylemYazisi="Tekrar Dene"
+          onEylem={() => { setYukleniyor(true); siparisleriGetir(); }}
+        />
+      ) : siparisler.length === 0 ? (
         /* ⭐ DEĞİŞTİ (GV/Faz 7.3) — boş durum ortak bileşene geçti.
            Eskiden yerinde çizilmiş bir ikon + tek satır yazıydı ve
            müşteriye gidecek bir yer önermiyordu. */
@@ -271,6 +303,12 @@ export default function SiparislerimEkrani({ navigation }) {
             keyExtractor={(item) => item.id.toString()}
             renderItem={siparisKarti}
             contentContainerStyle={styles.liste}
+            /* ⚠️ Burada `BosDurum` KULLANILMADI, tek satır yazı kaldı.
+               Bu bir "içerik yok" hâli değil, bir arama sonucu: liste
+               dolu, sadece bu kelimeye uyan yok. Ekranın yarısını
+               kaplayan bir daire, üstteki arama kutusunu ve durum
+               şeridini aşağı iterdi — oysa müşterinin bir sonraki
+               hamlesi tam da onlar. */
             ListEmptyComponent={
               <Text style={styles.aramaBos}>Eşleşen sipariş bulunamadı.</Text>
             }

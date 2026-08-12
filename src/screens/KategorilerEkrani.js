@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { font } from '../theme/olculer';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import { kategoriIkonu } from '../services/kategoriIkon';
 import AramaCubugu from '../components/AramaCubugu';
+import BosDurum from '../components/BosDurum';
+import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 
 export default function KategorilerEkrani({ navigation }) {
   const { renkler } = useTema();
@@ -16,17 +18,27 @@ export default function KategorilerEkrani({ navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
 
-  useEffect(() => {
-    async function kategorileriGetir() {
-      try {
-        const veri = await apiGet('/categories');
-        setKategoriler(veri);
-      } catch (hata) {
-        console.log('Kategoriler alınamadı:', hata.message);
-      } finally {
-        setYukleniyor(false);
-      }
+  // ⭐ YENİ (GV/Faz 9.4)
+  const [agHatasi, setAgHatasi] = useState(false);
+
+  async function kategorileriGetir() {
+    try {
+      setYukleniyor(true);
+      const veri = await apiGet('/categories');
+      setKategoriler(veri);
+      setAgHatasi(false);
+    } catch (hata) {
+      // ⭐ DEĞİŞTİ (GV/Faz 9.4) — "Kategori bulunamadı" yazmak,
+      // mağazada hiç kategori yokmuş gibi okunuyordu.
+      console.log('Kategoriler alınamadı:', hata.message);
+      setKategoriler([]);
+      setAgHatasi(true);
+    } finally {
+      setYukleniyor(false);
     }
+  }
+
+  useEffect(() => {
     kategorileriGetir();
   }, []);
 
@@ -98,7 +110,9 @@ export default function KategorilerEkrani({ navigation }) {
       <Text style={styles.baslik}>Tüm Kategoriler</Text>
 
       {yukleniyor ? (
-        <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
+        /* ⭐ DEĞİŞTİ (GV/Faz 9.1) — çark yerine iki sütunluk iskelet.
+           Kategori karoları da iki sütun; aynı iskelet işi görüyor. */
+        <UrunIzgarasiIskeleti adet={6} />
       ) : (
         <FlatList
           data={kategoriler}
@@ -107,7 +121,23 @@ export default function KategorilerEkrani({ navigation }) {
           numColumns={2}
           columnWrapperStyle={styles.satir}
           contentContainerStyle={styles.liste}
-          ListEmptyComponent={<Text style={styles.bosYazi}>Kategori bulunamadı.</Text>}
+          ListEmptyComponent={
+            agHatasi ? (
+              <BosDurum
+                ikon="cloud-offline-outline"
+                baslik="Bağlanamadık"
+                aciklama="Kategoriler yüklenemedi. İnternet bağlantını kontrol edip tekrar dene."
+                eylemYazisi="Tekrar Dene"
+                onEylem={kategorileriGetir}
+              />
+            ) : (
+              <BosDurum
+                ikon="grid-outline"
+                baslik="Kategori yok"
+                aciklama="Şu an gösterilecek bir kategori bulunmuyor."
+              />
+            )
+          }
         />
       )}
     </SafeAreaView>
@@ -140,9 +170,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
-  },
-  cark: {
-    marginTop: 40,
   },
   liste: {
     padding: 12,
@@ -187,11 +214,5 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: 12,
     color: renkler.yaziGri,
     marginTop: 2
-  },
-  bosYazi: {
-    textAlign: 'center',
-    marginTop: 40,
-    color: renkler.yaziGri,
-    fontSize: 16,
   },
 });
