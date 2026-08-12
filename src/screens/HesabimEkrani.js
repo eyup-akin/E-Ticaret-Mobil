@@ -9,6 +9,7 @@ import { refreshTokenAl } from '../services/tokenStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
 import GirisGerekliEkrani from '../components/GirisGerekliEkrani';   // ⭐ misafir kapısı
+import OnayPenceresi from '../components/OnayPenceresi';   // ⭐ YENİ (2026-08-12)
 
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
@@ -32,6 +33,18 @@ export default function HesabimEkrani({ navigation }) {
   // yok") ama bizim durumumuz "henüz sormadım". İkisini karıştırırsak
   // veri gelmeden ekranda "0" yazar ve kullanıcı yanlış bilgi görür.
   const [oturumSayisi, setOturumSayisi] = useState(null);
+
+  // ⭐ YENİ (2026-08-12) — çıkış onayı.
+  //
+  // ⚠️ Onay ŞART: çıkış tek dokunuşla oluyordu ve yanlışlıkla
+  // basıldığında kullanıcı e-postasını ve şifresini yeniden yazmak
+  // zorunda kalıyordu. Geri alınabilir bir işlem, ama geri almanın
+  // bedeli yüksek.
+  //
+  // ⚠️ Alert.alert DEĞİL, OnayPenceresi: sistem penceresi koyu temada
+  // beyaz açılıyor ve markanın rengi yerine sistemin mavisini
+  // kullanıyor (gerekçenin tamamı bileşenin başında).
+  const [cikisSorusu, setCikisSorusu] = useState(false);
 
   // Giriş varsa profili çek, çıkışta temizle
   useEffect(() => {
@@ -257,6 +270,32 @@ export default function HesabimEkrani({ navigation }) {
         <View style={styles.baslikSatir}>
           <Text style={styles.baslik}>Hesabım</Text>
 
+          {/* ⭐ DEĞİŞTİ (2026-08-12) — ÇIKIŞ SAYFANIN DİBİNDEN
+              SOL ÜSTE TAŞINDI.
+              Eskiden en altta, hesap kapatma bağlantısının hemen
+              üstünde çerçeveli bir butondu. İki sorun vardı: en sık
+              kullanılan eylemlerden biri için sayfanın sonuna kadar
+              kaydırmak gerekiyordu ve "çıkış" ile "hesabı kapat" yan
+              yana durunca ikisi aynı ağırlıkta okunuyordu — oysa biri
+              geri alınabilir, diğeri değil.
+
+              ⚠️ Tema düğmesiyle SİMETRİK: ikisi de mutlak konumda,
+              ikisi de başlık satırının kenarında. Akışa koysaydık
+              ortalı başlık düğme genişliği kadar kayardı.
+
+              ⚠️ İkon + yazı, sadece ikon DEĞİL: bir kapı ikonu tek
+              başına "çıkış mı, giriş mi?" belirsizliği taşıyor. */}
+          <TouchableOpacity
+            style={styles.cikisButon}
+            onPress={() => setCikisSorusu(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Çıkış yap"
+          >
+            <Ionicons name="exit-outline" size={18} color={renkler.hata} />
+            <Text style={styles.cikisYazi}>Çıkış Yap</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.temaButon}
             onPress={() => temaDegistir(koyuMu ? 'acik' : 'koyu')}
@@ -377,13 +416,8 @@ export default function HesabimEkrani({ navigation }) {
             açıklama katlama bağlantısı (5.6) aynı gerekçeyle
             elenmişti. */}
 
-        {/* ============ ÇIKIŞ ============
-            ⚠️ `token` kontrolü kalktı: misafir bu noktaya hiç
-            gelmiyor, yukarıda erken dönüş var. */}
-        <TouchableOpacity style={styles.cikisButon} onPress={cikisYap} activeOpacity={0.85}>
-          <Ionicons name="log-out-outline" size={18} color={renkler.hata} />
-          <Text style={styles.cikisYazi}>Çıkış Yap</Text>
-        </TouchableOpacity>
+        {/* ⚠️ ÇIKIŞ BUTONU BURADAN KALKTI → başlık satırının sol üstü.
+            Gerekçe orada yazılı. */}
 
         {/* ⭐ TEHLİKELİ BÖLGE
 
@@ -410,6 +444,27 @@ export default function HesabimEkrani({ navigation }) {
           kaydı olarak saklanır. Bu işlem geri alınamaz.
         </Text>
       </ScrollView>
+
+      {/* ⭐ YENİ (2026-08-12) — ÇIKIŞ ONAYI
+          ⚠️ `yikici` VERİLMEDİ (turuncu onay butonu). Kırmızı dolu
+          buton bu uygulamada "geri alınamaz" demek — hesap kapatmaya
+          ait. Çıkış geri alınabilir: tekrar giriş yapılır.
+          ⚠️ Mesaj neyin KORUNDUĞUNU söylüyor. Asıl korku "sepetim
+          gider mi?" ve cevabı hayır: sepet sunucuda, tema tercihi
+          cihazda. Sormadan tahmin ettirmek yerine yazıyoruz. */}
+      <OnayPenceresi
+        acik={cikisSorusu}
+        ikon="exit-outline"
+        baslik="Çıkış Yap"
+        mesaj="Oturumun kapatılacak. Sepetin ve ayarların korunacak. Çıkış yapmak istediğine emin misin?"
+        onayYazisi="Evet, Çıkış Yap"
+        vazgecYazisi="İptal"
+        onVazgec={() => setCikisSorusu(false)}
+        onOnayla={() => {
+          setCikisSorusu(false);
+          cikisYap();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -628,26 +683,29 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ---------- ÇIKIŞ ---------- */
 
-  /* ⚠️ Turuncu bu uygulamada "asıl eylem" demek. Çıkış bu ekranın asıl
-     eylemi DEĞİL — kullanıcı buraya genelde profilini görmeye geliyor.
-     ⚠️ DOLU kırmızı da yapılmadı: dolu kırmızı "yıkıcı" demek ve o
-     ağırlık hesap kapatmaya ait. Çıkış geri alınabilir. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — başlık satırının SOL ÜSTÜNDE.
+     ⚠️ Çerçeve kaldırıldı. Aşağıdayken tam genişlikte çerçeveli bir
+     butondu; başlık hizasında o çerçeve, yanındaki yuvarlak tema
+     düğmesiyle yarışan ikinci bir kutu olurdu. Kırmızı renk ve
+     ikon zaten yeterli işaret.
+     ⚠️ DOLU kırmızı yapılmadı: dolu kırmızı "yıkıcı" demek ve o
+     ağırlık hesap kapatmaya ait. Çıkış geri alınabilir.
+     ⚠️ minHeight 40 — tema düğmesiyle aynı dokunma hedefi. */
   cikisButon: {
+    position: 'absolute',
+    left: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: bosluk.kucuk,
-    borderWidth: 1.5,
-    borderColor: renkler.hata,
-    paddingVertical: bosluk.orta,
-    borderRadius: kose.orta,
+    gap: bosluk.mikro,
+    minHeight: 40,
+    paddingRight: bosluk.kucuk,
   },
 
   cikisYazi: {
     color: renkler.hata,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
   },
 
 

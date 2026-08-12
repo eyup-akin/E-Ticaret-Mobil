@@ -163,11 +163,19 @@ export default function SifreGucu({ sifre }) {
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
+  /* ⚠️ ALT BOŞLUK BİLEŞENİN KENDİSİNDE (⭐ 2026-08-12).
+     Eskiden çağıran ekran göstergeyi bir View'a sarıp ona
+     `marginBottom` veriyordu. Bileşen şifre boşken `null` döndüğü
+     için o sarmalayıcı BOŞ ama YER KAPLAR halde kalıyordu: kayıt
+     formunda "Şifre" ile "Şifre (Tekrar)" arasında sebepsiz bir
+     boşluk görünüyordu. Boşluk artık yalnızca gösterge gerçekten
+     çizildiğinde var. */
   kap: {
     backgroundColor: renkler.acikKart,
     borderRadius: kose.orta,
     padding: bosluk.orta,
     gap: bosluk.mikro,
+    marginBottom: bosluk.genis,
   },
 
   cubukSatir: {

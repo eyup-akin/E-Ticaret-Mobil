@@ -397,14 +397,22 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderTopLeftRadius: kose.dev,
     borderTopRightRadius: kose.dev,
     paddingHorizontal: bosluk.genis,
-    paddingTop: bosluk.genis,
+    /* ⭐ DEĞİŞTİ (2026-08-12) — üst dolgu 24 → 32; Kayıt ekranıyla
+       aynı sayı. İki ekran arasında `replace` ile gidilip geliniyor,
+       farklı dolgu geçişi sıçratırdı. */
+    paddingTop: bosluk.dev,
     paddingBottom: bosluk.dev,
   },
 
+  /* ⚠️ Şifre kutusunun ALTINDA duruyor ama ona ait değil, bir
+     kaçış yolu. FormAlani zaten altına 24 koyuyor; buradaki üst
+     eksi boşluk onu 12'ye çekiyor ki bağlantı kutudan kopmasın,
+     ardından butondan önce 24 nefes kalsın. */
   unuttumSatir: {
     alignSelf: 'flex-end',
+    marginTop: -bosluk.orta,
     paddingVertical: bosluk.kucuk,
-    marginBottom: bosluk.kucuk,
+    marginBottom: bosluk.orta,
   },
 
   unuttumYazi: {

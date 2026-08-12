@@ -88,16 +88,25 @@ export default function FormAlani({
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
+  /* ⭐ DEĞİŞTİ (2026-08-12) — FORM FERAHLADI (cihazda görüldü).
+     Alanlar arası 16 → 24. Beş alanlı kayıt formunda 16dp, kutuları
+     tek bir blok gibi gösteriyordu; göz nerede bittiğini ayırt
+     edemiyordu. */
   alan: {
-    marginBottom: bosluk.normal,
+    marginBottom: bosluk.genis,
   },
 
+  /* ⭐ DEĞİŞTİ (2026-08-12) — etiket ile kutu arası 4 → 8.
+     ⚠️ Ama alanlar arası boşluktan (24) BELİRGİN ŞEKİLDE KÜÇÜK
+     kalmalı: yakınlık, etiketin hangi kutuya ait olduğunu söyleyen
+     tek işaret. İkisi eşitlenseydi "Şifre" yazısı üstündeki kutuya
+     mı yoksa altındakine mi ait, bakışta anlaşılmazdı. */
   etiket: {
     fontSize: yazi.normal,
     fontWeight: agirlik.yari,
     fontFamily: font.yari,
     color: renkler.yaziKoyu,
-    marginBottom: bosluk.mikro,
+    marginBottom: bosluk.kucuk,
   },
 
   sarmal: {

@@ -208,10 +208,14 @@ export default function KayitEkrani({ navigation }) {
           {/* ⚠️ Gösterge şifre alanının HEMEN ALTINDA, formun sonunda
               değil: kullanıcı yazarken görmeli. Bileşen 7.11'de
               yazıldı; kuralı ikinci kez yazmak, birini güncelleyip
-              diğerini unutmak demekti. */}
-          <View style={styles.gucKap}>
-            <SifreGucu sifre={sifre} />
-          </View>
+              diğerini unutmak demekti.
+
+              ⚠️ SARMALAYICI View KALDIRILDI (2026-08-12): şifre
+              boşken bileşen `null` dönüyor ama sarmalayıcının
+              `marginBottom`'ı duruyordu ve iki şifre alanı arasında
+              sebepsiz bir boşluk bırakıyordu. Boşluk artık
+              bileşenin içinde. */}
+          <SifreGucu sifre={sifre} />
 
           <FormAlani
             etiket="Şifre (Tekrar)"
@@ -346,14 +350,11 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderTopLeftRadius: kose.dev,
     borderTopRightRadius: kose.dev,
     paddingHorizontal: bosluk.genis,
-    paddingTop: bosluk.genis,
+    /* ⭐ DEĞİŞTİ (2026-08-12) — yaprağın üst dolgusu 24 → 32.
+       İlk etiket yuvarlatılmış köşenin hemen dibinde başlıyordu ve
+       form bandın altına sıkışmış görünüyordu. */
+    paddingTop: bosluk.dev,
     paddingBottom: bosluk.dev,
-  },
-
-  /* Güç göstergesi kutusu ile bir sonraki alan arasındaki boşluk:
-     FormAlani kendi altına 16 koyuyor, gösterge koymuyor. */
-  gucKap: {
-    marginBottom: bosluk.normal,
   },
 
   hataKutu: {
