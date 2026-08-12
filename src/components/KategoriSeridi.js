@@ -27,6 +27,12 @@ import SecimKarosu from './SecimKarosu';
 //  uygulanıyor; orada müşteri birden çok ayar yapıyor. Burada tek
 //  bir dokunuş var ve beklenti "tak diye o kategori gelsin".
 //
+//  ⚠️ ŞERİT TEK SEÇİM GİBİ DAVRANIR, PANEL ÇOKLU. Karar bu
+//  bileşende değil `AnaSayfaEkrani`'nın `kategoriSec`'inde ve
+//  gerekçesi orada yazılı: buradaki dokunuş bir kısayol, "şimdi
+//  bunu göster" demek. `seciliIdler` yine bir dizi — panel birden
+//  çok kategori seçmişse şerit hepsini seçili gösterir.
+//
 //  ⚠️ ŞERİT ALT SATIRA SARMIYOR. Yedi kategori sarsaydı üç satır
 //  ederdi ve banner'ın altındaki alanı yiyip son gezilenleri
 //  ekranın dışına iterdi.

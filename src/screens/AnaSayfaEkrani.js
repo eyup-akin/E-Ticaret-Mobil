@@ -244,16 +244,38 @@ export default function AnaSayfaEkrani({ navigation }) {
   // çok ayar yapılıyor ve "göster"e basılıyor; burada tek dokunuş
   // var ve beklenti "tak diye o kategori gelsin".
   //
-  // ⚠️ Seçiliye tekrar basmak seçimi KALDIRIYOR — aynı karoya
-  // basıp filtreden çıkmak, panele girmeden geri dönmenin tek
-  // yolu.
+  // ⚠️⚠️ ŞERİT TEK SEÇİM, PANEL ÇOKLU SEÇİM. (⭐ DEĞİŞTİ 2026-08-12)
+  //
+  // Önce buradaki dokunuş da panelinki gibi seçime EKLİYORDU:
+  // Elektronik'e sonra Giyim'e basınca ikisi birden görünüyordu.
+  // Şeritte bu yanlış çünkü dokunuş bir kısayol — "şimdi bunu
+  // göster" demek. Müşteri ikinci kategoriye bastığında niyeti
+  // "ikisini birlikte gör" değil, "fikrimi değiştirdim".
+  //
+  // Birden çok kategoriyi bilinçli olarak birleştirmek isteyen
+  // filtre panelini açıyor; orada seçim taslakta birikiyor ve ne
+  // yaptığı ekranda yazıyor. İki farklı niyet, iki farklı yer.
+  //
+  // ⚠️ Panel birden çok kategori seçtiyse şerit onların hepsini
+  // seçili gösterir — ekran duruma yalan söylemez. Şeritten bir
+  // dokunuş o birleşimi tek kategoriye indirir.
+  //
+  // ⚠️ Seçili olana tekrar basmak seçimi KALDIRIYOR: aynı karoya
+  // basıp filtreden çıkmak, panele girmeden geri dönmenin tek yolu.
+  //
+  // ⚠️ Fiyat/puan/stok filtrelerine DOKUNULMUYOR. Bu karo bir
+  // kategori seçici, "her şeyi sıfırla" düğmesi değil; müşterinin
+  // az önce kurduğu fiyat aralığını habersiz silmek olurdu.
   const kategoriSec = useCallback((id) => {
-    setFiltre((onceki) => ({
-      ...onceki,
-      kategoriler: onceki.kategoriler.includes(id)
-        ? onceki.kategoriler.filter((x) => x !== id)
-        : [...onceki.kategoriler, id],
-    }));
+    setFiltre((onceki) => {
+      const tekSeciliBuMu =
+        onceki.kategoriler.length === 1 && onceki.kategoriler[0] === id;
+
+      return {
+        ...onceki,
+        kategoriler: tekSeciliBuMu ? [] : [id],
+      };
+    });
   }, []);
 
   const kartCiz = useCallback(
