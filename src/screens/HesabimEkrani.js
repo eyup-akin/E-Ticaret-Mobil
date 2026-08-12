@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet, apiPost } from '../services/api';
@@ -13,6 +13,9 @@ import GirisGerekliEkrani from '../components/GirisGerekliEkrani';   // ⭐ misa
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
   const { renkler, koyuMu, temaDegistir } = useTema();
+
+  // Misafir görünümündeki yüzen tema düğmesi için — açıklaması aşağıda.
+  const insets = useSafeAreaInsets();
   const styles = stilOlustur(renkler);
 
   /* ⚠️ Profil artık EKRANDA GÖSTERİLMİYOR ama hâlâ çekiliyor:
@@ -181,9 +184,29 @@ export default function HesabimEkrani({ navigation }) {
    * değiştiremezdi; tema tercihinin evi bu ekran. */
   if (!token) {
     return (
-      <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      /* ⚠️⚠️ BURADA `SafeAreaView` YOK — BİLEREK.
+       *
+       * Sepetim ve Favorilerim misafir kapısını doğrudan döndürüyor;
+       * Hesabım'ı SafeAreaView ile sarınca üstten güvenli alan kadar
+       * (cihazda ~24-40dp) DAHA aşağı kayıyordu. Üç sekme arasında
+       * geçerken daire ve yazılar birkaç piksel oynuyordu — kullanıcı
+       * fark etti. Kapı üç ekranda da aynı yerde durmalı.
+       *
+       * ⚠️ Güvenli alanı bu ekranda YALNIZCA tema düğmesi umursuyor
+       * (aşağıda `insets.top` ile). İçerik dikey ortalı olduğu için
+       * durum çubuğunun altına girmesi zaten mümkün değil. */
+      <View style={styles.kapsayici}>
         <TouchableOpacity
-          style={[styles.temaButon, styles.temaButonYuzen]}
+          style={[
+            styles.temaButon,
+            styles.temaButonYuzen,
+            /* ⚠️ MUTLAK KONUMLU ÇOCUK GÜVENLİ ALANI GÖRMEZ.
+               SafeAreaView'in dolgusu yalnızca AKIŞTAKİ çocukları
+               iter; `position: absolute` olan bu düğme kutunun en
+               üstünden ölçülüyordu ve durum çubuğunun altında
+               kalıyordu (cihazda görüldü). Inset'i elle ekliyoruz. */
+            { top: insets.top + bosluk.kucuk },
+          ]}
           onPress={() => temaDegistir(koyuMu ? 'acik' : 'koyu')}
           activeOpacity={0.7}
           accessibilityRole="button"
@@ -204,7 +227,7 @@ export default function HesabimEkrani({ navigation }) {
           baslik="Hesabına giriş yap"
           aciklama="Siparişlerini takip etmek, favorilerini ve adreslerini yönetmek için giriş yapman gerekiyor."
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -420,8 +443,10 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* ⚠️ Misafir görünümünde başlık satırı yok; düğme doğrudan
      ekranın sağ üstünde yüzüyor. `sayfaKenari` yerine `bosluk.normal`:
      içerik kenarı olmayan bir ekranda düğme kenara fazla yapışıyordu. */
+  /* ⚠️ `top` BURADA YOK: güvenli alan cihaza göre değişiyor ve
+     bileşende `insets.top` ile veriliyor. Sabit bir sayı yazsaydık
+     çentikli telefonda düğme durum çubuğunun altında kalırdı. */
   temaButonYuzen: {
-    top: bosluk.kucuk,
     right: bosluk.normal,
     zIndex: 1,
   },
