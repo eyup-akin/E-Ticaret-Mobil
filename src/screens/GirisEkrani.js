@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,14 +26,15 @@ import { epostaGecerliMi } from '../utils/dogrulama';
 //
 //  Tasarım: `giri_yap_ve_hata_durumu`
 //
-//  Yerleşim tasarımdan: üstte lacivert bant (marka + slogan),
-//  altında yukarı köşeleri yuvarlatılmış beyaz yaprak. Yaprak
-//  bandın son 24dp'sini örtüyor — ürün detayındaki galeri/yaprak
-//  ilişkisinin aynısı, uygulama içinde tek bir dil olsun diye.
+//  Yerleşim: üstte lacivert bant (logo + başlık + tek satır
+//  açıklama), altında yukarı köşeleri yuvarlatılmış beyaz yaprak.
+//  Yaprak bandın son 24dp'sini örtüyor — ürün detayındaki
+//  galeri/yaprak ilişkisinin aynısı.
 //
-//  ⚠️ BANT SABİT YÜKSEKLİKTE DEĞİL. Tasarım 30vh diyor; React
-//  Native'de vh yok ve sabit bir sayı yazmak küçük ekranda formu
-//  aşağı iterdi. Bandın boyu içeriğinden geliyor.
+//  ⚠️ BANT KAYIT EKRANIYLA BİREBİR AYNI (2026-08-12). İki ekran
+//  arasında `replace` ile gidilip geliniyor; farklı bantlar geçişi
+//  sıçrama gibi gösteriyordu. Boy içerikten geliyor, sabit ya da
+//  ekrana orantılı değil.
 //
 //  ⚠️ HATALAR ARTIK Alert DEĞİL, EKRANDA.
 //  Üç ayrı yer: e-posta biçimi kutunun altında, sunucudan gelen
@@ -50,16 +50,7 @@ import { epostaGecerliMi } from '../utils/dogrulama';
 export default function GirisEkrani({ navigation }) {
   const { girisYap } = useAuth();
   const { renkler } = useTema();
-  const { height: ekranYuksekligi } = useWindowDimensions();
   const styles = stilOlustur(renkler);
-
-  /* ⚠️ BANDIN BOYU EKRANA ORANTILI AMA TAVANLI.
-     Tasarım bandı ekranın ~%27'si kadar çiziyor ve ferahlığı oradan
-     geliyor. Sabit bir sayı yazsaydık küçük telefonda form aşağı
-     kayardı; orantı bunu çözüyor. Tavan da şart: uzun ekranlarda
-     (ve web önizlemesinde) bant tek başına ekranı yerdi.
-     minHeight — içerik daha uzunsa bant büyümeye devam ediyor. */
-  const bantYuksekligi = Math.min(ekranYuksekligi * 0.27, 240);
 
   const [email, setEmail] = useState('');
   const [sifre, setSifre] = useState('');
@@ -151,7 +142,7 @@ export default function GirisEkrani({ navigation }) {
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       {/* ---- LACİVERT BANT ---- */}
-      <View style={[styles.bant, { minHeight: bantYuksekligi }]}>
+      <View style={styles.bant}>
         {/* ⚠️ KAPATMA X'İ DURUYOR (tasarımda yok).
             Bu ekran bir modal ve klavye açıkken alttaki "Misafir
             olarak devam et" butonu görünmeyebiliyor. Çıkış yolu her
@@ -191,6 +182,15 @@ export default function GirisEkrani({ navigation }) {
           />
         </View>
 
+        {/* ⭐ DEĞİŞTİ (2026-08-12) — BAŞLIK BANDA TAŞINDI.
+            Kayıt ekranı referans alındı: iki ekran arasında `replace`
+            ile gidilip geliniyor ve bantları farklı yapıdaydı — biri
+            logo+slogan, diğeri logo+başlık+slogan. Geçiş sıçrama gibi
+            görünüyordu. Artık ikisi de aynı: logo, ne yaptığını
+            söyleyen başlık, tek satır açıklama.
+            ⚠️ Yapraktaki "Giriş Yap" başlığı KALDIRILDI — aynı yazı
+            ekranda iki kez durmuş olurdu. */}
+        <Text style={styles.bantBaslik}>Giriş Yap</Text>
         <Text style={styles.slogan}>Alışverişe kaldığın yerden devam et.</Text>
       </View>
 
@@ -204,8 +204,6 @@ export default function GirisEkrani({ navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.baslik}>Giriş Yap</Text>
-
           <FormAlani
             etiket="E-posta"
             ikon="mail-outline"
@@ -326,14 +324,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.lacivertYuzey,
   },
 
-  /* ⭐ DEĞİŞTİ — içerik hem dikeyde alta yaslı hem YATAYDA ORTALI.
-     Sola yaslıyken logo karosu köşede tek başına duruyordu; marka
-     işareti bir başlık değil, ekranın kimliği — ortası doğru yeri. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — KAYIT EKRANIYLA BİREBİR AYNI BANT.
+     ⚠️ Orantılı yükseklik (`ekran * 0.27`) KALDIRILDI: Kayıt'ta yok
+     ve iki ekran arasında geçerken bandın boyu değişiyordu. Boy
+     artık içerikten geliyor, ikisinde de aynı içerik var.
+     ⚠️ Alt dolgu iki kat: yaprak bandın son 24dp'sini örtüyor,
+     sloganın oraya sıkışmaması için. */
   bant: {
-    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: bosluk.genis,
-    paddingBottom: bosluk.genis,
+    paddingTop: bosluk.kucuk,
+    paddingBottom: bosluk.genis + bosluk.genis,
   },
 
   /* Beyaz karo: logonun kendi beyaz zemini var, karo onu kusur
@@ -363,6 +364,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     alignItems: 'center',
   },
 
+  /* Kayıt ekranındaki "Hesap Oluştur" ile aynı punto ve renk. */
+  bantBaslik: {
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.lacivertYuzeyUstuYazi,
+    textAlign: 'center',
+    marginTop: bosluk.orta,
+  },
+
   /* ⚠️ Slogan lacivertYuzeyPasif — yaziGri burada okunmuyor
      (lacivert üstünde ~2,2:1). Bu token tam bu iş için var. */
   slogan: {
@@ -387,16 +399,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingHorizontal: bosluk.genis,
     paddingTop: bosluk.genis,
     paddingBottom: bosluk.dev,
-  },
-
-  baslik: {
-    fontSize: yazi.baslik,
-    lineHeight: satir.baslik,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-    textAlign: 'center',
-    marginBottom: bosluk.genis,
   },
 
   unuttumSatir: {

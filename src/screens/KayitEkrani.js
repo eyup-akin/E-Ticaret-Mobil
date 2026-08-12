@@ -278,12 +278,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.lacivertYuzey,
   },
 
-  /* ⭐ DEĞİŞTİ — içerik yatayda ORTALI (Giriş ekranıyla aynı). */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — ALT DOLGU BÜYÜDÜ.
+     ⚠️ Beyaz yaprak bandın son 24dp'sini ÖRTÜYOR (`yaprakKap`
+     marginTop -24). Bandın alt dolgusu da 24 olunca slogan tam o
+     örtülen şeride denk geliyordu: cihazda yazı yaprağın kenarına
+     sıkışmış görünüyordu. Dolgu artık örtülen 24'ü + nefes payını
+     birlikte taşıyor. */
   bant: {
     alignItems: 'center',
     paddingHorizontal: bosluk.genis,
     paddingTop: bosluk.kucuk,
-    paddingBottom: bosluk.genis,
+    paddingBottom: bosluk.genis + bosluk.genis,
   },
 
   logoKaro: {

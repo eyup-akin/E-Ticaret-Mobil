@@ -184,6 +184,15 @@ export const acikTema = {
   // #fff2ea — tasarımdakiyle gözle ayırt edilemez.
   yumusakVurgu: 'rgba(255, 107, 53, 0.12)',
 
+  // ⭐ YENİ (2026-08-12) — yumusakVurgu'nun BİR TIK DOYGUN hâli.
+  //
+  // ⚠️ Neden ayrı bir token? İkisi farklı işler yapıyor: yumusakVurgu
+  // bir ikonun ya da çipin ARKA planı (üstünde küçük bir şey duruyor),
+  // bu ise kendi başına duran bir ŞERİT — grup başlığı. %12'lik ton
+  // şerit olarak neredeyse görünmüyordu, %32 ise ikon karesinde
+  // ikonu bastırırdı. Aynı rengin iki rolü, iki değeri.
+  vurguSerit: 'rgba(255, 107, 53, 0.32)',
+
   // ⭐ YENİ — indirim rozeti (referanstaki kırmızı hap).
   // hata renginden AYRI: aynı kırmızı ama anlamı farklı. Biri
   // "bir şey ters gitti", diğeri "fırsat". Aynı token'ı
@@ -323,6 +332,10 @@ export const koyuTema = {
   yumusakUyari: 'rgba(251, 191, 36, 0.16)',
   yumusakHata: 'rgba(255, 107, 107, 0.16)',
   yumusakVurgu: 'rgba(255, 107, 53, 0.18)',
+
+  // ⚠️ Koyu temada biraz daha güçlü: koyu lacivert zeminde düşük
+  // saydamlıktaki turuncu kayboluyor.
+  vurguSerit: 'rgba(255, 107, 53, 0.34)',
 
   // İndirim rozeti koyu temada bir tık açık: koyu zeminde koyu
   // kırmızı okunmuyor.

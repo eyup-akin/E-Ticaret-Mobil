@@ -95,11 +95,14 @@ export default function HesabimEkrani({ navigation }) {
     }, [token])
   );
 
-  /* ⭐ DEĞİŞTİ (GV/Faz 7.1) — MENÜ SATIRI TASARIMA ÇEVRİLDİ.
+  /* MENÜ SATIRI
    *
-   * Eskiden her satır kendi kartıydı: kenarlıklı, köşeli, aralarında
-   * 8dp boşluk. Tasarımda satırlar TEK kartın içinde, aralarında ince
-   * ayraçlarla — sepet satırlarında verilen kararın aynısı.
+   * ⭐ DEĞİŞTİ (2026-08-12) — HER SATIR YİNE KENDİ KARTI.
+   * 7.1'de "tek kart + ince ayraç" denenmişti (sepet satırlarıyla
+   * aynı dil olsun diye); cihazda görülünce ayrı kartların daha
+   * ferah durduğu söylendi ve geri dönüldü. Sepet hâlâ tek kart:
+   * orada satırlar BİR SİPARİŞİN parçaları, burada birbirinden
+   * bağımsız hedefler.
    *
    * ⚠️ İkon yuvarlak köşeli bir karenin içinde.
    *
@@ -111,14 +114,13 @@ export default function HesabimEkrani({ navigation }) {
    *
    * Satırın tıklanabilir olduğunu hâlâ sağdaki chevron söylüyor.
    *
-   * @param sonMu  son satırsa alt ayraç çizilmiyor
    * @param rozet  sağda gösterilecek sayaç (yalnızca oturumlarda var)
    */
-  function menuSatiri({ ikon, baslik, hedef, parametre, sonMu, rozet }) {
+  function menuSatiri({ ikon, baslik, hedef, parametre, rozet }) {
     return (
       <TouchableOpacity
         key={baslik}
-        style={[styles.menuSatir, !sonMu && styles.menuAyrac]}
+        style={styles.menuSatir}
         onPress={() => navigation.navigate(hedef, parametre)}
         activeOpacity={0.7}
       >
@@ -145,7 +147,7 @@ export default function HesabimEkrani({ navigation }) {
     );
   }
 
-  /* Grup = başlık şeridi + satırlar, hepsi tek kartın içinde. */
+  /* Grup = turuncu başlık hapı + altında ayrı ayrı satır kartları. */
   function menuGrubu(baslik, satirlar) {
     return (
       <View style={styles.grup}>
@@ -153,9 +155,7 @@ export default function HesabimEkrani({ navigation }) {
           <Text style={styles.grupBaslik}>{baslik}</Text>
         </View>
 
-        {satirlar.map((s, i) =>
-          menuSatiri({ ...s, sonMu: i === satirlar.length - 1 })
-        )}
+        {satirlar.map((s) => menuSatiri(s))}
       </View>
     );
   }
@@ -471,13 +471,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* Grup tek bir kart: başlık şeridi + satırlar.
      overflow: satırların basılı zemini kartın yuvarlak köşesinden
      taşmasın. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — GRUP ARTIK BİR KART DEĞİL, BİR KAPSAYICI.
+     Kart olduğunda başlık şeridi ve satırlar tek bir bloktu; şimdi
+     başlık kendi hapında, her satır kendi kartında. Gerekçe aşağıda
+     (menuSatir). */
   grup: {
-    backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
-    overflow: 'hidden',
-    marginBottom: bosluk.normal,
+    marginBottom: bosluk.genis,
   },
 
   /* ⚠️ Başlık artık kartın DIŞINDA değil İÇİNDE, kendi şeridinde.
@@ -488,12 +487,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
      `acikKart` (soluk fıstık yeşili) cihazda ölü duruyordu.
      `yumusakVurgu` ana rengin %12'lik hâli: markanın turuncusu ama
      bir yüzey olarak, buton gücünde değil. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — ŞERİT ARTIK KENDİ BAŞINA DURAN BİR HAP.
+     ⚠️ Rengi `vurguSerit` (%32): `yumusakVurgu` (%12) tek başına
+     duran bir şerit olarak neredeyse görünmüyordu. İkon karesi hâlâ
+     %12'de — orada ikonu bastırmaması gerekiyor.
+     ⚠️ Alt çizgi kalktı: şerit artık satırlara YAPIŞIK değil,
+     ayıracak bir şey yok. */
   grupBaslikSerit: {
-    backgroundColor: renkler.yumusakVurgu,
+    backgroundColor: renkler.vurguSerit,
+    borderRadius: kose.orta,
     paddingHorizontal: bosluk.normal,
     paddingVertical: bosluk.kucuk,
-    borderBottomWidth: 1,
-    borderBottomColor: renkler.kenarlik,
+    marginBottom: bosluk.orta,
+    alignItems: 'center',
   },
 
   /* Küçük + BÜYÜK HARF + harf aralığı: başlık bir AYRAÇ, bir eylem
@@ -503,28 +509,32 @@ const stilOlustur = (renkler) => StyleSheet.create({
      puntoda turuncu-üstü-turuncu kontrastı sınırın altında kalıyor.
      Turuncuyu zemin ve ikon taşıyor, yazı okunaklılığı koruyor. */
   grupBaslik: {
-    fontSize: yazi.mikro,
+    fontSize: yazi.kucuk,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
     letterSpacing: 0.8,
   },
 
+  /* ⭐ DEĞİŞTİ (2026-08-12) — HER SATIR KENDİ KARTI.
+     ⚠️ Bu, 7.1'de "satırlar tek kartın içinde, aralarında ince
+     ayraç" diye verilen kararın geri alınmasıdır. O karar sepet
+     satırlarıyla aynı dili kurmak içindi; cihazda görülünce ayrı
+     kartların daha ferah ve "premium" durduğu söylendi. Sepet hâlâ
+     tek kart: orada satırlar BİR SİPARİŞİN parçaları, burada ise
+     birbirinden bağımsız hedefler — gruplamayı gevşetmek doğru.
+     ⚠️ Gölge `golgeSm` token'ından: elle `elevation` yazmak iOS'ta
+     hiçbir şey çizmez. */
   menuSatir: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: bosluk.orta,
+    backgroundColor: renkler.kartArka,
+    borderRadius: kose.buyuk,
     paddingHorizontal: bosluk.normal,
     paddingVertical: bosluk.orta,
-  },
-
-  /* ⚠️ Ayraç ikonun altından değil, YAZININ hizasından başlıyor
-     (tasarımdaki ml-14). Tam genişlikte bir çizgi listeyi dilimliyor;
-     içeriden başlayan çizgi satırları aynı grubun parçası gösteriyor. */
-  menuAyrac: {
-    borderBottomWidth: 1,
-    borderBottomColor: renkler.kenarlik,
-    marginLeft: 0,
+    marginBottom: bosluk.kucuk,
+    ...renkler.golgeSm,
   },
 
   /* ⭐ DEĞİŞTİ (2026-08-12) — İKON KARESİ TURUNCUYA DÖNDÜ.
