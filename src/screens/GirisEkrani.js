@@ -20,7 +20,7 @@ export default function GirisEkrani({ navigation }) {
 
   // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
   //
-  // Neden goBack() değil: modal her zaman "Ana"nın üstüne açılıyor, yani
+  // Neden goBack() değil: modal her zaman "Ana"nın üstüne açılıyor, yani deneme
   // canGoBack() hep true dönüyordu ve kullanıcı geldiği sekmeye geri
   // düşüyordu. Hesabım'dan gelen, giriş yapsa da vazgeçse de yine
   // Hesabım'da uyanıyordu.

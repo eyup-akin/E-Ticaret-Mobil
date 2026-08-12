@@ -12,7 +12,7 @@ import { gunBicimle } from '../utils/bicimlendir';
 
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
-  const { renkler, temaAdi, temaDegistir } = useTema();
+  const { renkler, koyuMu, temaDegistir } = useTema();
   const styles = stilOlustur(renkler);
 
   const [profil, setProfil] = useState(null);   // email + üyelik tarihi buradan
@@ -152,7 +152,41 @@ export default function HesabimEkrani({ navigation }) {
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <ScrollView contentContainerStyle={styles.icerik}>
-        <Text style={styles.baslik}>Hesabım</Text>
+        {/* ⭐ DEĞİŞTİ — TEMA SEÇİCİ BAŞLIK SATIRINA, TEK BUTONA İNDİ.
+
+            Aşağıda "GÖRÜNÜM" başlıklı bir kartın içinde iki sekme
+            (Açık / Koyu) vardı. İki sekme, iki durumlu bir tercih için
+            gereğinden fazla: seçenekler birbirinin değili, listelenmeye
+            değmiyor. Tek düğme hem durumu gösteriyor hem de tek
+            dokunuşta çeviriyor.
+
+            ⚠️ İKON GİDİLECEK YERİ SÖYLÜYOR, BULUNULAN YERİ DEĞİL.
+            Açık temada AY ("karanlığa geç"), koyu temada GÜNEŞ
+            ("aydınlığa dön"). Tersi de savunulabilir bir dil ama
+            ikisi bir arada olamaz; düğme bir eylem düğmesi olduğu için
+            eylemi gösteriyor. accessibilityLabel de aynı şeyi söylüyor,
+            böylece ekran okuyucu kullanan için belirsizlik kalmıyor.
+
+            ⚠️ Turuncu DEĞİL: turuncu bu ekranda "asıl eylem" demek ve
+            bu ekranın asıl işi tema değiştirmek değil. Menü ikonlarında
+            (7.1) verilen kararın aynısı. */}
+        <View style={styles.baslikSatir}>
+          <Text style={styles.baslik}>Hesabım</Text>
+
+          <TouchableOpacity
+            style={styles.temaButon}
+            onPress={() => temaDegistir(koyuMu ? 'acik' : 'koyu')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={koyuMu ? 'Açık temaya geç' : 'Koyu temaya geç'}
+          >
+            <Ionicons
+              name={koyuMu ? 'sunny-outline' : 'moon-outline'}
+              size={20}
+              color={renkler.yaziKoyu}
+            />
+          </TouchableOpacity>
+        </View>
 
         {token ? (
           /* ============ ÜYE GÖRÜNÜMÜ ============ */
@@ -285,44 +319,11 @@ export default function HesabimEkrani({ navigation }) {
           </>
         )}
 
-        {/* ============ ORTAK: GÖRÜNÜM (TEMA) ============ */}
-        <View style={styles.grup}>
-          <View style={styles.grupBaslikSerit}>
-            <Text style={styles.grupBaslik}>GÖRÜNÜM</Text>
-          </View>
-
-          {/* ⭐ DEĞİŞTİ (GV/Faz 7.1) — TEMA SEÇİCİ TEK KUTUDA İKİ SEKME.
-
-              Eskiden iki ayrı çerçeveli buton yan yanaydı ve seçili
-              olan dolu turuncuya dönüyordu. İki kutu iki ayrı karar
-              gibi duruyordu; oysa bu tek bir seçim (açık VEYA koyu).
-              Tek kabın içindeki kayan seçim bunu doğru anlatıyor.
-
-              ⚠️ Seçili sekme dolu turuncu DEĞİL, beyaz yüzey + koyu
-              yazı. Turuncu burada "basılacak yer" derdi; oysa seçili
-              olan zaten basılmış olan. */}
-          <View style={styles.temaKutu}>
-            {['acik', 'koyu'].map((ad) => (
-              <TouchableOpacity
-                key={ad}
-                style={[styles.temaSekme, temaAdi === ad && styles.temaSekmeSecili]}
-                onPress={() => temaDegistir(ad)}
-                activeOpacity={0.85}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: temaAdi === ad }}
-              >
-                <Ionicons
-                  name={ad === 'acik' ? 'sunny-outline' : 'moon-outline'}
-                  size={16}
-                  color={temaAdi === ad ? renkler.yaziKoyu : renkler.yaziGri}
-                />
-                <Text style={[styles.temaYazi, temaAdi === ad && styles.temaYaziSecili]}>
-                  {ad === 'acik' ? 'Açık' : 'Koyu'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        {/* ⚠️ "GÖRÜNÜM" KARTI KALDIRILDI — tema artık başlıktaki tek
+            düğmede. İkisi birden dursaydı aynı state'i çeviren iki
+            kontrol olurdu; ürün detayındaki "Adet" satırı (5.5) ve
+            açıklama katlama bağlantısı (5.6) aynı gerekçeyle
+            elenmişti. */}
 
         {/* ============ SADECE ÜYE: ÇIKIŞ ============ */}
         {token ? (
@@ -374,13 +375,37 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingBottom: bosluk.dev,
   },
 
+  /* Başlık ile tema düğmesi aynı satırda, iki uçta.
+     ⚠️ Alt boşluk artık satırda, başlığın kendisinde değil: düğme
+     başlıktan yüksek olduğu için boşluk metne bağlı kalsaydı ekran
+     her tema değişiminde değil ama her punto ayarında kayardı. */
+  baslikSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: bosluk.normal,
+  },
+
   baslik: {
     fontSize: yazi.baslik,
     lineHeight: satir.baslik,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-    marginBottom: bosluk.normal,
+  },
+
+  /* 40dp — dokunma hedefinin alt sınırı. İkon 20dp; kalanı çevresine
+     bırakılan boşluk, çünkü küçük yuvarlak düğmeler parmakla
+     ıskalanıyor. */
+  temaButon: {
+    width: 40,
+    height: 40,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.kartArka,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
 
@@ -527,43 +552,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziOrta,
-  },
-
-
-  /* ---------- TEMA SEÇİCİ ---------- */
-
-  temaKutu: {
-    flexDirection: 'row',
-    gap: bosluk.kucuk,
-    padding: bosluk.kucuk,
-  },
-
-  temaSekme: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: bosluk.kucuk,
-    paddingVertical: bosluk.orta,
-    borderRadius: kose.orta,
-    backgroundColor: renkler.acikKart,
-  },
-
-  temaSekmeSecili: {
-    backgroundColor: renkler.kartArka,
-    borderWidth: 1,
-    borderColor: renkler.anaRenk,
-  },
-
-  temaYazi: {
-    fontSize: yazi.normal,
-    color: renkler.yaziGri,
-  },
-
-  temaYaziSecili: {
-    color: renkler.yaziKoyu,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
   },
 
 

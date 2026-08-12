@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -59,6 +59,90 @@ export default function AnaSayfaEkrani({ navigation }) {
   // ⭐ YENİ (GV/Faz 4)
   const [kategoriler, setKategoriler] = useState([]);
   const [sonGezilenler, setSonGezilenler] = useState([]);
+
+  // ---- FİLTRELEYİNCE ÜRÜNLERE KAYDIRMA ----
+  //
+  // ⚠️ Filtre bir SORU değil, bir CEVAP isteği. Müşteri filtreyi
+  // uyguladıktan sonra ekranda hâlâ banner, kategoriler ve son
+  // gezilenler duruyordu; sonucu görmek için kendi eliyle aşağı
+  // kaydırması gerekiyordu. Filtreleme yaptığı an "Tüm Ürünler"
+  // bölümü ekranın tepesine alınıyor.
+  //
+  // ⚠️⚠️ HEDEF KONUM SAKLANMIYOR, KAYDIRMA ANINDA ÖLÇÜLÜYOR.
+  //
+  // Üç yol denendi, üçü de yanlış yere götürdü — hepsinin kusuru
+  // aynı: ölçü ÖNCEDEN alınıyordu ve kaydırma anında bayattı.
+  //   1) Bölümün `onLayout.y`'si — react-native-web'de onLayout bir
+  //      ResizeObserver; eleman YER DEĞİŞTİRİNCE tetiklenmiyor,
+  //      yalnızca BOYUTU değişince. Banner ölçülüp yüksekliği
+  //      oluşunca kayıtlı y bayat kaldı (hedef 638 iken 113'e kaydı).
+  //   2) "Başlık yüksekliği eksi bölüm yüksekliği" — ilk filtrede
+  //      başlık yüksekliği henüz oturmamıştı; ikinci filtrede doğru
+  //      çalışan kaydırma birincisinde 16px'te kaldı.
+  //   3) `scrollToIndex` — listenin kendi hücre ölçümlerine
+  //      dayanıyor; web'de o ölçümler hazır olmadığı için kaydırma
+  //      hiç olmadı, üstelik sessizce.
+  //
+  // Şimdiki yol ölçüyü SAKLAMIYOR: `measureInWindow` iki elemanın da
+  // o andaki ekran konumunu veriyor ve aradaki fark, listenin ne
+  // kadar kaydırılması gerektiğini doğrudan söylüyor. İki platformda
+  // da aynı anlama gelen tek ölçüm API'si bu.
+  const listeRef = useRef(null);
+  const listeKabiRef = useRef(null);
+  const urunBolumuRef = useRef(null);
+
+  // Kaydırmanın o anki konumu. Fark hesabı buna eklenecek.
+  const kaydirmaY = useRef(0);
+
+  // İlk açılışta kaydırma YOK — filtre boşken efekt yine de bir kez
+  // çalışıyor ve o an kaydırmak, uygulamayı vitrini atlayarak açmak
+  // olurdu.
+  const ilkFiltreMi = useRef(true);
+
+  // Kaydırma isteği burada bekliyor: liste hâlâ yükleniyorken
+  // kaydırsaydık içerik kısa olduğu için hedef konum kırpılır
+  // (scrollToOffset sınırı aşamaz) ve ürünler geldiğinde ekran
+  // yanlış yerde kalırdı.
+  const kaydirmaBekliyor = useRef(false);
+
+  useEffect(() => {
+    if (ilkFiltreMi.current) {
+      ilkFiltreMi.current = false;
+      return;
+    }
+    kaydirmaBekliyor.current = true;
+  }, [filtre]);
+
+  useEffect(() => {
+    if (yukleniyor || !kaydirmaBekliyor.current) return;
+
+    kaydirmaBekliyor.current = false;
+    urunlereKaydir();
+  }, [yukleniyor]);
+
+  /* Ürün bölümünü ekranın tepesine getir.
+   *
+   * ⚠️ İç içe iki ölçüm: `measureInWindow` geri çağrımlı çalışıyor
+   * (ölçüm yerel iş parçacığında değil). Dışta listenin kabı, içte
+   * ürün bölümü ölçülüyor; aradaki fark bölümün listenin görünen
+   * alanına göre nerede durduğunu veriyor ve mevcut kaydırmaya
+   * eklenince mutlak hedef çıkıyor.
+   *
+   * ⚠️ Hedef kırpılırsa (aşağıda o kadar içerik yoksa) liste sona
+   * kadar gidiyor; ayrıca sınırlamaya gerek yok, scrollToOffset
+   * zaten kendisi kırpıyor. */
+  function urunlereKaydir() {
+    const kap = listeKabiRef.current;
+    const bolum = urunBolumuRef.current;
+    if (!kap || !bolum) return;
+
+    kap.measureInWindow((kx, kapY) => {
+      bolum.measureInWindow((bx, bolumY) => {
+        const hedef = Math.max(0, kaydirmaY.current + (bolumY - kapY));
+        listeRef.current?.scrollToOffset({ offset: hedef, animated: true });
+      });
+    });
+  }
 
   // ---- ÜRÜN IZGARASI ----
   async function urunleriGetir(arama, aktifFiltre, aktifSiralama) {
@@ -230,7 +314,10 @@ export default function AnaSayfaEkrani({ navigation }) {
         </View>
       )}
 
-      <View style={styles.bolum}>
+      {/* ⚠️ collapsable={false} — Android'de yalnızca yerleşim için
+          duran View'lar yerel ağaçtan SİLİNİYOR; silinen View
+          ölçülemez ve `measureInWindow` sessizce hiç dönmez. */}
+      <View style={styles.bolum} ref={urunBolumuRef} collapsable={false}>
         <BolumBasligi baslik="Tüm Ürünler" />
         <SiralamaSeridi secili={siralama} onSec={setSiralama} />
       </View>
@@ -247,7 +334,13 @@ export default function AnaSayfaEkrani({ navigation }) {
         aktifFiltre={aktifFiltreSayisi(filtre)}
       />
 
+      {/* ⚠️ Liste bir View'ın içinde: `measureInWindow` bir HOST
+          bileşeni istiyor, FlatList ise değil. Kabın kendisi
+          ölçülüyor ve listenin görünen alanının nerede başladığını
+          söylüyor. collapsable={false} yine Android için. */}
+      <View style={styles.listeKap} ref={listeKabiRef} collapsable={false}>
       <FlatList
+        ref={listeRef}
         data={yukleniyor ? [] : urunler}
         keyExtractor={(item) => item.id.toString()}
         renderItem={kartCiz}
@@ -256,6 +349,12 @@ export default function AnaSayfaEkrani({ navigation }) {
         contentContainerStyle={styles.liste}
         ListHeaderComponent={basliklar}
         showsVerticalScrollIndicator={false}
+
+        /* ⚠️ Tek işi kaydırma konumunu bir ref'e yazmak — state'e
+           yazsaydık her karede yeniden render olurdu ve ekranda
+           konuma bağlı değişen hiçbir şey yok. */
+        onScroll={(olay) => { kaydirmaY.current = olay.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
         ListEmptyComponent={
           yukleniyor ? (
             <ActivityIndicator size="large" color={renkler.anaRenk} style={styles.cark} />
@@ -268,6 +367,7 @@ export default function AnaSayfaEkrani({ navigation }) {
           )
         }
       />
+      </View>
 
       <FiltrePaneli
         acik={panelAcik}
@@ -297,6 +397,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
      için 8, başlıkta 12). Toplam ~32-36dp — nefes almaya yeter. */
   bolum: {
     marginTop: bosluk.normal,
+  },
+
+  /* Liste kabı: ölçüm için var, görünümü değiştirmiyor. flex:1
+     olmadan liste ekranın altına kadar uzamaz. */
+  listeKap: {
+    flex: 1,
   },
 
   kompaktSeritKap: {

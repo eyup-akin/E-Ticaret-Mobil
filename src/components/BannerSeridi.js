@@ -1,23 +1,54 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Image, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { View, Image, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { bosluk, kose, sayfaKenari } from '../theme/olculer';
+import { bosluk, kose } from '../theme/olculer';
 import { kampanyalariGetir } from '../services/kampanyalar';
+
+// Otomatik geçiş aralığı.
+// ⚠️ 4 sn bilinçli: 2-3 sn'de müşteri afişteki cümleyi bitiremiyor,
+// 6 sn'de şerit durmuş gibi görünüyor ve ikinci afişin varlığı fark
+// edilmiyor.
+const OTOMATIK_MS = 4000;
 
 // ============================================================
 //  BANNER ŞERİDİ — yatay kaydırmalı kampanya görselleri
 //
 //  onKampanyaBas(kampanya) : bir banner'a basılınca çağrılır
 //
-//  ⚠️ SAYFA SAYFA KAYIYOR, SERBEST DEĞİL.
-//  pagingEnabled + snapToInterval ile her kaydırma tam bir
-//  banner ilerliyor. Serbest kaydırma bıraksaydık şerit iki
-//  banner'ın ortasında durur ve ikisi de yarım görünürdü.
+//  ⭐⭐ DEĞİŞTİ — "BANNER ORTALI DURMUYOR, SOLDA FAZLA BOŞLUK VAR"
+//     HATASININ GERÇEK SEBEBİ BURADAYDI.
 //
-//  ⚠️ GENİŞLİK EKRANDAN OKUNUYOR, SABİT DEĞİL.
-//  useWindowDimensions cihaz döndürülünce de güncelleniyor.
-//  Sabit bir sayı yazsaydık yatay modda banner ya taşar ya
-//  ortada dururdu.
+//  Şerit, ana sayfada FlatList'in ListHeaderComponent'i olarak
+//  çiziliyor ve o listenin contentContainer'ında ZATEN
+//  `paddingHorizontal: sayfaKenari` var. Yani bu bileşene düşen
+//  genişlik EKRAN DEĞİL, ekran eksi iki kenar boşluğu.
+//
+//  Eski kod kart genişliğini `ekran - 2*sayfaKenari` diye hesaplayıp
+//  bir de kendi içine `paddingHorizontal: sayfaKenari` koyuyordu.
+//  Sonuç: kart, içinde bulunduğu kaptan tam 16dp geniş kalıyordu.
+//  Solda iki kenar boşluğu üst üste binip 16dp'ye çıkıyor, sağda
+//  ise kart kabın dışına taşıp kırpılıyordu. Ölçüldü: solda 10px,
+//  sağda 6px (tarayıcıda, 1920 genişlikte).
+//
+//  Çözüm ekrandan değil KAPTAN ölçmek. `onLayout` bu bileşene
+//  gerçekte ne kadar yer verildiğini söylüyor; sayfa genişliği o.
+//  Kenar boşluğunu kap zaten veriyor, burada İKİNCİ KEZ dolgu
+//  YOK — banner artık arama çubuğu ve ürün ızgarasıyla birebir
+//  aynı dikey çizgide.
+//
+//  ⚠️ Bir sayfa = kabın tamamı, iki afiş arasında boşluk yok.
+//  Boşluk bırakmak için karta yatay dolgu verseydik banner
+//  ızgaradan içeride kalırdı — Faz 4.8.1'de düzeltilen hizasızlığın
+//  aynısı. Aradaki çizgi zaten yalnızca parmak kaydırırken bir an
+//  görünüyor.
+//
+//  ⚠️ GENİŞLİK ÖLÇÜLÜYOR, SABİT DEĞİL: cihaz döndürülünce onLayout
+//  tekrar tetikleniyor. Sabit bir sayı yazsaydık yatay modda banner
+//  ya taşar ya ortada dururdu.
+//
+//  ⚠️ `pagingEnabled` sayfa genişliğine göre duruyor; snapToInterval
+//  ile durma noktası HESAPLANMIYOR. Ortalama, yerleşimin kendisinden
+//  geliyor — bir ölçünün doğru tutturulmasından değil.
 //
 //  ⚠️ AKTİF NOKTA "onMomentumScrollEnd" İLE TAKİP EDİLİYOR.
 //  onScroll saniyede ~30 kez tetikleniyordu ve nokta göstergesi
@@ -49,14 +80,29 @@ import { kampanyalariGetir } from '../services/kampanyalar';
 // ============================================================
 export default function BannerSeridi({ onKampanyaBas }) {
   const { renkler } = useTema();
-  const { width: ekranGenisligi } = useWindowDimensions();
   const styles = stilOlustur(renkler);
 
   const [bannerlar, setBannerlar] = useState([]);
   const [aktif, setAktif] = useState(0);
 
+  // Kaba verilen gerçek genişlik. 0 = henüz ölçülmedi.
+  const [genislik, setGenislik] = useState(0);
+
   // Aktif nokta değişmediyse setState çağırmıyoruz.
   const sonAktif = useRef(0);
+
+  const kaydirici = useRef(null);
+
+  // ⚠️ ELİN ŞERİTTE OLDUĞU AN VE SON BIRAKMA ZAMANI.
+  //
+  // Otomatik geçiş, müşteri parmağını ekrandan çekmeden çalışmamalı
+  // (kaydırdığı şey elinden alınır) ve bıraktığı anda da hemen
+  // devreye girmemeli — baktığı afiş kayıp gider. Zaman damgası
+  // sayaç yerine state'te tutulsaydı her dokunuşta bileşen yeniden
+  // render olurdu; nokta göstergesi dışında ekranda değişen bir şey
+  // yok, o render boşa giderdi.
+  const elDe = useRef(false);
+  const sonDokunus = useRef(0);
 
   useEffect(() => {
     let iptal = false;
@@ -69,22 +115,49 @@ export default function BannerSeridi({ onKampanyaBas }) {
     return () => { iptal = true; };
   }, []);
 
+  // ---- OTOMATİK GEÇİŞ ----
+  //
+  // ⚠️ SONDAN BAŞA DÖNÜŞ ANİMASYONLU. Sonsuz şerit (baştaki ve
+  // sondaki elemanın kopyasını iki uca eklemek) daha akıcı görünürdü
+  // ama nokta göstergesi, tıklama hedefi ve erişilebilirlik
+  // etiketleri klon elemanlarla birlikte yalan söylemeye başlıyor.
+  // Üç afişlik bir şeritte geri sarma bedeli o karmaşıklığa değmez.
+  //
+  // ⚠️ Tek banner varsa sayaç HİÇ kurulmuyor — geçilecek yer yok.
+  useEffect(() => {
+    if (bannerlar.length < 2 || genislik === 0) return undefined;
+
+    const sayac = setInterval(() => {
+      if (elDe.current) return;
+      if (Date.now() - sonDokunus.current < OTOMATIK_MS) return;
+
+      const sonraki = (sonAktif.current + 1) % bannerlar.length;
+
+      kaydirici.current?.scrollTo({ x: sonraki * genislik, animated: true });
+      sonAktif.current = sonraki;
+      setAktif(sonraki);
+    }, OTOMATIK_MS);
+
+    return () => clearInterval(sayac);
+  }, [bannerlar.length, genislik]);
+
   // ⚠️ Banner yoksa bölüm HİÇ çizilmiyor — boş bir kutu ya da
   // "kampanya yok" yazısı değil. Kampanya olmaması bir haber
   // değil; müşteriye söylenecek bir şey yok.
+  //
+  // ⚠️ Bu erken çıkış TÜM hook'lardan SONRA: koşullu hook çağrısı
+  // React'in kural ihlali ve banner listesi geç geldiği için tam da
+  // burada patlardı.
   if (bannerlar.length === 0) {
     return null;
   }
 
-  // Banner genişliği: ekran eksi iki yan boşluk.
-  // ⚠️ sayfaKenari kullanılıyor — arama çubuğu ve ürün ızgarasıyla
-  // AYNI dikey çizgide dursun diye. Önce bosluk.orta yazılıydı ve
-  // banner, altındaki kartlardan 4dp içeride kalıyordu.
-  const kart = ekranGenisligi - sayfaKenari * 2;
-
   function kaydirildi(olay) {
     const x = olay.nativeEvent.contentOffset.x;
-    const sira = Math.round(x / (kart + bosluk.kucuk));
+    const sira = genislik > 0 ? Math.round(x / genislik) : 0;
+
+    elDe.current = false;
+    sonDokunus.current = Date.now();
 
     if (sira !== sonAktif.current) {
       sonAktif.current = sira;
@@ -93,50 +166,72 @@ export default function BannerSeridi({ onKampanyaBas }) {
   }
 
   return (
-    <View>
+    /* ⚠️ Ölçüm bu View'da: kabın verdiği genişliği ancak çizildikten
+       sonra öğrenebiliyoruz. Ölçülmeden şerit çizilmiyor — sıfır
+       genişlikli sayfalar bir kare boyunca hepsini üst üste
+       yığardı. */
+    <View
+      onLayout={(olay) => {
+        const w = Math.round(olay.nativeEvent.layout.width);
+        if (w > 0 && w !== genislik) setGenislik(w);
+      }}
+    >
+      {genislik > 0 && (
       <ScrollView
+        ref={kaydirici}
         horizontal
         showsHorizontalScrollIndicator={false}
-        pagingEnabled={false}
-        snapToInterval={kart + bosluk.kucuk}
-        decelerationRate="fast"
+        pagingEnabled
+        onScrollBeginDrag={() => {
+          elDe.current = true;
+          sonDokunus.current = Date.now();
+        }}
+        onScrollEndDrag={() => {
+          elDe.current = false;
+          sonDokunus.current = Date.now();
+        }}
         onMomentumScrollEnd={kaydirildi}
-        contentContainerStyle={styles.serit}
         style={styles.seritKap}
         directionalLockEnabled
       >
         {bannerlar.map((b) => (
-          <Pressable
-            key={b.id}
-            onPress={() => onKampanyaBas && onKampanyaBas(b)}
-            style={[styles.kart, { width: kart }]}
+          /* ⚠️ SAYFA ile KART ayrı: kaydırma adımı sayfanın,
+             yuvarlak köşe ve dokunma hedefi kartın işi. Sayfa
+             genişliği kaydırma adımıyla BİREBİR aynı olmak zorunda;
+             ikisi ayrışırsa banner her geçişte biraz daha kayar. */
+          <View key={b.id} style={{ width: genislik }}>
+            <Pressable
+              onPress={() => onKampanyaBas && onKampanyaBas(b)}
+              style={styles.kart}
 
-            // Görsel bir şey söylemiyor; ekran okuyucuya kampanyanın
-            // adını söylemek gerekiyor.
-            accessibilityRole="button"
-            accessibilityLabel={b.baslik}
-          >
-            {/* ⚠️ resizeMode="cover": görselin oranı 2:1 değilse
-                bile kutuyu tam dolduruyor. "contain" olsaydı
-                kenarlarda boş şeritler kalırdı. */}
-            {/* ⚠️ GÖRSEL DOKUNMAYI YUTMASIN diye style.pointerEvents 'none'.
+              // Görsel bir şey söylemiyor; ekran okuyucuya kampanyanın
+              // adını söylemek gerekiyor.
+              accessibilityRole="button"
+              accessibilityLabel={b.baslik}
+            >
+              {/* ⚠️ resizeMode="cover": görselin oranı 2:1 değilse
+                  bile kutuyu tam dolduruyor. "contain" olsaydı
+                  kenarlarda boş şeritler kalırdı. */}
+              {/* ⚠️ GÖRSEL DOKUNMAYI YUTMASIN diye style.pointerEvents 'none'.
 
-                Dürüst not: bu, yukarıdaki web sorununu ÇÖZMEDİ.
-                Yine de duruyor, çünkü kendi başına doğru: dokunma
-                hedefi sarmalayıcı Pressable, resmin kendisi değil.
+                  Dürüst not: bu, yukarıdaki web sorununu ÇÖZMEDİ.
+                  Yine de duruyor, çünkü kendi başına doğru: dokunma
+                  hedefi sarmalayıcı Pressable, resmin kendisi değil.
 
-                ⚠️ "pointerEvents" PROP OLARAK DEĞİL STİL İÇİNDE
-                veriliyor — konsol açıkça uyarıyor: "props.pointerEvents
-                is deprecated. Use style.pointerEvents". Prop olarak
-                verilen sessizce yok sayılıyor. */}
-            <Image
-              source={b.gorsel}
-              style={[styles.gorsel, { pointerEvents: 'none' }]}
-              resizeMode="cover"
-            />
-          </Pressable>
+                  ⚠️ "pointerEvents" PROP OLARAK DEĞİL STİL İÇİNDE
+                  veriliyor — konsol açıkça uyarıyor: "props.pointerEvents
+                  is deprecated. Use style.pointerEvents". Prop olarak
+                  verilen sessizce yok sayılıyor. */}
+              <Image
+                source={b.gorsel}
+                style={[styles.gorsel, { pointerEvents: 'none' }]}
+                resizeMode="cover"
+              />
+            </Pressable>
+          </View>
         ))}
       </ScrollView>
+      )}
 
       {/* ⭐ DEĞİŞTİ — NOKTALAR ARTIK GÖRSELİN İÇİNDE.
 
@@ -177,11 +272,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
   seritKap: {
     flexGrow: 0,
     flexShrink: 0,
-  },
-
-  serit: {
-    paddingHorizontal: sayfaKenari,
-    gap: bosluk.kucuk,
   },
 
   kart: {
