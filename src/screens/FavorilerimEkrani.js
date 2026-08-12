@@ -236,9 +236,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.yaziKoyu,
   },
 
+  /* ⭐ DEĞİŞTİ (2026-08-12) — üst dolgu KALDIRILDI.
+     ⚠️ Arama çubuğu kendi içinde 8dp dikey dolgu taşıyor; buradaki
+     12 onun üstüne binince başlık ile kutu arasında 20dp'lik ölü bir
+     şerit oluşuyordu. Sepet ekranında da aynı sebeple aynı düzeltme
+     yapıldı — iki ekran aynı bileşeni aynı yanlış varsayımla
+     kullanıyordu. */
   aramaYeri: {
     paddingHorizontal: sayfaKenari,
-    paddingTop: bosluk.orta,
   },
 
   liste: {

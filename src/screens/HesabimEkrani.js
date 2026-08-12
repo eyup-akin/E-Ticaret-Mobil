@@ -101,11 +101,15 @@ export default function HesabimEkrani({ navigation }) {
    * 8dp boşluk. Tasarımda satırlar TEK kartın içinde, aralarında ince
    * ayraçlarla — sepet satırlarında verilen kararın aynısı.
    *
-   * ⚠️ İkon artık yuvarlak köşeli bir karenin içinde ve TURUNCU DEĞİL.
-   * Sekiz satırın sekizi de turuncu ikon taşıyınca "turuncu = eylem"
-   * kuralı ekranda görünmez oluyordu; hangi satırın önemli olduğu
-   * anlaşılmıyordu. Satırın tıklanabilir olduğunu sağdaki chevron
-   * söylüyor, tıpkı tasarımdaki gibi.
+   * ⚠️ İkon yuvarlak köşeli bir karenin içinde.
+   *
+   * ⭐ DEĞİŞTİ (2026-08-12): kare ve ikon TURUNCUYA döndü. 7.1'de
+   * "turuncu değil" denmişti — gerekçe sekiz PARLAK turuncu ikonun
+   * "turuncu = eylem" kuralını görünmez yapmasıydı. Şimdiki hâl o
+   * değil: zemin %12'lik ton, ikon `anaRenkKoyu`. Ekranda dolu
+   * turuncu buton zaten yok, çakışacak bir şey de yok.
+   *
+   * Satırın tıklanabilir olduğunu hâlâ sağdaki chevron söylüyor.
    *
    * @param sonMu  son satırsa alt ayraç çizilmiyor
    * @param rozet  sağda gösterilecek sayaç (yalnızca oturumlarda var)
@@ -119,7 +123,11 @@ export default function HesabimEkrani({ navigation }) {
         activeOpacity={0.7}
       >
         <View style={styles.menuIkon}>
-          <Ionicons name={ikon} size={18} color={renkler.yaziOrta} />
+          {/* ⚠️ `anaRenkKoyu`, `anaRenk` değil: parlak turuncu bu
+              boyutta cırtlak çıkıyor ve butonlarla aynı tonu
+              paylaşırdı. Koyu ton hem sakin hem de açık zeminde
+              daha okunur. */}
+          <Ionicons name={ikon} size={18} color={renkler.anaRenkKoyu} />
         </View>
 
         <Text style={styles.menuYazi}>{baslik}</Text>
@@ -170,9 +178,11 @@ export default function HesabimEkrani({ navigation }) {
             eylemi gösteriyor. accessibilityLabel de aynı şeyi söylüyor,
             böylece ekran okuyucu kullanan için belirsizlik kalmıyor.
 
-            ⚠️ Turuncu DEĞİL: turuncu bu ekranda "asıl eylem" demek ve
-            bu ekranın asıl işi tema değiştirmek değil. Menü ikonlarında
-            (7.1) verilen kararın aynısı. */}
+            ⚠️ Düğmenin kendisi nötr kalıyor (kart zemini + gri
+            kenarlık): menü ikonları turuncuya döndü ama bu bir
+            ikon değil, basılabilir bir kontrol. Turuncuya boyasaydık
+            ekranın sağ üstündeki en parlak öğe, en az kullanılan
+            düğme olurdu. */}
         <View style={styles.baslikSatir}>
           <Text style={styles.baslik}>Hesabım</Text>
 
@@ -472,22 +482,31 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ⚠️ Başlık artık kartın DIŞINDA değil İÇİNDE, kendi şeridinde.
      Dışarıdayken satır kartlarıyla arasında sahipsiz bir boşluk
-     kalıyordu ve hangi gruba ait olduğu boşlukla anlatılıyordu. */
+     kalıyordu ve hangi gruba ait olduğu boşlukla anlatılıyordu.
+
+     ⭐ DEĞİŞTİ (2026-08-12) — ZEMİN ARTIK YUMUŞAK TURUNCU.
+     `acikKart` (soluk fıstık yeşili) cihazda ölü duruyordu.
+     `yumusakVurgu` ana rengin %12'lik hâli: markanın turuncusu ama
+     bir yüzey olarak, buton gücünde değil. */
   grupBaslikSerit: {
-    backgroundColor: renkler.acikKart,
+    backgroundColor: renkler.yumusakVurgu,
     paddingHorizontal: bosluk.normal,
     paddingVertical: bosluk.kucuk,
     borderBottomWidth: 1,
     borderBottomColor: renkler.kenarlik,
   },
 
-  /* Küçük + silik + BÜYÜK HARF + harf aralığı: başlık bir AYRAÇ, bir
-     eylem değil; satırlardan geri planda durmalı. */
+  /* Küçük + BÜYÜK HARF + harf aralığı: başlık bir AYRAÇ, bir eylem
+     değil.
+     ⚠️ Renk `yaziGri`den `yaziKoyu`ya çıktı: turuncu zeminin üstünde
+     gri yazı okunmuyordu (~3:1). Turuncu yazı da denenmedi — 11
+     puntoda turuncu-üstü-turuncu kontrastı sınırın altında kalıyor.
+     Turuncuyu zemin ve ikon taşıyor, yazı okunaklılığı koruyor. */
   grupBaslik: {
     fontSize: yazi.mikro,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    color: renkler.yaziGri,
+    color: renkler.yaziKoyu,
     letterSpacing: 0.8,
   },
 
@@ -508,11 +527,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginLeft: 0,
   },
 
+  /* ⭐ DEĞİŞTİ (2026-08-12) — İKON KARESİ TURUNCUYA DÖNDÜ.
+     ⚠️ Bu, 7.1'de verilen "menü ikonları turuncu DEĞİL" kararının
+     geri alınmasıdır. O karar sekiz adet PARLAK turuncu ikonun
+     "turuncu = eylem" kuralını görünmez yapmasına karşıydı. Şimdiki
+     hâl farklı: zemin %12'lik bir ton, ikon ise `anaRenkKoyu` —
+     basılabilir bir yüzey değil, kategori işareti gibi okunuyor.
+     Gerçek eylem turuncusu (dolu `anaRenk` butonlar) bu ekranda
+     zaten yok, dolayısıyla çakışacak bir şey de yok. */
   menuIkon: {
     width: 34,
     height: 34,
     borderRadius: kose.kucuk,
-    backgroundColor: renkler.acikKart,
+    backgroundColor: renkler.yumusakVurgu,
     justifyContent: 'center',
     alignItems: 'center',
   },
