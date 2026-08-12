@@ -20,6 +20,7 @@ import { epostaGecerliMi } from '../utils/dogrulama';
 import FormAlani from '../components/FormAlani';
 import SifreGucu, { MIN_SIFRE } from '../components/SifreGucu';
 import OnayPenceresi from '../components/OnayPenceresi';
+import SozlesmeOnayKutusu from '../components/SozlesmeOnayKutusu';   // ⭐ YENİ (Aşama 10)
 
 // ============================================================
 //  KAYIT EKRANI  (GV/Faz 8.2)
@@ -57,6 +58,9 @@ export default function KayitEkrani({ navigation }) {
   const [sifreTekrar, setSifreTekrar] = useState('');
   const [gizli, setGizli] = useState(true);
 
+  // ⚠️ Varsayılan false — onay kutusu önceden işaretli gelmez.
+  const [sozlesmeOnayi, setSozlesmeOnayi] = useState(false);
+
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState('');
   const [alanHatasi, setAlanHatasi] = useState({});
@@ -90,6 +94,12 @@ export default function KayitEkrani({ navigation }) {
     if (sifre.length < MIN_SIFRE) hatalar.sifre = `Şifre en az ${MIN_SIFRE} karakter olmalı.`;
     else if (sifre !== sifreTekrar) hatalar.tekrar = 'Şifreler birbiriyle eşleşmiyor.';
 
+    if (!sozlesmeOnayi) {
+      setHata('Devam etmek için gizlilik politikası ve kullanım koşullarını onaylaman gerekiyor.');
+      setAlanHatasi(hatalar);
+      return;
+    }
+
     if (Object.keys(hatalar).length > 0) {
       setAlanHatasi(hatalar);
       return;
@@ -101,7 +111,7 @@ export default function KayitEkrani({ navigation }) {
     try {
       setYukleniyor(true);
 
-      const veri = await kayitOl(adSoyad, email, sifre);
+      const veri = await kayitOl(adSoyad, email, sifre, sozlesmeOnayi);
 
       // Kayıt başarılı AMA hesap henüz doğrulanmamış → modalı
       // kapatmıyoruz. Kullanıcıyı Giriş ekranına bırakıyoruz ki
@@ -228,6 +238,19 @@ export default function KayitEkrani({ navigation }) {
             autoCapitalize="none"
             autoCorrect={false}
             editable={!yukleniyor}
+          />
+
+          {/* ⭐ YENİ (Aşama 10) — açık rıza. Kutu önceden işaretli
+              DEĞİL; metinlere dokununca tam metin açılıyor. */}
+          <SozlesmeOnayKutusu
+            isaretli={sozlesmeOnayi}
+            onDegis={setSozlesmeOnayi}
+            oncesi=""
+            parcalar={[
+              { tip: 'gizlilik', etiket: 'Gizlilik Politikası' },
+              { tip: 'kullanim', etiket: 'Kullanım Koşulları' },
+            ]}
+            sonrasi="'nı okudum, kabul ediyorum."
           />
 
           {hata !== '' && (

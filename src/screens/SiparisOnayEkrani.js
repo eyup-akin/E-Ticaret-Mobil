@@ -12,6 +12,7 @@ import { resimUrl } from '../utils/resim';
 // sabit sayı bir StyleSheet bırakmak sonraki okuyucuya "burada iki
 // kural var" demek olurdu.
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
+import SozlesmeOnayKutusu from '../components/SozlesmeOnayKutusu';   // ⭐ YENİ (Aşama 10)
 
 
 // ⭐ YENİ — ÇİFT SİPARİŞ KORUMASI ANAHTARI ÜRETİCİSİ
@@ -76,6 +77,9 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   const [kart, setKart] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [gonderiliyor, setGonderiliyor] = useState(false);
+
+  // ⚠️ Varsayılan false — onay kutusu önceden işaretli gelmez.
+  const [sozlesmeOnayi, setSozlesmeOnayi] = useState(false);
 
   // ⭐ YENİ — sipariş notu (isteğe bağlı).
   //
@@ -217,6 +221,8 @@ export default function SiparisOnayEkrani({ route, navigation }) {
       //    ?? null → kupon yoksa alan null gider, backend'deki
       //    string? CouponCode bunu "kupon kullanılmıyor" olarak anlar.
       const sonuc = await apiPost('/orders', {
+        // ⭐ YENİ (Aşama 10) — mesafeli satış + ön bilgilendirme onayı.
+        sozlesmeOnayi: sozlesmeOnayi,
         addressId: adresId,
         cardId: kartId,
         couponCode: kuponsuzDene ? null : (kupon?.kod ?? null),
@@ -632,16 +638,28 @@ export default function SiparisOnayEkrani({ route, navigation }) {
           </View>
         )}
 
-        {/* ⭐ DEĞİŞTİ (5.4) — buton onay verilmeden basılamıyor.
-            Fiyat değişmemişse (fiyatDegisenVar false) koşul hiç
-            devreye girmiyor; olağan akış aynen eskisi gibi. */}
+        {/* ⭐ YENİ (Aşama 10) — mesafeli satış onayı.
+            Kutu işaretlenmeden buton basılamıyor; sunucu da onaysız
+            isteği reddediyor. */}
+        <SozlesmeOnayKutusu
+          isaretli={sozlesmeOnayi}
+          onDegis={setSozlesmeOnayi}
+          parcalar={[
+            { tip: 'on_bilgilendirme', etiket: 'Ön Bilgilendirme Formu' },
+            { tip: 'mesafeli_satis', etiket: 'Mesafeli Satış Sözleşmesi' },
+          ]}
+          sonrasi="'ni okudum, onaylıyorum."
+        />
+
+        {/* ⭐ DEĞİŞTİ (5.4 · Aşama 10) — buton onaylar verilmeden
+            basılamıyor. */}
         <TouchableOpacity
           style={[
             styles.tamamlaButon,
-            fiyatDegisenVar && !fiyatlariKabul && styles.tamamlaButonPasif,
+            ((fiyatDegisenVar && !fiyatlariKabul) || !sozlesmeOnayi) && styles.tamamlaButonPasif,
           ]}
           onPress={() => siparisiTamamla(false)}
-          disabled={gonderiliyor || (fiyatDegisenVar && !fiyatlariKabul)}
+          disabled={gonderiliyor || (fiyatDegisenVar && !fiyatlariKabul) || !sozlesmeOnayi}
         >
           {gonderiliyor
             ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />

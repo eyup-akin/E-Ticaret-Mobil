@@ -421,6 +421,15 @@ export default function HesabimEkrani({ navigation }) {
                 hedef: 'Oturumlarim',
                 rozet: oturumSayisi,
               },
+
+              /* ⭐ YENİ (Aşama 10) — KVKK veri erişim hakkı.
+                 GÜVENLİK grubunda: şifre doğrulaması istiyor ve
+                 hesabın tamamına dair bir işlem. */
+              {
+                ikon: 'download-outline',
+                baslik: 'Verilerimi İndir',
+                hedef: 'VerilerimiIndir',
+              },
             ])}
 
         {/* ⚠️ "GÖRÜNÜM" KARTI KALDIRILDI — tema artık başlıktaki tek

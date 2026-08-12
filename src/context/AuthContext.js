@@ -68,11 +68,14 @@ export function AuthProvider({ children }) {
   //
   // Artık sadece kayıt yapıp backend'in mesajını ekrana geri veriyoruz;
   // kullanıcı maildeki linke tıkladıktan sonra kendisi giriş yapacak.
-  async function kayitOl(adSoyad, email, sifre) {
+  async function kayitOl(adSoyad, email, sifre, sozlesmeOnayi) {
     const veri = await apiPost('/auth/register', {
       fullName: adSoyad,
       email: email,
       password: sifre,
+
+      // ⭐ YENİ (Aşama 10) — sunucu onaysız kaydı reddediyor.
+      sozlesmeOnayi: sozlesmeOnayi === true,
     });
 
     // Backend { mesaj: "Kayıt başarılı! Lütfen email adresine..." } döndürüyor.
