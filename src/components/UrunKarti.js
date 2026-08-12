@@ -145,6 +145,24 @@ function UrunKartiIc({ urun, onPress }) {
 
       {/* ---------- BİLGİ ALANI ---------- */}
       <View style={styles.bilgi}>
+        {/* ⭐ YENİ (B4, 2026-08-12) — KATEGORİ ETİKETİ.
+            Tasarımda ürün adının üstünde küçük, büyük harfli bir
+            kategori satırı var ("MUTFAK"). Sunucu artık adı da
+            gönderiyor (`categoryName`); id'yi ada çevirmek için
+            kategori listesini ayrıca çekmeye gerek kalmadı.
+
+            ⚠️ Ad yoksa satır HİÇ çizilmiyor (kategorisi silinmiş
+            ürün). Boş bir şerit bırakmak kartları farklı
+            yüksekliklere düşürürdü.
+
+            ⚠️ Turuncu değil `yaziGri`: bu bir sınıflandırma
+            etiketi, tıklanabilir bir şey değil. */}
+        {urun.categoryName ? (
+          <Text style={styles.kategoriEtiket} numberOfLines={1}>
+            {urun.categoryName.toLocaleUpperCase('tr-TR')}
+          </Text>
+        ) : null}
+
         <Text style={styles.urunAd} numberOfLines={2}>{urun.name}</Text>
 
         {/* ⭐ DEĞİŞTİ — PUAN SATIRI ARTIK HER KARTTA VAR.
@@ -368,6 +386,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
   bilgi: {
     padding: bosluk.orta,
   },
+  /* Küçük + BÜYÜK HARF + harf aralığı: bir üst başlık gibi
+     okunuyor, ürün adıyla yarışmıyor. */
+  kategoriEtiket: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziGri,
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+
   urunAd: {
     fontSize: yazi.normal,
     fontWeight: agirlik.yari,

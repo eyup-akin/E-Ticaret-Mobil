@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, FlatList, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,6 +18,7 @@ import BannerSeridi from '../components/BannerSeridi';
 import KategoriSeridi from '../components/KategoriSeridi';
 import BolumBasligi from '../components/BolumBasligi';
 import BosDurum from '../components/BosDurum';
+import SanaOzelSerit from '../components/SanaOzelSerit';   // ⭐ YENİ (B12)
 import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 
 // ============================================================
@@ -258,6 +259,47 @@ export default function AnaSayfaEkrani({ navigation }) {
     }, [])
   );
 
+  /* ---- SANA ÖZEL (B12) ----  ⭐ YENİ (2026-08-12)
+   *
+   * ⚠️ ÖNERİ MOTORU YOK VE UYDURULMUYOR. Mantık tek cümleyle
+   * anlatılabilir olmalı, çünkü ekranda da öyle yazıyor ("Son
+   * baktıklarına benzeyen ürünler"):
+   *
+   *   son gezilen ürünlerin KATEGORİLERİ → aynı kategorideki,
+   *   henüz bakılmamış ürünler
+   *
+   * B12 aylarca çizilmemişti çünkü alternatifi sahte bir liste
+   * göstermekti ("yanlış sayı, eksik sayıdan tehlikelidir"). Bu
+   * mantık sahte değil: müşterinin kendi davranışından çıkıyor.
+   *
+   * ⚠️ EK İSTEK ATILMIYOR. Öneriler zaten yüklü olan `urunler`
+   * listesinden süzülüyor; ayrı bir uç açsaydık yol haritası
+   * 7.4'teki "bölüm başına ayrı istek yok" kuralı kırılırdı.
+   *
+   * ⚠️ FİLTRE VEYA ARAMA AKTİFKEN BÖLÜM YOK. O durumda `urunler`
+   * müşterinin sorduğu sorunun cevabı; içinden öneri süzmek
+   * "aradığın şeyin içinden sana özel" gibi tuhaf bir sonuç verir
+   * ve zaten çoğu zaman boş çıkar.
+   *
+   * ⚠️ Son gezilenlerin KENDİSİ öneriye girmiyor: müşteri onları
+   * bir üstteki şeritte zaten görüyor. */
+  const sanaOzel = useMemo(() => {
+    if (aktifFiltreSayisi(filtre) > 0 || uygulananArama) return [];
+    if (sonGezilenler.length === 0 || urunler.length === 0) return [];
+
+    const gezilenIdler = new Set(sonGezilenler.map((u) => u.id));
+
+    const ilgiliKategoriler = new Set(
+      sonGezilenler.map((u) => u.categoryId).filter((k) => k != null)
+    );
+
+    if (ilgiliKategoriler.size === 0) return [];
+
+    return urunler
+      .filter((u) => ilgiliKategoriler.has(u.categoryId) && !gezilenIdler.has(u.id))
+      .slice(0, 10);
+  }, [urunler, sonGezilenler, filtre, uygulananArama]);
+
   // ---- KATEGORİYE BASILINCA ----
   //
   // ⚠️ Panelden farklı olarak ANINDA uygulanıyor. Panelde birden
@@ -353,6 +395,19 @@ export default function AnaSayfaEkrani({ navigation }) {
               />
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* ⭐ YENİ (B12) — SANA ÖZEL.
+          Yeri bilinçli: son gezdiklerinin HEMEN ARDINDAN, çünkü
+          içeriği doğrudan ondan türüyor. "Tüm Ürünler"den sonra
+          olsaydı sonsuz ızgaranın altında kaybolurdu. */}
+      {sanaOzel.length > 0 && (
+        <View style={styles.bolum}>
+          <SanaOzelSerit
+            urunler={sanaOzel}
+            onUrunBas={(u) => navigation.navigate('UrunDetay', { urunId: u.id })}
+          />
         </View>
       )}
 

@@ -14,6 +14,35 @@ import { kategoriIkonu } from '../services/kategoriIkon';
 import SecimKarosu from './SecimKarosu';
 import Yildizlar from './Yildizlar';
 import FiyatAraligi from './FiyatAraligi';
+import Chip from './Chip';   // ⭐ YENİ — hazır fiyat aralıkları için
+
+/* ⭐ YENİ (2026-08-12) — HAZIR FİYAT ARALIKLARI (B3'ün yerine)
+ *
+ * B3 bir histogram öneriyordu ("hangi fiyatta kaç ürün var"). Onun
+ * yerine bu kondu çünkü müşterinin derdi veri görmek değil,
+ * kaydırıcıyı elle tutturmaktan kurtulmaktı: 89–4.500 arası bir rayda
+ * parmakla 1.000'i yakalamak neredeyse imkânsız.
+ *
+ * ⚠️ MERDİVEN SABİT, MAĞAZAYA GÖRE TÜRETİLMİYOR.
+ * "Sınırları altıya böl" gibi bir hesap 1.317 ₺ gibi çirkin ve
+ * hatırlanmaz eşikler üretirdi. İnsanlar fiyatı yuvarlak sayılarla
+ * düşünüyor.
+ *
+ * ⚠️ ÜST SINIRI OLMAYAN SON BASAMAK (`ust: null`) mağazanın en pahalı
+ * ürününe kadar açılıyor.
+ *
+ * ⚠️ Mağazanın fiyat aralığının TAMAMEN dışında kalan basamak
+ * ÇİZİLMİYOR (aşağıda süzülüyor): basınca sıfır sonuç veren bir
+ * düğme, müşteriye "burada ürün yok" demenin en zahmetli yolu.
+ */
+const HAZIR_ARALIKLAR = [
+  { etiket: '0 – 100 ₺', alt: 0, ust: 100 },
+  { etiket: '100 – 250 ₺', alt: 100, ust: 250 },
+  { etiket: '250 – 500 ₺', alt: 250, ust: 500 },
+  { etiket: '500 – 1.000 ₺', alt: 500, ust: 1000 },
+  { etiket: '1.000 – 2.500 ₺', alt: 1000, ust: 2500 },
+  { etiket: '2.500 ₺ ve üzeri', alt: 2500, ust: null },
+];
 
 // ============================================================
 //  FİLTRE PANELİ — alttan açılan filtre ekranı
@@ -237,6 +266,56 @@ export default function FiltrePaneli({
     }));
   }
 
+  /* ⭐ YENİ (2026-08-12) — hazır aralığa basılınca.
+   *
+   * ⚠️ Kaydırıcı ve kutular da GÜNCELLENİYOR. Yalnızca taslağı
+   * yazsaydık müşteri "500 – 1.000"e basar ama kaydırıcı eski yerinde
+   * dururdu: ekranda iki farklı cevap olurdu.
+   *
+   * ⚠️ Seçiliye tekrar basmak seçimi KALDIRIYOR — kategori ve puan
+   * karolarındaki davranışın aynısı; ayrı bir "hepsi" düğmesine gerek
+   * kalmıyor. */
+  function hazirAralikSec(aralik) {
+    if (!sinirlar) return;
+
+    const enDusuk = Math.floor(sinirlar.enDusuk);
+    const enYuksek = Math.ceil(sinirlar.enYuksek);
+
+    if (seciliAralikMi(aralik)) {
+      setAltFiyat(enDusuk);
+      setUstFiyat(enYuksek);
+      fiyatiIsle(enDusuk, enYuksek);
+      return;
+    }
+
+    // ⚠️ Mağazanın sınırlarına kırpılıyor: 0–100 basamağı, en ucuz
+    // ürünü 89 ₺ olan bir mağazada 89'dan başlamalı. Kırpmasaydık
+    // kaydırıcı kendi sınırının dışına düşer ve tutamağı kaybolurdu.
+    const a = Math.max(aralik.alt, enDusuk);
+    const u = Math.min(aralik.ust ?? enYuksek, enYuksek);
+
+    setAltFiyat(a);
+    setUstFiyat(u);
+    fiyatiIsle(a, u);
+  }
+
+  /* Bir basamak şu an seçili mi?
+     ⚠️ Karşılaştırma TASLAKTAKİ değerlerle değil ekrandaki kaydırıcı
+     değerleriyle yapılıyor: taslakta sınırdaki değerler null'a
+     çekiliyor (`sinirdakiniBosalt`) ve "2.500 ve üzeri" seçiliyken
+     maxFiyat null oluyor. */
+  function seciliAralikMi(aralik) {
+    if (!sinirlar) return false;
+
+    const enDusuk = Math.floor(sinirlar.enDusuk);
+    const enYuksek = Math.ceil(sinirlar.enYuksek);
+
+    return (
+      altFiyat === Math.max(aralik.alt, enDusuk) &&
+      ustFiyat === Math.min(aralik.ust ?? enYuksek, enYuksek)
+    );
+  }
+
   // ⭐ YENİ (GV/Faz 3) — SAYI KUTUSU ODAKTAN ÇIKINCA
   //
   // hangi: 'alt' | 'ust'
@@ -403,6 +482,27 @@ export default function FiltrePaneli({
             <View style={styles.kart}>
               <View style={styles.kartBaslikSatiri}>
                 <Text style={styles.kartBaslik}>Fiyat</Text>
+              </View>
+
+              {/* ⭐ YENİ — hazır aralıklar KAYDIRICININ ÜSTÜNDE.
+                  Sıra bilinçli: çoğu müşterinin ihtiyacı hazır bir
+                  basamak; kaydırıcı ve kutular ince ayar için altta
+                  duruyor. Altta olsalardı müşteri önce zor yolu
+                  görürdü. */}
+              <View style={styles.hazirSerit}>
+                {HAZIR_ARALIKLAR
+                  .filter((a) =>
+                    a.alt <= Math.ceil(sinirlar.enYuksek) &&
+                    (a.ust ?? Infinity) >= Math.floor(sinirlar.enDusuk)
+                  )
+                  .map((a) => (
+                    <Chip
+                      key={a.etiket}
+                      etiket={a.etiket}
+                      secili={seciliAralikMi(a)}
+                      onBas={() => hazirAralikSec(a)}
+                    />
+                  ))}
               </View>
 
               <FiyatAraligi
@@ -619,6 +719,16 @@ const stilOlustur = (renkler) => StyleSheet.create({
     padding: bosluk.normal,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
+  },
+
+  /* Sarmalı: altı çip yatay bir şeride sığmıyor ve yatay kaydırma
+     panelin kendi dikey kaydırmasıyla çakışıyordu. Sarınca hepsi
+     tek bakışta görünüyor. */
+  hazirSerit: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.normal,
   },
 
   kartBaslikSatiri: {
