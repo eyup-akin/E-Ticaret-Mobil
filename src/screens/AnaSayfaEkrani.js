@@ -27,7 +27,7 @@ import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 //  Sıra: arama → banner → kategoriler → SUNUCUDAN GELEN BÖLÜMLER →
 //        tüm ürünler (sıralama şeridi + ızgara)
 //
-//  ⚠️ Bölümler (revaçta, son gezdiklerin, sana özel, favori, yeni)
+//  ⚠️ Bölümler (son gezdiklerin, sana özel, en popüler, favori, yeni)
 //  burada TANIMLI DEĞİL: `/products/anasayfa` ne gönderirse o
 //  sırayla çiziliyor. Hangi bölümün olacağı ve sırası bir küratörlük
 //  kararı ve tek yerde, sunucuda yaşıyor.
@@ -51,6 +51,21 @@ import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 //  render olur ve yazarken KLAVYE ODAĞI DÜŞERDİ. Ayrıca
 //  yukarıda sabit kalması zaten doğru davranış.
 // ============================================================
+/* ⭐ YENİ (2026-08-12) — hangi bölümün ızgarada karşılığı var?
+ *
+ * ⚠️ Bileşenin DIŞINDA: her render'da yeniden kurulmasının anlamı
+ * yok, sabit bir eşleme.
+ *
+ * ⚠️ Eşleme burada, sunucuda değil — çünkü bu bir SUNUM kararı:
+ * "bu bölümün devamı ızgarada hangi sıralamayla görünür?" sorusunun
+ * cevabı ızgaranın kendisini bilmeyi gerektiriyor ve ızgara mobile
+ * ait. Sunucudan gelen bir bölüm burada yoksa "Tümünü gör" hiç
+ * çizilmiyor — sessizce ve doğru şekilde. */
+const SIRALAMA_KARSILIGI = {
+  populer: 'populer',
+  yeni: 'yeni',
+};
+
 export default function AnaSayfaEkrani({ navigation }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
@@ -255,7 +270,7 @@ export default function AnaSayfaEkrani({ navigation }) {
       (async () => {
         const idler = await sonGezilenleriOku();
 
-        // ⚠️ Geçmiş boşsa da istek atılıyor: "revaçta", "favori" ve
+        // ⚠️ Geçmiş boşsa da istek atılıyor: "popüler", "favori" ve
         // "yeni" bölümleri gezme geçmişine bağlı değil. Atlamak,
         // ilk kez açan müşteriye bomboş bir vitrin göstermek olurdu.
         const sorgu = idler.length > 0
@@ -393,25 +408,27 @@ export default function AnaSayfaEkrani({ navigation }) {
             baslik={b.baslik}
             urunler={b.urunler}
             onUrunBas={(u) => navigation.navigate('UrunDetay', { urunId: u.id })}
-            /* ⚠️ "Tümünü gör" YALNIZCA karşılığı olan bölümde.
-               "Yeni gelenler"in karşılığı ızgaranın `yeni`
-               sıralaması; ona basmak sıralamayı değiştirip ızgaraya
-               kaydırıyor. Diğer bölümlerin (revaçta, favori, son
-               gezilen) gidilecek bir sayfası yok — hepsine bağlantı
-               koymak, basınca hiçbir şey olmayan ya da alakasız bir
-               yere götüren bir söz vermek olurdu. */
+            /* ⚠️ "Tümünü gör" YALNIZCA IZGARADA KARŞILIĞI OLAN
+               bölümde. İki bölümün karşılığı var: "Yeni gelenler" →
+               `yeni` sıralaması, "En Popüler Ürünler" → `populer`
+               sıralaması. Sunucudaki bölüm sorgusu ile ızgaranın
+               sıralaması AYNI ölçüyü kullanıyor, yani müşteri
+               basınca aynı listenin devamını görüyor.
+
+               "Favori", "son gezilen" ve "sana özel" için ızgarada
+               böyle bir sıralama yok; bağlantı koymak basınca
+               alakasız bir listeye götüren bir söz vermek olurdu. */
             onTumunuBas={
-              b.anahtar === 'yeni'
+              SIRALAMA_KARSILIGI[b.anahtar]
                 ? () => {
                     /* ⚠️ KAYDIRMA AÇIKÇA ÇAĞRILIYOR — sıralamayı
                        değiştirmek yetmiyor. `yeni` zaten VARSAYILAN
-                       sıralama; `setSiralama('yeni')` çoğu zaman
-                       state'i hiç değiştirmiyor, dolayısıyla ne
-                       yeniden istek gidiyor ne de "filtre değişti"
-                       kaydırması tetikleniyor. Sadece onu yazsaydık
-                       buton basılıyor ve ekranda HİÇBİR ŞEY
-                       olmuyordu. */
-                    setSiralama('yeni');
+                       sıralama; `setSiralama('yeni')` state'i hiç
+                       değiştirmiyor, dolayısıyla ne yeniden istek
+                       gidiyor ne de "filtre değişti" kaydırması
+                       tetikleniyor. Sadece onu yazsaydık buton
+                       basılıyor ve ekranda HİÇBİR ŞEY olmuyordu. */
+                    setSiralama(SIRALAMA_KARSILIGI[b.anahtar]);
                     urunlereKaydir();
                   }
                 : undefined
