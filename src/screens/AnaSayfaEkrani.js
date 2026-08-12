@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, FlatList, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet } from '../services/api';
@@ -11,12 +11,12 @@ import {
 import { sonGezilenleriOku } from '../services/sonGezilenler';
 import AramaCubugu from '../components/AramaCubugu';
 import UrunKarti from '../components/UrunKarti';
-import UrunKartiKompakt from '../components/UrunKartiKompakt';
 import SiralamaSeridi from '../components/SiralamaSeridi';
 import FiltrePaneli from '../components/FiltrePaneli';
 import BannerSeridi from '../components/BannerSeridi';
 import KategoriSeridi from '../components/KategoriSeridi';
 import BolumBasligi from '../components/BolumBasligi';
+import YatayListe from '../components/YatayListe';   // ⭐ YENİ (7.5)
 import BosDurum from '../components/BosDurum';
 import SanaOzelSerit from '../components/SanaOzelSerit';   // ⭐ YENİ (B12)
 import { UrunIzgarasiIskeleti } from '../components/Iskelet';
@@ -24,8 +24,13 @@ import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 // ============================================================
 //  ANA SAYFA — vitrin
 //
-//  Sıra: arama → banner → kategoriler → son gezdiklerin →
+//  Sıra: arama → banner → kategoriler → SUNUCUDAN GELEN BÖLÜMLER →
 //        tüm ürünler (sıralama şeridi + ızgara)
+//
+//  ⚠️ Bölümler (revaçta, son gezdiklerin, sana özel, favori, yeni)
+//  burada TANIMLI DEĞİL: `/products/anasayfa` ne gönderirse o
+//  sırayla çiziliyor. Hangi bölümün olacağı ve sırası bir küratörlük
+//  kararı ve tek yerde, sunucuda yaşıyor.
 //
 //  ⚠️ HAMBURGER MENÜSÜ KALDIRILDI.
 //  Kategorilere erişim artık kategori şeridinin sonundaki "Tümü"
@@ -69,7 +74,19 @@ export default function AnaSayfaEkrani({ navigation }) {
 
   // ⭐ YENİ (GV/Faz 4)
   const [kategoriler, setKategoriler] = useState([]);
-  const [sonGezilenler, setSonGezilenler] = useState([]);
+
+  // ⭐ YENİ (7.4) — vitrin bölümleri, TEK istekten.
+  //
+  // ⚠️ Eskiden burada `sonGezilenler` state'i ve ondan türetilen bir
+  // `sanaOzel` useMemo'su vardı: öneri, ekranda zaten yüklü olan
+  // ürün listesinden süzülüyordu. İki kusuru vardı — öneri havuzu
+  // ekranda ne varsa onunla sınırlıydı ve filtre açıkken hiç
+  // çalışmıyordu. Artık ikisi de sunucudan geliyor.
+  //
+  // ⚠️ Bölümlerin SIRASI da sunucudan: dizi geldiği sırayla
+  // çiziliyor. Sıralamayı burada sabitleseydik yarın bölüm sırası
+  // değiştiğinde uygulama güncellemesi gerekirdi.
+  const [bolumler, setBolumler] = useState([]);
 
   // ---- FİLTRELEYİNCE ÜRÜNLERE KAYDIRMA ----
   //
@@ -210,21 +227,27 @@ export default function AnaSayfaEkrani({ navigation }) {
     return () => { iptal = true; };
   }, []);
 
-  // ---- SON GEZİLENLER ----
+  // ---- VİTRİN BÖLÜMLERİ (7.4) ----
   //
   // ⚠️ useFocusEffect — useEffect DEĞİL.
   //
-  // Müşteri ürün detayına gidip geri döndüğünde şerit güncel
-  // olmalı. useEffect yalnızca ekran ilk kurulduğunda çalışır;
-  // sekmeler arası dönüşte ana sayfa bileşeni bellekte duruyor ve
-  // efekt bir daha tetiklenmiyor. Sonuç: az önce baktığın ürün
-  // şeritte görünmüyordu.
+  // Müşteri ürün detayına gidip geri döndüğünde "son gezdiklerin"
+  // güncel olmalı. useEffect yalnızca ekran ilk kurulduğunda
+  // çalışır; sekmeler arası dönüşte ana sayfa bileşeni bellekte
+  // duruyor ve efekt bir daha tetiklenmiyor. Sonuç: az önce
+  // baktığın ürün şeritte görünmüyordu.
   //
-  // ⚠️ İD SIRASI SUNUCUDAN GELMİYOR — burada geri kuruluyor.
-  // Sunucuya "şu id'leri getir" diyoruz, o da veritabanı sırasında
-  // döndürüyor. "En son bakılan başta" sırası cihazdaki listede;
-  // gelen ürünleri o listeye göre diziyoruz. Sunucudan sıra
-  // istemek (SQL'de CASE WHEN zinciri) hem çirkin hem gereksizdi.
+  // ⚠️ TEK İSTEK. Beş bölüm için beş istek atmak mobil ağda beş
+  // ayrı gidiş-dönüş ve ekranın parça parça dolması demekti.
+  //
+  // ⚠️ SIRALAMA SUNUCUDA. Gezilen id'leri "en son bakılan başta"
+  // sırasıyla gönderiyoruz, sunucu da o sırayı koruyarak
+  // döndürüyor. Eskiden gelen listeyi burada yeniden diziyorduk —
+  // aynı iş iki yerde yapılmasın.
+  //
+  // ⚠️ BÖLÜMLER İKİNCİL VERİ: istek patlarsa şeritler hiç
+  // çizilmiyor ama ürün ızgarası yerinde duruyor. Vitrin şeridi
+  // yüzünden ana içeriği kaybetmek olmaz.
   useFocusEffect(
     useCallback(() => {
       let iptal = false;
@@ -232,26 +255,21 @@ export default function AnaSayfaEkrani({ navigation }) {
       (async () => {
         const idler = await sonGezilenleriOku();
 
-        if (idler.length === 0) {
-          if (!iptal) setSonGezilenler([]);
-          return;
-        }
+        // ⚠️ Geçmiş boşsa da istek atılıyor: "revaçta", "favori" ve
+        // "yeni" bölümleri gezme geçmişine bağlı değil. Atlamak,
+        // ilk kez açan müşteriye bomboş bir vitrin göstermek olurdu.
+        const sorgu = idler.length > 0
+          ? '?gezilenIdler=' + idler.join(',')
+          : '';
 
         try {
-          const veri = await apiGet('/products?idler=' + idler.join(','));
+          const veri = await apiGet('/products/anasayfa' + sorgu);
           if (iptal) return;
 
-          // Cihazdaki sıraya diz. Silinmiş/pasifleşmiş ürünler
-          // sunucudan hiç gelmiyor ve listeden kendiliğinden
-          // düşüyor — ayrıca temizlemeye gerek yok.
-          const sirali = idler
-            .map((id) => veri.find((u) => u.id === id))
-            .filter(Boolean);
-
-          setSonGezilenler(sirali);
+          setBolumler(veri.bolumler || []);
         } catch (hata) {
-          if (!iptal) setSonGezilenler([]);
-          console.log('Son gezilenler alınamadı:', hata.message);
+          if (!iptal) setBolumler([]);
+          console.log('Ana sayfa bölümleri alınamadı:', hata.message);
         }
       })();
 
@@ -259,46 +277,18 @@ export default function AnaSayfaEkrani({ navigation }) {
     }, [])
   );
 
-  /* ---- SANA ÖZEL (B12) ----  ⭐ YENİ (2026-08-12)
+  /* ---- BÖLÜMLER GÖRÜNSÜN MÜ? ----
    *
-   * ⚠️ ÖNERİ MOTORU YOK VE UYDURULMUYOR. Mantık tek cümleyle
-   * anlatılabilir olmalı, çünkü ekranda da öyle yazıyor ("Son
-   * baktıklarına benzeyen ürünler"):
+   * ⚠️ ARAMA VEYA FİLTRE AKTİFKEN BÖLÜMLERİN HEPSİ GİZLENİR.
    *
-   *   son gezilen ürünlerin KATEGORİLERİ → aynı kategorideki,
-   *   henüz bakılmamış ürünler
+   * Müşteri bir soru sordu ("kırmızı, 500 TL altı") ve cevabı
+   * ızgarada. Vitrin şeritleri o cevabın önüne geçmemeli: filtreyle
+   * ilgisi olmayan ürünleri tepede göstermek, filtrenin çalışmadığı
+   * izlenimi verir.
    *
-   * B12 aylarca çizilmemişti çünkü alternatifi sahte bir liste
-   * göstermekti ("yanlış sayı, eksik sayıdan tehlikelidir"). Bu
-   * mantık sahte değil: müşterinin kendi davranışından çıkıyor.
-   *
-   * ⚠️ EK İSTEK ATILMIYOR. Öneriler zaten yüklü olan `urunler`
-   * listesinden süzülüyor; ayrı bir uç açsaydık yol haritası
-   * 7.4'teki "bölüm başına ayrı istek yok" kuralı kırılırdı.
-   *
-   * ⚠️ FİLTRE VEYA ARAMA AKTİFKEN BÖLÜM YOK. O durumda `urunler`
-   * müşterinin sorduğu sorunun cevabı; içinden öneri süzmek
-   * "aradığın şeyin içinden sana özel" gibi tuhaf bir sonuç verir
-   * ve zaten çoğu zaman boş çıkar.
-   *
-   * ⚠️ Son gezilenlerin KENDİSİ öneriye girmiyor: müşteri onları
-   * bir üstteki şeritte zaten görüyor. */
-  const sanaOzel = useMemo(() => {
-    if (aktifFiltreSayisi(filtre) > 0 || uygulananArama) return [];
-    if (sonGezilenler.length === 0 || urunler.length === 0) return [];
-
-    const gezilenIdler = new Set(sonGezilenler.map((u) => u.id));
-
-    const ilgiliKategoriler = new Set(
-      sonGezilenler.map((u) => u.categoryId).filter((k) => k != null)
-    );
-
-    if (ilgiliKategoriler.size === 0) return [];
-
-    return urunler
-      .filter((u) => ilgiliKategoriler.has(u.categoryId) && !gezilenIdler.has(u.id))
-      .slice(0, 10);
-  }, [urunler, sonGezilenler, filtre, uygulananArama]);
+   * Bu kural eskiden yalnızca "Sana özel" için geçerliydi; bölümler
+   * çoğalınca hepsine yayıldı. */
+  const bolumlerGorunsun = aktifFiltreSayisi(filtre) === 0 && !uygulananArama;
 
   // ---- KATEGORİYE BASILINCA ----
   //
@@ -372,43 +362,62 @@ export default function AnaSayfaEkrani({ navigation }) {
         />
       </View>
 
-      {/* ⚠️ Geçmiş yoksa bölüm TAMAMEN yok — boş yer tutucu ya da
-          "henüz ürün gezmedin" yazısı değil. İlk kez açan
-          müşteriye söylenecek bir şey yok; boş bir bölüm sadece
-          ekranı uzatırdı. */}
-      {sonGezilenler.length > 0 && (
-        <View style={styles.bolum}>
-          <BolumBasligi baslik="Son gezdiğin ürünler" />
+      {/* ⭐ DEĞİŞTİ (7.5) — BÖLÜMLER SUNUCUDAN GELDİĞİ SIRAYLA.
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.kompaktSerit}
-            style={styles.kompaktSeritKap}
-            directionalLockEnabled
-          >
-            {sonGezilenler.map((u) => (
-              <UrunKartiKompakt
-                key={u.id}
-                urun={u}
-                onPress={() => navigation.navigate('UrunDetay', { urunId: u.id })}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      )}
+          Eskiden "son gezdiklerin" ve "sana özel" burada tek tek,
+          elle yazılıydı. Bölüm sayısı artınca her yenisi için bu
+          dosyaya bir blok daha eklemek gerekirdi; artık sunucu ne
+          gönderirse o çiziliyor.
 
-      {/* ⭐ YENİ (B12) — SANA ÖZEL.
-          Yeri bilinçli: son gezdiklerinin HEMEN ARDINDAN, çünkü
-          içeriği doğrudan ondan türüyor. "Tüm Ürünler"den sonra
-          olsaydı sonsuz ızgaranın altında kaybolurdu. */}
-      {sanaOzel.length > 0 && (
-        <View style={styles.bolum}>
-          <SanaOzelSerit
-            urunler={sanaOzel}
+          ⚠️ Boş bölüm kontrolü YOK — sunucu boş bölümü hiç
+          göndermiyor. Burada bir kez daha kontrol etmek, kuralın
+          iki yerde yaşaması olurdu.
+
+          ⚠️ "Sana özel" AYRI ÇİZİLİYOR: turuncu zeminli, ikonlu ve
+          altında neye göre seçildiğini anlatan bir açıklama taşıyan
+          özel bir şerit. Onu genel YatayListe'ye sıkıştırmak, ortak
+          bileşene bir istisna eklemek olurdu. Yeri de bilinçli:
+          içeriği son gezdiklerinden türüyor ve sunucu ikisini yan
+          yana gönderiyor. */}
+      {bolumlerGorunsun && bolumler.map((b) =>
+        b.anahtar === 'sana_ozel' ? (
+          <View key={b.anahtar} style={styles.bolum}>
+            <SanaOzelSerit
+              urunler={b.urunler}
+              onUrunBas={(u) => navigation.navigate('UrunDetay', { urunId: u.id })}
+            />
+          </View>
+        ) : (
+          <YatayListe
+            key={b.anahtar}
+            baslik={b.baslik}
+            urunler={b.urunler}
             onUrunBas={(u) => navigation.navigate('UrunDetay', { urunId: u.id })}
+            /* ⚠️ "Tümünü gör" YALNIZCA karşılığı olan bölümde.
+               "Yeni gelenler"in karşılığı ızgaranın `yeni`
+               sıralaması; ona basmak sıralamayı değiştirip ızgaraya
+               kaydırıyor. Diğer bölümlerin (revaçta, favori, son
+               gezilen) gidilecek bir sayfası yok — hepsine bağlantı
+               koymak, basınca hiçbir şey olmayan ya da alakasız bir
+               yere götüren bir söz vermek olurdu. */
+            onTumunuBas={
+              b.anahtar === 'yeni'
+                ? () => {
+                    /* ⚠️ KAYDIRMA AÇIKÇA ÇAĞRILIYOR — sıralamayı
+                       değiştirmek yetmiyor. `yeni` zaten VARSAYILAN
+                       sıralama; `setSiralama('yeni')` çoğu zaman
+                       state'i hiç değiştirmiyor, dolayısıyla ne
+                       yeniden istek gidiyor ne de "filtre değişti"
+                       kaydırması tetikleniyor. Sadece onu yazsaydık
+                       buton basılıyor ve ekranda HİÇBİR ŞEY
+                       olmuyordu. */
+                    setSiralama('yeni');
+                    urunlereKaydir();
+                  }
+                : undefined
+            }
           />
-        </View>
+        )
       )}
 
       {/* ⚠️ collapsable={false} — Android'de yalnızca yerleşim için
@@ -532,16 +541,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
      olmadan liste ekranın altına kadar uzamaz. */
   listeKap: {
     flex: 1,
-  },
-
-  kompaktSeritKap: {
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-
-  kompaktSerit: {
-    paddingHorizontal: sayfaKenari,
-    gap: bosluk.orta,
   },
 
   // ⚠️ sayfaKenari — banner, arama ve kategori şeridiyle aynı
