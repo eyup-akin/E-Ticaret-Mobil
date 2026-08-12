@@ -11,6 +11,10 @@ import NumaralarimEkrani from '../screens/NumaralarimEkrani';   // ⭐ YENİ (4.
 import DestekTalepleriEkrani from '../screens/DestekTalepleriEkrani';
 import YeniTalepEkrani from '../screens/YeniTalepEkrani';
 import TalepDetayEkrani from '../screens/TalepDetayEkrani';
+
+// ⭐ YENİ (Aşama 9.4) — iade ekranları
+import IadelerimEkrani from '../screens/IadelerimEkrani';
+import IadeTalepEkrani from '../screens/IadeTalepEkrani';
 import OdemelerimEkrani from '../screens/OdemelerimEkrani';
 
 import ProfilDuzenleEkrani from '../screens/ProfilDuzenleEkrani';   // ⭐ YENİ
@@ -55,6 +59,9 @@ export default function HesabimStack() {
       <Stack.Screen name="Destek" component={DestekTalepleriEkrani} />
       <Stack.Screen name="YeniTalep" component={YeniTalepEkrani} />
       <Stack.Screen name="TalepDetay" component={TalepDetayEkrani} />
+
+      <Stack.Screen name="Iadelerim" component={IadelerimEkrani} />
+      <Stack.Screen name="IadeTalep" component={IadeTalepEkrani} />
       
     </Stack.Navigator>
   );

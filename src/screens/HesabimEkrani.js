@@ -393,6 +393,10 @@ export default function HesabimEkrani({ navigation }) {
                  FAQ" ikilisinden yalnızca biri var; SSS diye bir
                  içerik yok ve olmayan bir sayfaya bağlantı koymak
                  (B8'de yardım ikonunda verilen karar) yapılmıyor. */
+              // ⭐ YENİ (Aşama 9.4) — Siparişlerim'in yanında: ikisi de
+              // sipariş geçmişine dair.
+              { ikon: 'arrow-undo-outline', baslik: 'İadelerim', hedef: 'Iadelerim' },
+
               { ikon: 'chatbubbles-outline', baslik: 'Destek', hedef: 'Destek' },
             ])}
 

@@ -361,6 +361,25 @@ export default function SiparisDetayEkrani({ route, navigation }) {
           />
         </View>
 
+        {/* ⭐ YENİ (Aşama 9.4) — İADE TALEBİ
+            ⚠️ Yalnızca TESLİM EDİLMİŞ siparişte çiziliyor. Süre doldu
+            mu ya da zaten talep var mı sorusunu ekranın kendisi
+            sunucuya soruyor (uygunluk ucu); kuralı burada
+            tekrarlamıyoruz. */}
+        {siparis.status === 'teslim_edildi' && (
+          <View style={styles.bolum}>
+            <TouchableOpacity
+              style={styles.destekSatir}
+              onPress={() => navigation.navigate('IadeTalep', { siparisId })}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-undo-outline" size={18} color={renkler.anaRenk} />
+              <Text style={styles.destekYazi}>İade talep et</Text>
+              <Ionicons name="chevron-forward" size={16} color={renkler.yaziGri} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ⭐ YENİ (Aşama 8.4) — BU SİPARİŞ İÇİN DESTEK TALEBİ
             ⚠️ Kısayolun bütün değeri BAĞLAMI TAŞIMASINDA: talep
             siparişe bağlı açılıyor ve admin "hangi sipariş?" diye
