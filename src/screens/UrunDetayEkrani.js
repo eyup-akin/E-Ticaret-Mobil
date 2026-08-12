@@ -18,6 +18,8 @@ import UrunGaleri from '../components/UrunGaleri';
 import YorumBolumu from '../components/YorumBolumu';
 import Yildizlar from '../components/Yildizlar';
 import Rozet from '../components/Rozet';
+import YatayListe from '../components/YatayListe';       // ⭐ YENİ
+import KombinSeridi from '../components/KombinSeridi';   // ⭐ YENİ
 
 // ⭐ YENİ — açıklamanın "uzun" sayıldığı karakter eşiği.
 //
@@ -37,6 +39,12 @@ export default function UrunDetayEkrani({ route, navigation }) {
   const { token } = useAuth();
   const { renkler } = useTema();
   const { sepet, sepeteEkle } = useSepet();
+
+  // ⭐ YENİ — öneri bölümleri. Üçü de İKİNCİL veri: gelmezse
+  // bölüm hiç çizilmiyor, ürün detayı çalışmaya devam ediyor.
+  const [benzerler, setBenzerler] = useState([]);
+  const [birlikte, setBirlikte] = useState([]);
+  const [kombinler, setKombinler] = useState([]);
 
   // ⚠️ Yüzen geri butonunun durum çubuğunun altında kalması için.
   // Sabit bir sayı yazsaydık centikli telefonlarda saatin üstune
@@ -105,6 +113,22 @@ export default function UrunDetayEkrani({ route, navigation }) {
     }
   }
 
+  // ⭐ YENİ — kombinin TÜM ürünlerini sepete ekler.
+  //
+  // ⚠️ İndirim istemcide hesaplanmıyor: sunucu sepette kombinin
+  // tamamını görünce indirimi kendisi uyguluyor.
+  async function kombinSepeteEkle(kombin) {
+    try {
+      for (const u of kombin.urunler) {
+        await sepeteEkle(u.id, 1);
+      }
+
+      Alert.alert('Sepete eklendi', kombin.ad + ' sepetine eklendi.');
+    } catch (hata) {
+      Alert.alert('Eklenemedi', hata.message);
+    }
+  }
+
   async function urunuGetir(sessiz = false) {
     try {
       if (!sessiz) setYukleniyor(true);
@@ -135,6 +159,35 @@ export default function UrunDetayEkrani({ route, navigation }) {
   // yutuyor. Bu bir arka plan kolaylığı; ekranın açılışını
   // bekletmesi ya da bir hata göstermesi kabul edilemez.
   useEffect(() => { sonGezileneEkle(urunId); }, [urunId]);
+
+  // ⭐ YENİ — ÖNERİ BÖLÜMLERİ
+  //
+  // ⚠️ Ürün detayından AYRI istekler: detay bunlar gelmeden de tam
+  // çalışıyor, öneriler gecikirse sayfa beklemiyor.
+  useEffect(() => {
+    let iptal = false;
+
+    (async () => {
+      try {
+        const [b, ba, k] = await Promise.all([
+          apiGet('/products/' + urunId + '/benzer'),
+          apiGet('/products/' + urunId + '/birlikte-alinanlar'),
+          apiGet('/products/' + urunId + '/kombinler'),
+        ]);
+
+        if (iptal) return;
+
+        setBenzerler(b);
+        setBirlikte(ba);
+        setKombinler(k);
+      } catch (hata) {
+        // Sessizce geçiliyor: öneri ikincil veri.
+        console.log('Öneriler alınamadı:', hata.message);
+      }
+    })();
+
+    return () => { iptal = true; };
+  }, [urunId]);
 
   // ⭐ YENİ (5.2) — ŞİMDİ AL
   //
@@ -343,6 +396,103 @@ export default function UrunDetayEkrani({ route, navigation }) {
               <Rozet tip="indirim" yazi={yuzdeYazisi(yuzde)} />
             )}
           </View>
+
+          {/* ⭐ DEĞİŞTİ — EYLEMLER ARTIK SAYFA İÇİNDE, sabit alt
+              çubukta değil. Altına gelen benzer ürün / kombin
+              bölümleri için yer açıldı; butonlar kaydırılınca
+              yukarıda kalıyor. */}
+          <View style={styles.eylemBloku}>
+            {/* ⭐ DEĞİŞTİ (5.1 + 5.2) — tek buton yerine iki eylem.
+
+                SOLDA  : Şimdi Al   → sepete ekler + sepete gider
+                SAĞDA  : AdetKontrolu → sepete ekle / − [n] +
+
+                ⚠️ "Şimdi Al" AYRI BİR ÖDEME AKIŞI DEĞİL.
+                Sepete ekleyip sepet ekranına gidiyor. Ayrı bir akış
+                yazmak stok, kupon ve toplam mantığının ikinci bir
+                kopyası olurdu — üçü de zaten sepet üzerinden çalışıyor
+                ve ikiye ayrılan her kural er ya da geç ayrışıyor. */}
+            <View style={styles.eylemler}>
+              {/* ⭐ DEĞİŞTİ — "Şimdi Al" ÖNE alındı.
+
+                  Sıra: kestirme yol solda, asıl eylem sağda. Türkiye'deki
+                  e-ticaret uygulamalarında sepete ekleme sağdaki baskın
+                  buton; kullanıcı baş parmağıyla oraya uzanıyor. */}
+              {!tukendi && !sepetteVar && (
+                <TouchableOpacity
+                  style={styles.simdiAlButon}
+                  onPress={simdiAl}
+                  disabled={simdiAlIslemde}
+                  activeOpacity={0.85}
+                >
+                  {simdiAlIslemde ? (
+                    <ActivityIndicator size="small" color={renkler.anaRenk} />
+                  ) : (
+                    <Text style={styles.simdiAlYazi}>Şimdi Al</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* ⭐ DEĞİŞTİ — sarmalayıcıya flex: 1.
+
+                  AdetKontrolu'nun kendi kökü içeriğe göre boyutlanıyor;
+                  esneme kararını KULLANAN taraf veriyor. Bileşenin
+                  içine flex koysaydık, onu dar bir yerde kullanmak
+                  istediğimizde (ürün kartı) orayı da zorlardı.
+
+                  Bu satır olmadan sağda boş alan kalıyordu. */}
+              {/* ⭐ YENİ (5.5) — TÜKENDİYSE "HABER VER", DEĞİLSE ADET KONTROLÜ
+
+                  ⚠️ AdetKontrolu tükenmiş üründe soluk bir "Stokta Yok"
+                  butonu gösteriyordu. O buton hiçbir işe yaramıyordu:
+                  müşteriye durumu söylüyor ama YAPABİLECEĞİ bir şey
+                  sunmuyordu. Yerine gerçek bir eylem koyduk.
+
+                  Tükenmiş ürün, müşterinin ilgilendiği ama alamadığı
+                  ürün demek — mağaza için en değerli sinyallerden biri.
+                  Eskiden o ilgi kayboluyordu. */}
+              <View style={styles.adetSarmal}>
+                {tukendi ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.bildirimButon,
+                      urun.stokBildirimiVar === true && styles.bildirimButonAktif,
+                    ]}
+                    onPress={stokBildirimiDegistir}
+                    disabled={bildirimIslemde}
+                    activeOpacity={0.85}
+                  >
+                    {bildirimIslemde ? (
+                      <ActivityIndicator size="small" color={renkler.anaRenk} />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name={
+                            urun.stokBildirimiVar === true
+                              ? 'notifications'
+                              : 'notifications-outline'
+                          }
+                          size={18}
+                          color={renkler.anaRenk}
+                        />
+                        {/* İki metin de NE OLACAĞINI söylüyor, durumu değil.
+                            "Bildirim açık" yazsaydık müşteri basınca ne
+                            olacağını tahmin etmek zorunda kalırdı. */}
+                        <Text style={styles.bildirimYazi}>
+                          {urun.stokBildirimiVar === true
+                            ? 'Haber vermeyi bırak'
+                            : 'Stoka gelince haber ver'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <AdetKontrolu urun={urun} boyut="buyuk" />
+                )}
+              </View>
+            </View>
+          </View>
+
         </View>
 
         {/* ÜRÜN AÇIKLAMASI */}
@@ -420,6 +570,31 @@ export default function UrunDetayEkrani({ route, navigation }) {
           </View>
         )}
 
+        {/* ⭐ YENİ — BENZER ÜRÜNLER */}
+        <YatayListe
+          baslik="Benzer Ürünler"
+          urunler={benzerler}
+          onUrunBas={(u) => navigation.push('UrunDetay', { urunId: u.id })}
+        />
+
+        {/* ⭐ YENİ — BUNU ALANLAR BUNU DA ALDI
+            ⚠️ Kombinden AYRI bölüm: burada indirim yok, sadece
+            sipariş verisinden çıkan bir öneri. */}
+        <YatayListe
+          baslik="Bunu alanlar bunu da aldı"
+          urunler={birlikte}
+          onUrunBas={(u) => navigation.push('UrunDetay', { urunId: u.id })}
+        />
+
+        {/* ⭐ YENİ — KOMBİNLER (indirimli setler) */}
+        <View style={styles.kombinYeri}>
+          <KombinSeridi
+            kombinler={kombinler}
+            onEkle={kombinSepeteEkle}
+            onUrunBas={(u) => navigation.push('UrunDetay', { urunId: u.id })}
+          />
+        </View>
+
         {/* YORUMLAR */}
         <View style={styles.yorumKart}>
           <YorumBolumu urunId={urunId} onDegisti={() => urunuGetir(true)} />
@@ -484,97 +659,6 @@ export default function UrunDetayEkrani({ route, navigation }) {
           biz tersini koruduk. Sebep 5.2'de yazılı: asıl eylem sağda
           duruyor çünkü baş parmak oraya uzanıyor. Tasarımın
           sıralaması gerekçesiz, bizimki gerekçeli. */}
-      <View style={styles.altBar}>
-        {/* ⭐ DEĞİŞTİ (5.1 + 5.2) — tek buton yerine iki eylem.
-
-            SOLDA  : Şimdi Al   → sepete ekler + sepete gider
-            SAĞDA  : AdetKontrolu → sepete ekle / − [n] +
-
-            ⚠️ "Şimdi Al" AYRI BİR ÖDEME AKIŞI DEĞİL.
-            Sepete ekleyip sepet ekranına gidiyor. Ayrı bir akış
-            yazmak stok, kupon ve toplam mantığının ikinci bir
-            kopyası olurdu — üçü de zaten sepet üzerinden çalışıyor
-            ve ikiye ayrılan her kural er ya da geç ayrışıyor. */}
-        <View style={styles.eylemler}>
-          {/* ⭐ DEĞİŞTİ — "Şimdi Al" ÖNE alındı.
-
-              Sıra: kestirme yol solda, asıl eylem sağda. Türkiye'deki
-              e-ticaret uygulamalarında sepete ekleme sağdaki baskın
-              buton; kullanıcı baş parmağıyla oraya uzanıyor. */}
-          {!tukendi && !sepetteVar && (
-            <TouchableOpacity
-              style={styles.simdiAlButon}
-              onPress={simdiAl}
-              disabled={simdiAlIslemde}
-              activeOpacity={0.85}
-            >
-              {simdiAlIslemde ? (
-                <ActivityIndicator size="small" color={renkler.anaRenk} />
-              ) : (
-                <Text style={styles.simdiAlYazi}>Şimdi Al</Text>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* ⭐ DEĞİŞTİ — sarmalayıcıya flex: 1.
-
-              AdetKontrolu'nun kendi kökü içeriğe göre boyutlanıyor;
-              esneme kararını KULLANAN taraf veriyor. Bileşenin
-              içine flex koysaydık, onu dar bir yerde kullanmak
-              istediğimizde (ürün kartı) orayı da zorlardı.
-
-              Bu satır olmadan sağda boş alan kalıyordu. */}
-          {/* ⭐ YENİ (5.5) — TÜKENDİYSE "HABER VER", DEĞİLSE ADET KONTROLÜ
-
-              ⚠️ AdetKontrolu tükenmiş üründe soluk bir "Stokta Yok"
-              butonu gösteriyordu. O buton hiçbir işe yaramıyordu:
-              müşteriye durumu söylüyor ama YAPABİLECEĞİ bir şey
-              sunmuyordu. Yerine gerçek bir eylem koyduk.
-
-              Tükenmiş ürün, müşterinin ilgilendiği ama alamadığı
-              ürün demek — mağaza için en değerli sinyallerden biri.
-              Eskiden o ilgi kayboluyordu. */}
-          <View style={styles.adetSarmal}>
-            {tukendi ? (
-              <TouchableOpacity
-                style={[
-                  styles.bildirimButon,
-                  urun.stokBildirimiVar === true && styles.bildirimButonAktif,
-                ]}
-                onPress={stokBildirimiDegistir}
-                disabled={bildirimIslemde}
-                activeOpacity={0.85}
-              >
-                {bildirimIslemde ? (
-                  <ActivityIndicator size="small" color={renkler.anaRenk} />
-                ) : (
-                  <>
-                    <Ionicons
-                      name={
-                        urun.stokBildirimiVar === true
-                          ? 'notifications'
-                          : 'notifications-outline'
-                      }
-                      size={18}
-                      color={renkler.anaRenk}
-                    />
-                    {/* İki metin de NE OLACAĞINI söylüyor, durumu değil.
-                        "Bildirim açık" yazsaydık müşteri basınca ne
-                        olacağını tahmin etmek zorunda kalırdı. */}
-                    <Text style={styles.bildirimYazi}>
-                      {urun.stokBildirimiVar === true
-                        ? 'Haber vermeyi bırak'
-                        : 'Stoka gelince haber ver'}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <AdetKontrolu urun={urun} boyut="buyuk" />
-            )}
-          </View>
-        </View>
-      </View>
     </SafeAreaView>
   );
 }
@@ -818,14 +902,16 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderColor: renkler.kenarlik,
   },
 
-  altBar: {
+  /* ⭐ DEĞİŞTİ — sabit alt çubuk değil, sayfa içinde bir blok.
+     Kenarlık ve zemin kalktı: artık beyaz yaprağın içinde. */
+  eylemBloku: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: bosluk.orta,
-    paddingVertical: bosluk.orta,
-    borderTopWidth: 1,
-    borderTopColor: renkler.kenarlik,
-    backgroundColor: renkler.kartArka,
+    marginTop: bosluk.normal,
+  },
+
+  kombinYeri: {
+    marginTop: bosluk.genis,
   },
 
   /* ⭐ SİLİNDİ (GV/Faz 5.3) — fiyatKutu.
