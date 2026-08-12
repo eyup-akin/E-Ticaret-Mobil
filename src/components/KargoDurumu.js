@@ -62,6 +62,12 @@ export default function KargoDurumu({ siparis }) {
   const suankiIndex = asamalar.findIndex((a) => a.kod === siparis.status);
   const gecilenSonIndex = suankiIndex === -1 ? 0 : suankiIndex;
 
+  // ⚠️ Teslim edilmiş sipariş AKIŞI BİTİRMİŞTİR. Bu bayrak olmadan
+  // son adım "şu anki" sayılıp içi boş halka çiziliyordu: liste
+  // "Teslim Edildi" derken detay "henüz teslim edilmedi" gibi
+  // görünüyordu.
+  const akisTamamlandi = siparis.status === 'teslim_edildi';
+
   if (iptalMi) {
     return (
       <View style={styles.iptalKutu}>
@@ -90,7 +96,7 @@ export default function KargoDurumu({ siparis }) {
     <View style={styles.kutu}>
       {asamalar.map((asama, i) => {
         const gecti = i <= gecilenSonIndex;
-        const suanki = i === gecilenSonIndex;
+        const suanki = i === gecilenSonIndex && !akisTamamlandi;
         const sonMu = i === asamalar.length - 1;
 
         return (

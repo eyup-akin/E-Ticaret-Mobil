@@ -704,14 +704,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
      ⚠️ DOLU kırmızı yapılmadı: dolu kırmızı "yıkıcı" demek ve o
      ağırlık hesap kapatmaya ait. Çıkış geri alınabilir.
      ⚠️ minHeight 40 — tema düğmesiyle aynı dokunma hedefi. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — HAP BİÇİMİ, referans görselden.
+     Çerçevesiz düz satır cihazda "yamuk" duruyordu: zemini yoktu,
+     başlıkla aynı hizada yüzen bir yazı gibi görünüyordu. */
   cikisButon: {
     position: 'absolute',
     left: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: bosluk.mikro,
-    minHeight: 40,
-    paddingRight: bosluk.kucuk,
+    gap: bosluk.kucuk,
+    height: 40,
+    paddingHorizontal: bosluk.normal,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.yumusakHata,
   },
 
   cikisYazi: {

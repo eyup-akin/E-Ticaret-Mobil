@@ -262,7 +262,9 @@ export default function SiparislerimEkrani({ navigation }) {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.durumSeritKap}
               contentContainerStyle={styles.durumSerit}
+              directionalLockEnabled
             >
               {/* "Tümü" çipi — seçili durumdan çıkış yolu. Olmasaydı
                   müşteri tüm listeye dönmek için aynı çipe tekrar
@@ -338,15 +340,26 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
+    textAlign: 'center',
     paddingHorizontal: sayfaKenari,
     paddingTop: bosluk.orta,
-    paddingBottom: bosluk.kucuk,
+    paddingBottom: bosluk.orta,
+  },
+
+  /* ⚠️⚠️ Yatay ScrollView'a `style` VERİLMEZSE dikey eksende
+     esniyor ve altındaki arama çubuğunun üstüne biniyor — çipler
+     de dikey gerilip yazıları kırpılıyordu. Aynı tuzak ana
+     sayfadaki şeritte de yaşanmıştı. */
+  durumSeritKap: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
 
   durumSerit: {
     paddingHorizontal: sayfaKenari,
-    paddingVertical: bosluk.kucuk,
+    paddingBottom: bosluk.orta,
     gap: bosluk.kucuk,
+    alignItems: 'center',
   },
 
   aramaYeri: {

@@ -125,10 +125,15 @@ export default function IadelerimEkrani({ navigation }) {
           aciklama="İadelerini getiremedik. Bağlantını kontrol edip tekrar dene."
         />
       ) : iadeler.length === 0 ? (
+        /* ⚠️ Açıklama iptal ile iadeyi ayırıyor: iptal edilen
+           siparişin ödemesi otomatik geri dönüyor ve burada
+           görünmüyor — bu ekran yalnızca iade TALEPLERİNİ listeliyor.
+           Ayrımı yazmasaydık müşteri "param iade edildi ama iade
+           ekranı boş" diye düşünürdü. */
         <BosDurum
           ikon="arrow-undo-outline"
           baslik="İade talebin yok"
-          aciklama="Teslim aldığın bir siparişte sorun varsa sipariş detayından iade talebi açabilirsin."
+          aciklama="Teslim aldığın bir siparişte sorun varsa sipariş detayından iade talebi açabilirsin. İptal ettiğin siparişlerin ödemesi zaten otomatik iade edilir; onlar burada görünmez."
         />
       ) : (
         <FlatList
