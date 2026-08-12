@@ -34,8 +34,15 @@ export default function AdresSecEkrani({ route, navigation }) {
   const [baslik, setBaslik] = useState('');
   const [acikAdres, setAcikAdres] = useState('');
   const [sehir, setSehir] = useState('');
-  const [telefon, setTelefon] = useState('');
   const [kaydediliyor, setKaydediliyor] = useState(false);
+
+  // ⭐ YENİ (4.9) — telefon artık serbest metin DEĞİL, defterden seçim.
+  //
+  // ⚠️ Eskiden burada `telefon` diye bir metin state'i vardı ve her
+  // adres kendi numara KOPYASINI taşıyordu. Müşteri numarasını
+  // değiştirince bütün adresleri tek tek düzeltmesi gerekiyordu.
+  const [numaralar, setNumaralar] = useState([]);
+  const [seciliTelefonId, setSeciliTelefonId] = useState(null);
 
   // ⭐ YENİ (GV/Faz 6.8) — silinecek adres. null = pencere kapalı.
   //
@@ -59,15 +66,52 @@ export default function AdresSecEkrani({ route, navigation }) {
     }
   }
 
+  // ⭐ YENİ (4.9) — telefon defteri.
+  //
+  // ⚠️ Ekran her odaklandığında yeniden çekiliyor: müşteri
+  // "Numaralarımı yönet" bağlantısıyla defterine gidip yeni bir
+  // numara ekleyip dönebilir. Sadece ilk açılışta çekseydik yeni
+  // numara listede görünmez ve müşteri onu neden seçemediğini
+  // anlamazdı.
+  async function numaralariGetir() {
+    try {
+      const veri = await apiGet('/phones');
+      setNumaralar(veri);
+
+      // Varsayılan numara ön seçili gelsin: müşterinin çoğu
+      // adresinde aranacak numara zaten asıl numarasıdır.
+      //
+      // ⚠️ Sadece HİÇ seçim yokken; müşteri başka bir numara
+      // seçtiyse her odaklanmada onu ezmek olurdu.
+      setSeciliTelefonId((onceki) => {
+        if (onceki !== null) return onceki;
+        const varsayilan = veri.find((n) => n.varsayilanMi) || veri[0];
+        return varsayilan ? varsayilan.id : null;
+      });
+    } catch (hata) {
+      console.log('Numaralar alınamadı:', hata.message);
+    }
+  }
+
   useFocusEffect(
     useCallback(() => {
       adresleriGetir();
+      numaralariGetir();
     }, [])
   );
 
   async function adresEkle() {
-    if (!baslik || !acikAdres || !sehir || !telefon) {
+    if (!baslik || !acikAdres || !sehir) {
       Alert.alert('Eksik bilgi', 'Tüm alanları doldur.');
+      return;
+    }
+    // ⚠️ Ayrı mesaj: "tüm alanları doldur" demek, seçilecek bir
+    // numarası olmayan müşteriye ne yapacağını söylemiyor.
+    if (!seciliTelefonId) {
+      Alert.alert(
+        'Telefon gerekli',
+        'Kargo için bir numara seçmelisin. Numaran yoksa "Numaralarımı yönet" ile ekleyebilirsin.'
+      );
       return;
     }
     try {
@@ -76,12 +120,11 @@ export default function AdresSecEkrani({ route, navigation }) {
         title: baslik,
         fullAddress: acikAdres,
         city: sehir,
-        phone: telefon,
+        phoneId: seciliTelefonId,   // ⭐ DEĞİŞTİ (4.9)
       });
       setBaslik('');
       setAcikAdres('');
       setSehir('');
-      setTelefon('');
       setFormAcik(false);
       await adresleriGetir();
     } catch (hata) {
@@ -247,15 +290,59 @@ export default function AdresSecEkrani({ route, navigation }) {
                 value={sehir}
                 onChangeText={setSehir}
               />
-              <TextInput
-                style={styles.input}
-                placeholder="Telefon (örn: 0532 123 45 67)"
-                placeholderTextColor={renkler.yaziGri}
-                value={telefon}
-                onChangeText={setTelefon}
-                keyboardType="phone-pad"
-                maxLength={20}
-              />
+              {/* ⭐ DEĞİŞTİ (4.9) — TELEFON ARTIK YAZILMIYOR, SEÇİLİYOR.
+
+                  ⚠️ Serbest metin alanı kaldırıldı çünkü her adres
+                  numaranın kendi kopyasını taşıyordu: müşteri
+                  numarasını değiştirdiğinde N adresi tek tek
+                  düzeltmek zorundaydı. Artık adres numarayı
+                  REFERANS ediyor.
+
+                  ⚠️ Numara EKLEME buraya konmadı, ayrı ekranda.
+                  Buraya da bir "numara ekle" formu koysaydık aynı
+                  form iki yerde yaşardı ve yarın doğrulama kuralı
+                  değişince biri unutulurdu. Bağlantı, formu açık
+                  bırakarak deftere gidiyor — yazdıkların kaybolmuyor,
+                  çünkü bu ekran yığında duruyor. */}
+              <Text style={styles.alanBaslik}>Kargo için aranacak numara</Text>
+
+              {numaralar.length === 0 ? (
+                <Text style={styles.numaraYok}>
+                  Kayıtlı numaran yok. Aşağıdan ekleyip geri dönebilirsin.
+                </Text>
+              ) : (
+                <View style={styles.numaraListe}>
+                  {numaralar.map((n) => {
+                    const secili = seciliTelefonId === n.id;
+                    return (
+                      <TouchableOpacity
+                        key={n.id}
+                        style={[styles.numaraSatir, secili && styles.numaraSatirSecili]}
+                        onPress={() => setSeciliTelefonId(n.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: secili }}
+                      >
+                        <Ionicons
+                          name={secili ? 'radio-button-on' : 'radio-button-off'}
+                          size={20}
+                          color={secili ? renkler.anaRenk : renkler.yaziGri}
+                        />
+                        <Text style={styles.numaraYazi}>{n.gorunum}</Text>
+                        <Text style={styles.numaraEtiket} numberOfLines={1}>{n.etiket}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.numaraYonet}
+                onPress={() => navigation.navigate('Numaralarim')}
+                hitSlop={6}
+              >
+                <Ionicons name="call-outline" size={16} color={renkler.anaRenk} />
+                <Text style={styles.numaraYonetYazi}>Numaralarımı yönet</Text>
+              </TouchableOpacity>
 
               <View style={styles.formButonlar}>
                 <TouchableOpacity
@@ -497,6 +584,81 @@ const stilOlustur = (renkler) => StyleSheet.create({
   inputCok: {
     height: 80,
     textAlignVertical: 'top',
+  },
+
+
+  /* ---------- TELEFON SEÇİMİ (4.9) ---------- */
+
+  /* ⚠️ Formdaki tek ETİKETLİ alan bu — diğerleri yer tutucuyla
+     kendini anlatıyor. Sebep: bir input'un ne istediği yer
+     tutucudan okunur ama bir radyo listesinin ne sorduğu
+     okunmaz. Etiket olmadan liste "bu numaralar da ne?" diye
+     bakılan bir yığın olurdu. */
+  alanBaslik: {
+    fontSize: yazi.kucuk,
+    color: renkler.yaziOrta,
+    marginTop: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
+  },
+
+  numaraYok: {
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.yaziGri,
+    marginBottom: bosluk.kucuk,
+  },
+
+  numaraListe: {
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
+  },
+
+  numaraSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    borderWidth: 1,
+    borderColor: renkler.inputKenar,
+    borderRadius: kose.orta,
+    paddingHorizontal: bosluk.orta,
+    paddingVertical: bosluk.kucuk,
+    backgroundColor: renkler.arkaPlan,
+  },
+
+  /* Adres ve kart kartlarındaki kararın aynısı: seçilince kalınlık
+     değil RENK ve ZEMİN değişiyor. Kalınlık değişseydi satır 1px
+     büyüyüp altındakileri iterdi. */
+  numaraSatirSecili: {
+    borderColor: renkler.anaRenk,
+    backgroundColor: renkler.yumusakVurgu,
+  },
+
+  numaraYazi: {
+    fontSize: yazi.normal,
+    color: renkler.yaziKoyu,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+  },
+
+  numaraEtiket: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: yazi.kucuk,
+    color: renkler.yaziGri,
+  },
+
+  numaraYonet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.mikro,
+    alignSelf: 'flex-start',
+    marginBottom: bosluk.orta,
+  },
+
+  numaraYonetYazi: {
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenk,
   },
 
   formButonlar: {

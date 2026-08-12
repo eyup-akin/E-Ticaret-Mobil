@@ -334,6 +334,16 @@ export default function HesabimEkrani({ navigation }) {
               { ikon: 'heart-outline', baslik: 'Favorilerim', hedef: 'Favoriler' },
 
               { ikon: 'location-outline', baslik: 'Adreslerim', hedef: 'Adreslerim' },
+
+              /* ⭐ YENİ (4.9) — Numaralarım.
+                 ⚠️ Adreslerim'in HEMEN ALTINDA, bilinçli: adres formu
+                 buradaki numaralardan birini seçtiriyor, ikisi aynı
+                 işin iki parçası. GÜVENLİK grubuna koymadık — telefon
+                 bugün bir iletişim bilgisi; SMS doğrulaması gelince
+                 (Faz 2) o zaman bir kimlik aracına dönüşecek ve grubu
+                 yeniden düşünmek gerekecek. */
+              { ikon: 'call-outline', baslik: 'Numaralarım', hedef: 'Numaralarim' },
+
               { ikon: 'card-outline', baslik: 'Kartlarım', hedef: 'Kartlarim' },
               { ikon: 'wallet-outline', baslik: 'Ödemelerim', hedef: 'Odemelerim' },
             ])}

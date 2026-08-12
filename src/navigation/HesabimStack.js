@@ -5,6 +5,7 @@ import SiparislerimEkrani from '../screens/SiparislerimEkrani';
 import SiparisDetayEkrani from '../screens/SiparisDetayEkrani';
 import AdresSecEkrani from '../screens/AdresSecEkrani';
 import KartSecEkrani from '../screens/KartSecEkrani';
+import NumaralarimEkrani from '../screens/NumaralarimEkrani';   // ⭐ YENİ (4.9)
 import OdemelerimEkrani from '../screens/OdemelerimEkrani';
 
 import ProfilDuzenleEkrani from '../screens/ProfilDuzenleEkrani';   // ⭐ YENİ
@@ -24,6 +25,7 @@ export default function HesabimStack() {
       <Stack.Screen name="SiparisDetay" component={SiparisDetayEkrani} />
       <Stack.Screen name="Adreslerim" component={AdresSecEkrani} />
       <Stack.Screen name="Kartlarim" component={KartSecEkrani} />
+      <Stack.Screen name="Numaralarim" component={NumaralarimEkrani} />{/* ⭐ YENİ (4.9) */}
       <Stack.Screen name="Odemelerim" component={OdemelerimEkrani} />
 
       {/* ⭐ YENİ — Aşama 6 hesap yönetimi ekranları.
