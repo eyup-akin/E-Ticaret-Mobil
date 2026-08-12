@@ -385,6 +385,15 @@ export default function HesabimEkrani({ navigation }) {
 
               { ikon: 'card-outline', baslik: 'Kartlarım', hedef: 'Kartlarim' },
               { ikon: 'wallet-outline', baslik: 'Ödemelerim', hedef: 'Odemelerim' },
+
+              /* ⭐ YENİ (Aşama 8.4) — Destek.
+                 ⚠️ HESABIM grubunda, ayrı bir "YARDIM" grubu
+                 açılmadı: tek satırlık bir grup başlığı, ayırdığı
+                 şeyden uzun olurdu. Referans tasarımdaki "Get Help /
+                 FAQ" ikilisinden yalnızca biri var; SSS diye bir
+                 içerik yok ve olmayan bir sayfaya bağlantı koymak
+                 (B8'de yardım ikonunda verilen karar) yapılmıyor. */
+              { ikon: 'chatbubbles-outline', baslik: 'Destek', hedef: 'Destek' },
             ])}
 
             {/* ⚠️ "GÜVENLİK" başlığı, eski "Hesap Ayarları"nın yerine.

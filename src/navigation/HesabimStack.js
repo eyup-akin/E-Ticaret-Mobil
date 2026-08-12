@@ -6,6 +6,11 @@ import SiparisDetayEkrani from '../screens/SiparisDetayEkrani';
 import AdresSecEkrani from '../screens/AdresSecEkrani';
 import KartSecEkrani from '../screens/KartSecEkrani';
 import NumaralarimEkrani from '../screens/NumaralarimEkrani';   // ⭐ YENİ (4.9)
+
+// ⭐ YENİ (Aşama 8.4) — destek ekranları
+import DestekTalepleriEkrani from '../screens/DestekTalepleriEkrani';
+import YeniTalepEkrani from '../screens/YeniTalepEkrani';
+import TalepDetayEkrani from '../screens/TalepDetayEkrani';
 import OdemelerimEkrani from '../screens/OdemelerimEkrani';
 
 import ProfilDuzenleEkrani from '../screens/ProfilDuzenleEkrani';   // ⭐ YENİ
@@ -37,6 +42,19 @@ export default function HesabimStack() {
       <Stack.Screen name="HesapKapat" component={HesapKapatEkrani} /> 
 
       <Stack.Screen name="Oturumlarim" component={OturumlarimEkrani} />
+
+      {/* ⭐ YENİ (Aşama 8.4) — DESTEK EKRANLARI
+          ⚠️ Yol haritası ayrı bir `DestekStack.js` diyordu; yazılmadı.
+          Bu uygulamada stack'ler SEKME başına kuruluyor (AnaSayfa,
+          Sepet, Hesabım) ve destek bir sekme değil. Sekmesiz bir
+          stack hiçbir yere bağlanamaz, yani ölü dosya olurdu.
+          Ekranlar Hesabım stack'inde: geri tuşu doğal olarak Hesabım'a
+          dönüyor, alt sekme çubuğu kaybolmuyor ve sipariş detayından
+          açılan "talep aç" kısayolu da aynı stack'te olduğu için
+          çalışıyor. */}
+      <Stack.Screen name="Destek" component={DestekTalepleriEkrani} />
+      <Stack.Screen name="YeniTalep" component={YeniTalepEkrani} />
+      <Stack.Screen name="TalepDetay" component={TalepDetayEkrani} />
       
     </Stack.Navigator>
   );

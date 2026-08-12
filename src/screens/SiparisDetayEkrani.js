@@ -110,10 +110,17 @@ export default function SiparisDetayEkrani({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
-      {/* ⚠️ B8 — BAŞLIKTAKİ "?" YARDIM İKONU ÇİZİLMİYOR.
-          Tasarım sipariş detayının sağ üstüne bir destek ikonu
-          koyuyor; destek talepleri Aşama 8'in işi. Hiçbir yere
-          gitmeyen bir ikon, olmayan bir özelliği vaat etmek olurdu. */}
+      {/* ⚠️ B8 — BAŞLIKTAKİ "?" YARDIM İKONU HÂLÂ ÇİZİLMİYOR, ama
+          gerekçe DEĞİŞTİ (Aşama 8, 2026-08-12).
+
+          Eski gerekçe "destek sistemi yok, ikon hiçbir yere gitmez"di.
+          Artık var. Yine de çizilmedi: sayfanın altında "Bu siparişle
+          ilgili destek talebi aç" satırı duruyor ve ikisi AYNI yere
+          gidiyor olurdu — "aynı işi yapan iki düğme koyma".
+
+          Alttaki satır tercih edildi çünkü ne yapacağını YAZIYOR;
+          başlıktaki bir "?" ikonu ise SSS mi, canlı destek mi, iade mi
+          açacağını söylemiyor. */}
       <View style={styles.ustBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -353,6 +360,31 @@ export default function SiparisDetayEkrani({ route, navigation }) {
             onIptalEdildi={() => siparisiGetir(true)}
           />
         </View>
+
+        {/* ⭐ YENİ (Aşama 8.4) — BU SİPARİŞ İÇİN DESTEK TALEBİ
+            ⚠️ Kısayolun bütün değeri BAĞLAMI TAŞIMASINDA: talep
+            siparişe bağlı açılıyor ve admin "hangi sipariş?" diye
+            sormak zorunda kalmıyor. Müşteri aynı talebi Hesabım'dan
+            da açabilir, ama orada siparişi kendisi anlatması gerekir.
+
+            ⚠️ Durumdan BAĞIMSIZ çiziliyor: iptal edilmiş ya da
+            teslim edilmiş bir siparişle ilgili de sorun olabilir
+            ("iade edilen param gelmedi"). İptal formundan farkı bu —
+            o yalnızca iptal edilebilir durumlarda anlamlı.
+
+            ⚠️ Dolu buton DEĞİL, satır bağlantısı: bu ekranın asıl
+            eylemi sipariş takibi; destek bir kaçış yolu. */}
+        <View style={styles.bolum}>
+          <TouchableOpacity
+            style={styles.destekSatir}
+            onPress={() => navigation.navigate('YeniTalep', { orderId: siparisId })}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chatbubbles-outline" size={18} color={renkler.anaRenk} />
+            <Text style={styles.destekYazi}>Bu siparişle ilgili destek talebi aç</Text>
+            <Ionicons name="chevron-forward" size={16} color={renkler.yaziGri} />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <View style={styles.altBar}>
@@ -520,6 +552,29 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   bolum: {
     gap: bosluk.kucuk,
+  },
+
+  /* ⭐ YENİ (Aşama 8.4) — destek kısayolu satırı.
+     Menü satırlarıyla aynı dil (kart + ikon + chevron); yeni bir
+     görünüm uydurmak, müşteriye ikinci bir kalıp öğretmek olurdu. */
+  destekSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.orta,
+    backgroundColor: renkler.kartArka,
+    borderWidth: 1,
+    borderColor: renkler.kenarlik,
+    borderRadius: kose.buyuk,
+    paddingVertical: bosluk.normal,
+    paddingHorizontal: bosluk.normal,
+  },
+
+  destekYazi: {
+    flex: 1,
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.yaziKoyu,
   },
 
   /* ⚠️ Bölüm etiketi KÜÇÜK ve BÜYÜK HARF — sipariş onay ekranıyla
