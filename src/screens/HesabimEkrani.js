@@ -8,6 +8,7 @@ import { apiGet, apiPost } from '../services/api';
 import { refreshTokenAl } from '../services/tokenStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
+import GirisGerekliEkrani from '../components/GirisGerekliEkrani';   // ⭐ misafir kapısı
 
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
@@ -160,6 +161,53 @@ export default function HesabimEkrani({ navigation }) {
     );
   }
 
+  /* ⭐ DEĞİŞTİ (2026-08-12) — MİSAFİR GÖRÜNÜMÜ ARTIK ORTAK BİLEŞEN.
+   *
+   * Eskiden burada kendi kartı vardı: beyaz kutu, içinde daire,
+   * başlık, iki buton. Sepetim ve Favorilerim aynı durumu
+   * `GirisGerekliEkrani` ile çiziyordu — yani misafir kullanıcı üç
+   * sekmede üç farklı "giriş yap" ekranı görüyordu.
+   *
+   * ⚠️ BAŞLIK DA KALKTI. Sepetim'de misafirken "Sepetim" yazmıyor;
+   * ekran zaten bir kapı, içeriğin adını söylemenin bir anlamı yok.
+   * Sekme çubuğu hangi sekmede olduğunu zaten gösteriyor.
+   *
+   * ⚠️ BEYAZ KUTU DA KALKTI: içerik sayfanın kendi zemininde ve
+   * DİKEY ORTALI (bileşenin kendi yerleşimi). Kutu, ortada duran bir
+   * içeriği yukarı itip ekranın altını boş bırakıyordu.
+   *
+   * ⚠️ TEMA DÜĞMESİ KALIYOR — yüzen hâlde, sağ üstte. Başlıkla
+   * birlikte kaldırsaydık misafir kullanıcı temayı hiçbir yerden
+   * değiştiremezdi; tema tercihinin evi bu ekran. */
+  if (!token) {
+    return (
+      <SafeAreaView style={styles.kapsayici} edges={['top']}>
+        <TouchableOpacity
+          style={[styles.temaButon, styles.temaButonYuzen]}
+          onPress={() => temaDegistir(koyuMu ? 'acik' : 'koyu')}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={koyuMu ? 'Açık temaya geç' : 'Koyu temaya geç'}
+        >
+          <Ionicons
+            name={koyuMu ? 'sunny-outline' : 'moon-outline'}
+            size={20}
+            color={renkler.yaziKoyu}
+          />
+        </TouchableOpacity>
+
+        {/* ⚠️ B12 — "Sana özel" öneri bölümü burada ÇİZİLMİYOR.
+            Misafirin gezme geçmişi cihazda var ama bu ekran bir
+            kapı; önerileri ana sayfada gösteriyoruz. */}
+        <GirisGerekliEkrani
+          ikon="person-outline"
+          baslik="Hesabına giriş yap"
+          aciklama="Siparişlerini takip etmek, favorilerini ve adreslerini yönetmek için giriş yapman gerekiyor."
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
       <ScrollView contentContainerStyle={styles.icerik}>
@@ -201,10 +249,8 @@ export default function HesabimEkrani({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {token ? (
-          /* ============ ÜYE GÖRÜNÜMÜ ============ */
-          <>
-            {/* ⭐ DEĞİŞTİ (2026-08-12) — KİMLİK KARTI KALDIRILDI,
+        {/* ============ ÜYE GÖRÜNÜMÜ ============ */}
+        {/* ⭐ DEĞİŞTİ (2026-08-12) — KİMLİK KARTI KALDIRILDI,
                 YERİNE ORTALI BİR SELAMLAMA GELDİ.
 
                 Eskiden beyaz bir kartın içinde avatar + ad + e-posta +
@@ -291,47 +337,6 @@ export default function HesabimEkrani({ navigation }) {
                 rozet: oturumSayisi,
               },
             ])}
-          </>
-        ) : (
-          /* ============ MİSAFİR GÖRÜNÜMÜ ============
-             ⚠️ B12 — tasarımdaki "Sana özel" öneri bölümü ÇİZİLMİYOR.
-             Öneri motoru yok; sahte bir liste göstermek "yanlış sayı,
-             eksik sayıdan tehlikelidir" kuralını çiğnerdi. */
-          <>
-            <View style={styles.misafirKart}>
-              <View style={styles.misafirDaire}>
-                <Ionicons name="person-outline" size={38} color={renkler.yaziGri} />
-              </View>
-
-              <Text style={styles.misafirBaslik}>Hoş geldin!</Text>
-
-              <Text style={styles.misafirAciklama}>
-                Sepetine ürün eklemek, favori kaydetmek ve sipariş verebilmek
-                için giriş yapman gerekiyor.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.anaButon}
-                onPress={() => navigation.navigate('Giris')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.anaButonYazi}>Giriş Yap</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.ikincilButon}
-                onPress={() => navigation.navigate('Kayit')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.ikincilButonYazi}>Kayıt Ol</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.misafirDipnot}>
-              Giriş yapmadan ürünleri gezmeye devam edebilirsin.
-            </Text>
-          </>
-        )}
 
         {/* ⚠️ "GÖRÜNÜM" KARTI KALDIRILDI — tema artık başlıktaki tek
             düğmede. İkisi birden dursaydı aynı state'i çeviren iki
@@ -339,40 +344,38 @@ export default function HesabimEkrani({ navigation }) {
             açıklama katlama bağlantısı (5.6) aynı gerekçeyle
             elenmişti. */}
 
-        {/* ============ SADECE ÜYE: ÇIKIŞ ============ */}
-        {token ? (
-          <>
-            <TouchableOpacity style={styles.cikisButon} onPress={cikisYap} activeOpacity={0.85}>
-              <Ionicons name="log-out-outline" size={18} color={renkler.hata} />
-              <Text style={styles.cikisYazi}>Çıkış Yap</Text>
-            </TouchableOpacity>
+        {/* ============ ÇIKIŞ ============
+            ⚠️ `token` kontrolü kalktı: misafir bu noktaya hiç
+            gelmiyor, yukarıda erken dönüş var. */}
+        <TouchableOpacity style={styles.cikisButon} onPress={cikisYap} activeOpacity={0.85}>
+          <Ionicons name="log-out-outline" size={18} color={renkler.hata} />
+          <Text style={styles.cikisYazi}>Çıkış Yap</Text>
+        </TouchableOpacity>
 
-            {/* ⭐ TEHLİKELİ BÖLGE
+        {/* ⭐ TEHLİKELİ BÖLGE
 
-                · En ALTTA duruyor — kullanıcı buraya kazara gelmez
-                · Büyük buton DEĞİL, ince bir metin bağlantısı
-                · Üstünde ayırıcı çizgi var — "burası farklı bir bölge"
-                · Altında ne olacağı yazıyor — tıklamadan önce bilsin
+            · En ALTTA duruyor — kullanıcı buraya kazara gelmez
+            · Büyük buton DEĞİL, ince bir metin bağlantısı
+            · Üstünde ayırıcı çizgi var — "burası farklı bir bölge"
+            · Altında ne olacağı yazıyor — tıklamadan önce bilsin
 
-                Yıkıcı işlemleri kolay erişilir yapmak kötü tasarımdır.
-                Zor bulunur ama BULUNABİLİR olmalı — gizlemek de yanlış. */}
-            <View style={styles.tehlikeAyirac} />
+            Yıkıcı işlemleri kolay erişilir yapmak kötü tasarımdır.
+            Zor bulunur ama BULUNABİLİR olmalı — gizlemek de yanlış. */}
+        <View style={styles.tehlikeAyirac} />
 
-            <TouchableOpacity
-              style={styles.tehlikeSatir}
-              onPress={() => navigation.navigate('HesapKapat')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={16} color={renkler.hata} />
-              <Text style={styles.tehlikeYazi}>Hesabımı Kapat</Text>
-            </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tehlikeSatir}
+          onPress={() => navigation.navigate('HesapKapat')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="trash-outline" size={16} color={renkler.hata} />
+          <Text style={styles.tehlikeYazi}>Hesabımı Kapat</Text>
+        </TouchableOpacity>
 
-            <Text style={styles.tehlikeAciklama}>
-              Kişisel bilgilerin silinir, geçmiş siparişlerin muhasebe
-              kaydı olarak saklanır. Bu işlem geri alınamaz.
-            </Text>
-          </>
-        ) : null}
+        <Text style={styles.tehlikeAciklama}>
+          Kişisel bilgilerin silinir, geçmiş siparişlerin muhasebe
+          kaydı olarak saklanır. Bu işlem geri alınamaz.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -414,6 +417,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* 40dp — dokunma hedefinin alt sınırı. İkon 20dp; kalanı çevresine
      bırakılan boşluk, çünkü küçük yuvarlak düğmeler parmakla
      ıskalanıyor. */
+  /* ⚠️ Misafir görünümünde başlık satırı yok; düğme doğrudan
+     ekranın sağ üstünde yüzüyor. `sayfaKenari` yerine `bosluk.normal`:
+     içerik kenarı olmayan bir ekranda düğme kenara fazla yapışıyordu. */
+  temaButonYuzen: {
+    top: bosluk.kucuk,
+    right: bosluk.normal,
+    zIndex: 1,
+  },
+
   temaButon: {
     position: 'absolute',
     right: 0,
@@ -576,86 +588,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziOrta,
-  },
-
-
-  /* ---------- MİSAFİR GÖRÜNÜMÜ ---------- */
-
-  misafirKart: {
-    backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
-    padding: bosluk.genis,
-    alignItems: 'center',
-    marginBottom: bosluk.orta,
-  },
-
-  /* ⚠️ Daire zemini acikKart, ikon gri: dekoratif bir daireyi turuncu
-     yapmak Faz 1'de düzeltilen hatanın aynısı olurdu. */
-  misafirDaire: {
-    width: 78,
-    height: 78,
-    borderRadius: kose.tam,
-    backgroundColor: renkler.acikKart,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: bosluk.normal,
-  },
-
-  misafirBaslik: {
-    fontSize: yazi.buyuk,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-    marginBottom: bosluk.kucuk,
-  },
-
-  misafirAciklama: {
-    fontSize: yazi.normal,
-    color: renkler.yaziOrta,
-    textAlign: 'center',
-    lineHeight: satir.normal,
-    marginBottom: bosluk.genis,
-  },
-
-  anaButon: {
-    backgroundColor: renkler.anaRenk,
-    paddingVertical: bosluk.normal,
-    borderRadius: kose.orta,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: bosluk.kucuk,
-  },
-
-  anaButonYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-  },
-
-  ikincilButon: {
-    borderWidth: 1.5,
-    borderColor: renkler.anaRenk,
-    paddingVertical: bosluk.normal,
-    borderRadius: kose.orta,
-    alignItems: 'center',
-    width: '100%',
-  },
-
-  ikincilButonYazi: {
-    color: renkler.anaRenk,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-  },
-
-  misafirDipnot: {
-    fontSize: yazi.kucuk,
-    color: renkler.yaziGri,
-    textAlign: 'center',
-    marginBottom: bosluk.normal,
   },
 
 
