@@ -20,6 +20,7 @@ import Yildizlar from '../components/Yildizlar';
 import Rozet from '../components/Rozet';
 import YatayListe from '../components/YatayListe';       // ⭐ YENİ
 import KombinSeridi from '../components/KombinSeridi';   // ⭐ YENİ
+import OnayPenceresi from '../components/OnayPenceresi';
 
 // ⭐ YENİ — açıklamanın "uzun" sayıldığı karakter eşiği.
 //
@@ -45,6 +46,10 @@ export default function UrunDetayEkrani({ route, navigation }) {
   const [benzerler, setBenzerler] = useState([]);
   const [birlikte, setBirlikte] = useState([]);
   const [kombinler, setKombinler] = useState([]);
+
+  // Kombin sepete eklendi/eklenemedi bildirimi.
+  // null = kapalı. Ayrı bir boolean tutmak yerine içeriğin kendisi.
+  const [kombinBildirim, setKombinBildirim] = useState(null);
 
   // ⚠️ Yüzen geri butonunun durum çubuğunun altında kalması için.
   // Sabit bir sayı yazsaydık centikli telefonlarda saatin üstune
@@ -123,9 +128,21 @@ export default function UrunDetayEkrani({ route, navigation }) {
         await sepeteEkle(u.id, 1);
       }
 
-      Alert.alert('Sepete eklendi', kombin.ad + ' sepetine eklendi.');
+      // ⚠️ Alert.alert DEĞİL: sistem penceresi koyu temada beyaz
+      // açılıyor ve markanın rengi yerine sistemin mavisini
+      // kullanıyor. Gerekçesi OnayPenceresi'nin başında yazılı.
+      setKombinBildirim({
+        ikon: 'cart',
+        baslik: 'Sepete eklendi',
+        mesaj: `"${kombin.ad}" kombinindeki ${kombin.urunler.length} ürün sepetine eklendi.`,
+      });
     } catch (hata) {
-      Alert.alert('Eklenemedi', hata.message);
+      setKombinBildirim({
+        ikon: 'alert-circle-outline',
+        baslik: 'Eklenemedi',
+        mesaj: hata.message,
+        hataMi: true,
+      });
     }
   }
 
@@ -600,6 +617,21 @@ export default function UrunDetayEkrani({ route, navigation }) {
           <YorumBolumu urunId={urunId} onDegisti={() => urunuGetir(true)} />
         </View>
       </ScrollView>
+
+      {/* Kombin bildirimi — tek butonlu bilgi penceresi.
+          Bir SORU sormuyor, bir SONUÇ bildiriyor; o yüzden "Vazgeç"
+          yok. */}
+      <OnayPenceresi
+        acik={kombinBildirim !== null}
+        tekButon
+        ikon={kombinBildirim?.ikon}
+        yikici={kombinBildirim?.hataMi === true}
+        baslik={kombinBildirim?.baslik ?? ''}
+        mesaj={kombinBildirim?.mesaj ?? ''}
+        onayYazisi="Tamam"
+        onOnayla={() => setKombinBildirim(null)}
+        onVazgec={() => setKombinBildirim(null)}
+      />
 
       {/* ⭐ YENİ (GV/Faz 5.1) — YÜZEN GERİ BUTONU
 
