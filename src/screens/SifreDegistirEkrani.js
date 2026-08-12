@@ -3,7 +3,6 @@ import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { useTema } from '../context/TemaContext';
 import { useAuth } from '../context/AuthContext';
 import OnayPenceresi from '../components/OnayPenceresi';
 import SifreGucu, { MIN_SIFRE } from '../components/SifreGucu';
+import FormAlani from '../components/FormAlani';
 
 // ⭐ DEĞİŞTİ (GV/Faz 7.11) — MIN_SIFRE artık SifreGucu bileşeninden
 // geliyor. Sayı iki dosyada ayrı ayrı yazılıydı; biri değişip diğeri
@@ -100,34 +100,38 @@ export default function SifreDegistirEkrani({ navigation }) {
     }
   }
 
-  // Üç şifre alanı birebir aynı yapıda — tekrar yazmamak için
-  // küçük bir yardımcı. Değişen tek şey etiket, değer ve setter.
+  /* Üç şifre alanı birebir aynı yapıda — tekrar yazmamak için
+   * küçük bir yardımcı. Değişen tek şey etiket, değer ve setter.
+   *
+   * ⭐ DEĞİŞTİ (GV/Faz 8) — kutunun kendisi artık `FormAlani`.
+   * Kenarlık, yükseklik ve köşe burada ayrıca yazılıydı; kimlik
+   * ekranları aynı kutuyu isteyince ölçüler tek dosyaya toplandı.
+   * İki kopya kalsaydı biri güncellenip diğeri eski görünümde
+   * kalırdı.
+   *
+   * ⚠️ Göster/gizle ikonu alanların İÇİNDE değil, altta tek bir
+   * satırda: burada üç alan var ve tek anahtar üçünü birden
+   * çeviriyor. Her kutuya ayrı göz koymak, aynı işi yapan üç
+   * düğme demekti. */
   function sifreAlani(etiket, deger, degistir, ipucu) {
     return (
-      <View style={styles.alan}>
-        <Text style={styles.etiket}>{etiket}</Text>
-
-        <View style={styles.inputSarmal}>
-          <TextInput
-            style={styles.input}
-            value={deger}
-            onChangeText={(metin) => {
-              degistir(metin);
-              if (hata) setHata('');
-            }}
-            placeholder={ipucu}
-            placeholderTextColor={renkler.yaziGri}
-            /* secureTextEntry: karakterleri nokta olarak gösterir
-               autoCapitalize="none": şifrede otomatik büyük harf olmaz
-               autoCorrect={false}: telefon şifreyi "düzeltmeye" kalkmasın
-               textContentType="password": iOS şifre yöneticisine ipucu */
-            secureTextEntry={gizli}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!kaydediliyor}
-          />
-        </View>
-      </View>
+      <FormAlani
+        etiket={etiket}
+        ikon="lock-closed-outline"
+        value={deger}
+        onChangeText={(metin) => {
+          degistir(metin);
+          if (hata) setHata('');
+        }}
+        placeholder={ipucu}
+        /* secureTextEntry: karakterleri nokta olarak gösterir
+           autoCapitalize="none": şifrede otomatik büyük harf olmaz
+           autoCorrect={false}: telefon şifreyi "düzeltmeye" kalkmasın */
+        secureTextEntry={gizli}
+        autoCapitalize="none"
+        autoCorrect={false}
+        editable={!kaydediliyor}
+      />
     );
   }
 
@@ -281,36 +285,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
 
-  /* ---- FORM ---- */
-
-  alan: {
-    marginBottom: bosluk.normal,
-  },
-
-  etiket: {
-    fontSize: yazi.normal,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-    color: renkler.yaziKoyu,
-    marginBottom: bosluk.mikro,
-  },
-
-  inputSarmal: {
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: kose.orta,
-    backgroundColor: renkler.kartArka,
-  },
-
-  input: {
-    paddingHorizontal: bosluk.normal,
-    height: 48,
-    fontSize: yazi.orta,
-    color: renkler.yaziKoyu,
-  },
-
-
-  /* ---- GÖSTER/GİZLE ---- */
+  /* ---- GÖSTER/GİZLE ----
+     (Alan stilleri artık `FormAlani` içinde.) */
 
   gosterSatir: {
     flexDirection: 'row',

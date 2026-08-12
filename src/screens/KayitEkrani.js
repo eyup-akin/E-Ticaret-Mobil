@@ -1,11 +1,50 @@
 import React, { useState } from 'react';
-import { font } from '../theme/olculer';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
+import { epostaGecerliMi } from '../utils/dogrulama';
+import FormAlani from '../components/FormAlani';
+import SifreGucu, { MIN_SIFRE } from '../components/SifreGucu';
+import OnayPenceresi from '../components/OnayPenceresi';
 
+// ============================================================
+//  KAYIT EKRANI  (GV/Faz 8.2)
+//
+//  Tasarım: `kay_t_ol`
+//
+//  Giriş ekranıyla AYNI iskelet: lacivert bant + beyaz yaprak.
+//  İki ekran arasında `replace` ile gidilip geliniyor; farklı
+//  iskeletler kullansaydık geçiş sıçrama gibi görünürdü.
+//
+//  ⚠️ "KULLANIM KOŞULLARI" ONAY KUTUSU ÇİZİLMEDİ.
+//  Tasarımda zorunlu bir onay kutusu ve koşullara giden bir
+//  bağlantı var; bizde koşul metni diye bir şey YOK. Hiçbir yere
+//  gitmeyen bir bağlantı, olmayan bir belgeyi varmış gibi
+//  gösterir (B8'de yardım ikonu için verilen kararın aynısı).
+//  Ayrıca sunucu böyle bir onay beklemiyor: zorunlu göstermek
+//  uygulanmayan bir kural uydurmak olurdu.
+//
+//  ⚠️ ŞİFRE İPUCU "En az 8 karakter" DEĞİL.
+//  Tasarım 8 diyor, sunucu 6 uyguluyor. Tasarımdaki sayıyı
+//  yazsaydık 7 karakterlik şifre kabul edilirken ekran "olmaz"
+//  demiş olurdu. Sayı tek yerden geliyor: `MIN_SIFRE`.
+//
+//  ⚠️ "Şifre (Tekrar)" alanı SUNUCUYA GİTMİYOR — yazım hatasını
+//  yakalamak için var. Şifre Değiştir ekranındaki kararın aynısı.
+// ============================================================
 export default function KayitEkrani({ navigation }) {
   const { kayitOl } = useAuth();
   const { renkler } = useTema();
@@ -14,7 +53,16 @@ export default function KayitEkrani({ navigation }) {
   const [adSoyad, setAdSoyad] = useState('');
   const [email, setEmail] = useState('');
   const [sifre, setSifre] = useState('');
+  const [sifreTekrar, setSifreTekrar] = useState('');
+  const [gizli, setGizli] = useState(true);
+
   const [yukleniyor, setYukleniyor] = useState(false);
+  const [hata, setHata] = useState('');
+  const [alanHatasi, setAlanHatasi] = useState({});
+
+  // Kayıt sonucu penceresi — Alert değil, uygulamanın kendi dili.
+  const [basariAcik, setBasariAcik] = useState(false);
+  const [basariMesaji, setBasariMesaji] = useState('');
 
   // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
   // (GirisEkrani'ndaki ile birebir aynı mantık — açıklaması orada.)
@@ -25,34 +73,45 @@ export default function KayitEkrani({ navigation }) {
     });
   }
 
+  // Bir alana yazılınca o alanın hatası ve genel hata siliniyor:
+  // düzeltmeye başlamış birine hâlâ eski hatayı göstermek gürültü.
+  function alaniGuncelle(anahtar, deger, setter) {
+    setter(deger);
+    if (alanHatasi[anahtar]) setAlanHatasi((o) => ({ ...o, [anahtar]: '' }));
+    if (hata) setHata('');
+  }
+
   async function kayitButonu() {
-    if (!adSoyad || !email || !sifre) {
-      Alert.alert('Eksik bilgi', 'Tüm alanları doldur.');
+    const hatalar = {};
+
+    if (!adSoyad.trim()) hatalar.ad = 'Adını ve soyadını yaz.';
+    if (!epostaGecerliMi(email)) hatalar.eposta = 'Lütfen geçerli bir e-posta adresi girin.';
+    if (sifre.length < MIN_SIFRE) hatalar.sifre = `Şifre en az ${MIN_SIFRE} karakter olmalı.`;
+    else if (sifre !== sifreTekrar) hatalar.tekrar = 'Şifreler birbiriyle eşleşmiyor.';
+
+    if (Object.keys(hatalar).length > 0) {
+      setAlanHatasi(hatalar);
       return;
     }
+
+    setAlanHatasi({});
+    setHata('');
+
     try {
       setYukleniyor(true);
 
       const veri = await kayitOl(adSoyad, email, sifre);
 
-      // Kayıt başarılı AMA hesap henüz doğrulanmamış → modalı kapatmıyoruz.
-      // Kullanıcıyı Giriş ekranına bırakıyoruz ki maili doğrulayıp
-      // buradan devam edebilsin.
-      //
-      // Yönlendirmeyi Alert'in butonuna bağladık: kullanıcı mesajı okumadan
-      // ekran altından kaymasın.
-      Alert.alert(
-        'Kayıt başarılı',
-        veri?.mesaj || 'Mailine doğrulama linki gönderdik. Doğruladıktan sonra giriş yapabilirsin.',
-        [
-          {
-            text: 'Giriş ekranına dön',
-            onPress: () => navigation.replace('Giris'),
-          },
-        ]
+      // Kayıt başarılı AMA hesap henüz doğrulanmamış → modalı
+      // kapatmıyoruz. Kullanıcıyı Giriş ekranına bırakıyoruz ki
+      // maili doğrulayıp buradan devam edebilsin.
+      setBasariMesaji(
+        veri?.mesaj ||
+        'Mailine doğrulama linki gönderdik. Doğruladıktan sonra giriş yapabilirsin.'
       );
-    } catch (hata) {
-      Alert.alert('Kayıt başarısız', hata.message);
+      setBasariAcik(true);
+    } catch (e) {
+      setHata(e.message);
     } finally {
       setYukleniyor(false);
     }
@@ -60,57 +119,138 @@ export default function KayitEkrani({ navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
-
-      {/* ÜST BAR — kapatma butonu */}
-      <View style={styles.ustBar}>
-        <TouchableOpacity onPress={kapat} style={styles.kapatButon}>
-          <Ionicons name="close" size={26} color={renkler.yaziKoyu} />
+      {/* ---- LACİVERT BANT ---- */}
+      <View style={styles.bant}>
+        {/* ⚠️ Tasarımda GERİ OKU var, bizde KAPATMA X'İ.
+            Geri ok "bir önceki ekran Giriş'ti" varsayıyor; oysa bu
+            ekrana Hesabım'dan ve misafir kapısından da doğrudan
+            geliniyor. X her durumda aynı şeyi vaat ediyor. */}
+        <TouchableOpacity
+          onPress={kapat}
+          style={styles.kapatButon}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Kapat"
+        >
+          <Ionicons name="close" size={24} color={renkler.lacivertYuzeyUstuYazi} />
         </TouchableOpacity>
+
+        <Text style={styles.marka}>Hesap Oluştur</Text>
+        <Text style={styles.slogan}>Avantajlı alışveriş dünyasına katıl.</Text>
       </View>
 
-      <View style={styles.icerik}>
-        <Text style={styles.baslik}>Kayıt Ol</Text>
+      {/* ---- BEYAZ YAPRAK ---- */}
+      <KeyboardAvoidingView
+        style={styles.yaprakKap}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.yaprak}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <FormAlani
+            etiket="Ad Soyad"
+            ikon="person-outline"
+            placeholder="Adın ve soyadın"
+            value={adSoyad}
+            onChangeText={(m) => alaniGuncelle('ad', m, setAdSoyad)}
+            hata={alanHatasi.ad}
+            editable={!yukleniyor}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Ad Soyad"
-          placeholderTextColor={renkler.yaziGri}
-          value={adSoyad}
-          onChangeText={setAdSoyad}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={renkler.yaziGri}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Şifre"
-          placeholderTextColor={renkler.yaziGri}
-          value={sifre}
-          onChangeText={setSifre}
-          secureTextEntry={true}
-        />
+          <FormAlani
+            etiket="E-posta"
+            ikon="mail-outline"
+            placeholder="e-posta@ornek.com"
+            value={email}
+            onChangeText={(m) => alaniGuncelle('eposta', m, setEmail)}
+            hata={alanHatasi.eposta}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            editable={!yukleniyor}
+          />
 
-        <TouchableOpacity style={styles.buton} onPress={kayitButonu} disabled={yukleniyor}>
-          {yukleniyor
-            ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-            : <Text style={styles.butonYazi}>Kayıt Ol</Text>}
-        </TouchableOpacity>
+          <FormAlani
+            etiket="Şifre"
+            ikon="lock-closed-outline"
+            placeholder={`En az ${MIN_SIFRE} karakter`}
+            value={sifre}
+            onChangeText={(m) => alaniGuncelle('sifre', m, setSifre)}
+            hata={alanHatasi.sifre}
+            secureTextEntry={gizli}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!yukleniyor}
+            sagIkon={gizli ? 'eye-outline' : 'eye-off-outline'}
+            sagIkonEtiket={gizli ? 'Şifreyi göster' : 'Şifreyi gizle'}
+            onSagIkonBas={() => setGizli(!gizli)}
+          />
 
-        {/* replace: Kayıt'ı yığından çıkarır, Giriş'i yerine koyar */}
-        <TouchableOpacity onPress={() => navigation.replace('Giris')}>
-          <Text style={styles.altYazi}>Zaten hesabın var mı? Giriş yap</Text>
-        </TouchableOpacity>
+          {/* ⚠️ Gösterge şifre alanının HEMEN ALTINDA, formun sonunda
+              değil: kullanıcı yazarken görmeli. Bileşen 7.11'de
+              yazıldı; kuralı ikinci kez yazmak, birini güncelleyip
+              diğerini unutmak demekti. */}
+          <View style={styles.gucKap}>
+            <SifreGucu sifre={sifre} />
+          </View>
 
-        <TouchableOpacity onPress={kapat}>
-          <Text style={styles.misafirYazi}>Misafir olarak devam et</Text>
-        </TouchableOpacity>
-      </View>
+          <FormAlani
+            etiket="Şifre (Tekrar)"
+            ikon="lock-closed-outline"
+            placeholder="Şifreni tekrar yaz"
+            value={sifreTekrar}
+            onChangeText={(m) => alaniGuncelle('tekrar', m, setSifreTekrar)}
+            hata={alanHatasi.tekrar}
+            secureTextEntry={gizli}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!yukleniyor}
+          />
+
+          {hata !== '' && (
+            <View style={styles.hataKutu}>
+              <Ionicons name="alert-circle" size={18} color={renkler.hata} />
+              <Text style={styles.hataYazi}>{hata}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.anaButon, yukleniyor && styles.butonPasif]}
+            onPress={kayitButonu}
+            disabled={yukleniyor}
+            activeOpacity={0.85}
+          >
+            {yukleniyor
+              ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
+              : <Text style={styles.anaButonYazi}>Kayıt Ol</Text>}
+          </TouchableOpacity>
+
+          {/* replace: Kayıt'ı yığından çıkarır, Giriş'i yerine koyar */}
+          <TouchableOpacity
+            style={styles.altSatir}
+            onPress={() => navigation.replace('Giris')}
+          >
+            <Text style={styles.altYazi}>
+              Zaten hesabın var mı? <Text style={styles.altVurgu}>Giriş yap</Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ⚠️ Tek buton: geri alınacak bir şey yok, pencere yalnızca
+          sonucu bildiriyor ve tek bir yere götürüyor. */}
+      <OnayPenceresi
+        acik={basariAcik}
+        ikon="mail-unread-outline"
+        tekButon
+        baslik="Kayıt başarılı"
+        mesaj={basariMesaji}
+        onayYazisi="Giriş ekranına dön"
+        onOnayla={() => { setBasariAcik(false); navigation.replace('Giris'); }}
+        onVazgec={() => { setBasariAcik(false); navigation.replace('Giris'); }}
+      />
     </SafeAreaView>
   );
 }
@@ -118,65 +258,115 @@ export default function KayitEkrani({ navigation }) {
 const stilOlustur = (renkler) => StyleSheet.create({
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.lacivertYuzey,
   },
-  ustBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 12,
-    paddingTop: 8,
+
+  bant: {
+    paddingHorizontal: bosluk.genis,
+    paddingTop: bosluk.kucuk,
+    paddingBottom: bosluk.dev,
   },
+
   kapatButon: {
+    alignSelf: 'flex-end',
     width: 40,
     height: 40,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
-  icerik: {
+
+  /* ⚠️ Giriş'teki "Satık"tan bir punto küçük: orada marka adı var,
+     burada bir eylem başlığı. Aynı puntoda olsalardı iki ekran da
+     aynı şeyi söylüyormuş gibi okunurdu. */
+  marka: {
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.lacivertYuzeyUstuYazi,
+    marginTop: bosluk.kucuk,
+  },
+
+  slogan: {
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.lacivertYuzeyPasif,
+    marginTop: bosluk.mikro,
+  },
+
+  yaprakKap: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    paddingBottom: 80,
+    marginTop: -bosluk.genis,
   },
-  baslik: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-    marginBottom: 24,
-    textAlign: 'center',
-    color: renkler.yaziKoyu,
+
+  yaprak: {
+    flexGrow: 1,
+    backgroundColor: renkler.kartArka,
+    borderTopLeftRadius: kose.dev,
+    borderTopRightRadius: kose.dev,
+    paddingHorizontal: bosluk.genis,
+    paddingTop: bosluk.genis,
+    paddingBottom: bosluk.dev,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 16,
-    color: renkler.yaziKoyu,
+
+  /* Güç göstergesi kutusu ile bir sonraki alan arasındaki boşluk:
+     FormAlani kendi altına 16 koyuyor, gösterge koymuyor. */
+  gucKap: {
+    marginBottom: bosluk.normal,
   },
-  buton: {
-    backgroundColor: renkler.anaRenk,
-    padding: 16,
-    borderRadius: 8,
+
+  hataKutu: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakHata,
+    borderLeftWidth: 3,
+    borderLeftColor: renkler.hata,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginBottom: bosluk.orta,
   },
-  butonYazi: {
+
+  hataYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.hata,
+  },
+
+  anaButon: {
+    backgroundColor: renkler.anaRenk,
+    height: 48,
+    borderRadius: kose.orta,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  butonPasif: {
+    opacity: 0.6,
+  },
+
+  anaButonYazi: {
     color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
-  altYazi: {
-    textAlign: 'center',
-    marginTop: 16,
-    color: renkler.anaRenk,
+
+  altSatir: {
+    marginTop: 'auto',
+    paddingTop: bosluk.genis,
+    alignItems: 'center',
   },
-  misafirYazi: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: renkler.yaziGri,
-    fontSize: 13,
+
+  altYazi: {
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
+  },
+
+  altVurgu: {
+    color: renkler.anaRenk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
   },
 });

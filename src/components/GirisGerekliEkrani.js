@@ -1,21 +1,39 @@
 import React from 'react';
-import { font } from '../theme/olculer';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTema } from '../context/TemaContext';
+import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
-// MİSAFİR KAPISI
-// Giriş yapmamış kullanıcı korumalı bir sekmeye girdiğinde bu ekranı görür.
-// Sepet, Siparişlerim ve Favorilerim ekranlarında tekrar tekrar kullanılacak.
+// ============================================================
+//  MİSAFİR KAPISI  (GV/Faz 8.4)
 //
-// Kullanımı:
-//   <GirisGerekliEkrani
-//     ikon="cart-outline"
-//     baslik="Sepetini görmek için giriş yap"
-//     aciklama="Sepetine ürün ekleyip sipariş verebilirsin."
-//   />
-
+//  Tasarım: `ifremi_unuttum_ve_giri_gerekli` (alttaki kart)
+//
+//  Giriş yapmamış kullanıcı korumalı bir sekmeye girdiğinde bu
+//  ekranı görür: Sepet, Siparişlerim, Favorilerim.
+//
+//  Kullanımı:
+//    <GirisGerekliEkrani
+//      ikon="cart-outline"
+//      baslik="Sepetini görmek için giriş yap"
+//      aciklama="Sepetine ürün ekleyip sipariş verebilirsin."
+//    />
+//
+//  ⚠️ `BosDurum` İLE BİRLEŞTİRİLMEDİ (Faz 2.6'daki karar).
+//  O "burada içerik yok" diyor, bu "kapı kilitli" diyor. İkisi
+//  farklı sorunlar ve farklı çözümler öneriyor; tek bileşende
+//  toplasaydık yarın birinin metnini değiştirmek diğerini bozardı.
+//
+//  ⚠️ İKONUN ZEMİNİ TURUNCU DEĞİL. Dekoratif bir daireyi ana renge
+//  boyamak Faz 1'de düzeltilen hatanın ta kendisi; turuncu bu
+//  ekranda yalnızca "Giriş Yap" butonunda.
+//
+//  ⚠️ Buton çifti Hesabım'ın misafir görünümüyle AYNI: dolu
+//  "Giriş Yap" + çerçeveli "Kayıt Ol" + dipnot. Tasarım burada
+//  "Kayıt Ol"u düz yazı çiziyor ama iki ekran aynı seçimi sunuyor;
+//  farklı çizmek "bunlar farklı şeyler mi?" sorusunu doğururdu.
+// ============================================================
 export default function GirisGerekliEkrani({ ikon, baslik, aciklama }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
@@ -26,120 +44,122 @@ export default function GirisGerekliEkrani({ ikon, baslik, aciklama }) {
 
   return (
     <View style={styles.kap}>
-
-      {/* İkon — daire içinde */}
       <View style={styles.ikonDaire}>
         <Ionicons
           name={ikon || 'lock-closed-outline'}
-          size={44}
-          color={renkler.anaRenk}
+          size={40}
+          color={renkler.yaziOrta}
         />
       </View>
 
-      {/* Başlık */}
       <Text style={styles.baslik}>
         {baslik || 'Bu sayfa için giriş yapmalısın'}
       </Text>
 
-      {/* Açıklama */}
-      {aciklama ? (
-        <Text style={styles.aciklama}>{aciklama}</Text>
-      ) : null}
+      {aciklama ? <Text style={styles.aciklama}>{aciklama}</Text> : null}
 
-      {/* Giriş Yap — dolu buton */}
       <TouchableOpacity
         style={styles.anaButon}
         onPress={() => navigation.navigate('Giris')}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         <Text style={styles.anaButonYazi}>Giriş Yap</Text>
       </TouchableOpacity>
 
-      {/* Kayıt Ol — çerçeveli buton */}
       <TouchableOpacity
         style={styles.ikincilButon}
         onPress={() => navigation.navigate('Kayit')}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         <Text style={styles.ikincilButonYazi}>Kayıt Ol</Text>
       </TouchableOpacity>
 
-      {/* Misafir bilgilendirmesi */}
       <Text style={styles.dipnot}>
         Giriş yapmadan ürünleri gezmeye devam edebilirsin.
       </Text>
-
     </View>
   );
 }
 
-function stilOlustur(renkler) {
-  return StyleSheet.create({
-    kap: {
-      flex: 1,
-      backgroundColor: renkler.arkaPlan,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 32,
-    },
-    ikonDaire: {
-      width: 92,
-      height: 92,
-      borderRadius: 46,
-      backgroundColor: renkler.acikKart,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 24,
-    },
-    baslik: {
-      fontSize: 19,
-      fontWeight: 'bold',
-      fontFamily: font.kalin,
-      color: renkler.yaziKoyu,
-      textAlign: 'center',
-      marginBottom: 10,
-    },
-    aciklama: {
-      fontSize: 14,
-      color: renkler.yaziOrta,
-      textAlign: 'center',
-      lineHeight: 20,
-      marginBottom: 28,
-    },
-    anaButon: {
-      backgroundColor: renkler.anaRenk,
-      paddingVertical: 14,
-      borderRadius: 10,
-      alignItems: 'center',
-      width: '100%',
-      marginBottom: 12,
-    },
-    anaButonYazi: {
-      color: renkler.anaRenkUstuYazi,
-      fontSize: 16,
-      fontWeight: 'bold',
-      fontFamily: font.kalin,
-    },
-    ikincilButon: {
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      borderColor: renkler.anaRenk,
-      paddingVertical: 14,
-      borderRadius: 10,
-      alignItems: 'center',
-      width: '100%',
-      marginBottom: 24,
-    },
-    ikincilButonYazi: {
-      color: renkler.anaRenk,
-      fontSize: 16,
-      fontWeight: 'bold',
-      fontFamily: font.kalin,
-    },
-    dipnot: {
-      fontSize: 12,
-      color: renkler.yaziGri,
-      textAlign: 'center',
-    },
-  });
-}
+const stilOlustur = (renkler) => StyleSheet.create({
+  kap: {
+    flex: 1,
+    backgroundColor: renkler.arkaPlan,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: bosluk.dev,
+  },
+
+  /* 96dp — BosDurum'daki daireyle aynı ölçü. İki boş ekran yan yana
+     görülmüyor ama aynı uygulamada iki farklı "büyük daire" boyu
+     olması, ölçeğin tesadüfi seçildiğini gösterirdi. */
+  ikonDaire: {
+    width: 96,
+    height: 96,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.acikKart,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: bosluk.genis,
+  },
+
+  baslik: {
+    fontSize: yazi.buyuk,
+    lineHeight: satir.buyuk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.yaziKoyu,
+    textAlign: 'center',
+    marginBottom: bosluk.kucuk,
+  },
+
+  aciklama: {
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.yaziOrta,
+    textAlign: 'center',
+    marginBottom: bosluk.genis,
+  },
+
+  anaButon: {
+    backgroundColor: renkler.anaRenk,
+    height: 48,
+    borderRadius: kose.orta,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: bosluk.orta,
+  },
+
+  anaButonYazi: {
+    color: renkler.anaRenkUstuYazi,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+  },
+
+  ikincilButon: {
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: renkler.anaRenk,
+    borderRadius: kose.orta,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: bosluk.genis,
+  },
+
+  ikincilButonYazi: {
+    color: renkler.anaRenk,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+  },
+
+  dipnot: {
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.yaziGri,
+    textAlign: 'center',
+  },
+});

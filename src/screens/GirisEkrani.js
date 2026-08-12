@@ -1,29 +1,87 @@
 import React, { useState } from 'react';
-import { font } from '../theme/olculer';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 import { apiPost } from '../services/api';
-
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
+import FormAlani from '../components/FormAlani';
+import OnayPenceresi from '../components/OnayPenceresi';
+import { epostaGecerliMi } from '../utils/dogrulama';
+
+// ============================================================
+//  GİRİŞ EKRANI  (GV/Faz 8.1)
+//
+//  Tasarım: `giri_yap_ve_hata_durumu`
+//
+//  Yerleşim tasarımdan: üstte lacivert bant (marka + slogan),
+//  altında yukarı köşeleri yuvarlatılmış beyaz yaprak. Yaprak
+//  bandın son 24dp'sini örtüyor — ürün detayındaki galeri/yaprak
+//  ilişkisinin aynısı, uygulama içinde tek bir dil olsun diye.
+//
+//  ⚠️ BANT SABİT YÜKSEKLİKTE DEĞİL. Tasarım 30vh diyor; React
+//  Native'de vh yok ve sabit bir sayı yazmak küçük ekranda formu
+//  aşağı iterdi. Bandın boyu içeriğinden geliyor.
+//
+//  ⚠️ HATALAR ARTIK Alert DEĞİL, EKRANDA.
+//  Üç ayrı yer: e-posta biçimi kutunun altında, sunucudan gelen
+//  giriş hatası butonun üstündeki kutuda, "hesabın doğrulanmadı"
+//  ise bir eylem gerektirdiği için pencerede. Alert hangi alanın
+//  yanlış olduğunu söylemiyordu ve kapatınca hiçbir iz kalmıyordu.
+//
+//  ⚠️ DAVRANIŞ DEĞİŞMEDİ: girisYap çağrısı, doğrulama linki
+//  gönderme ve `kapat()` yönlendirmesi aynen duruyor. Bu faz bir
+//  yeniden giydirme.
+// ============================================================
 
 export default function GirisEkrani({ navigation }) {
   const { girisYap } = useAuth();
   const { renkler } = useTema();
+  const { height: ekranYuksekligi } = useWindowDimensions();
   const styles = stilOlustur(renkler);
+
+  /* ⚠️ BANDIN BOYU EKRANA ORANTILI AMA TAVANLI.
+     Tasarım bandı ekranın ~%27'si kadar çiziyor ve ferahlığı oradan
+     geliyor. Sabit bir sayı yazsaydık küçük telefonda form aşağı
+     kayardı; orantı bunu çözüyor. Tavan da şart: uzun ekranlarda
+     (ve web önizlemesinde) bant tek başına ekranı yerdi.
+     minHeight — içerik daha uzunsa bant büyümeye devam ediyor. */
+  const bantYuksekligi = Math.min(ekranYuksekligi * 0.27, 240);
 
   const [email, setEmail] = useState('');
   const [sifre, setSifre] = useState('');
+  const [gizli, setGizli] = useState(true);
   const [yukleniyor, setYukleniyor] = useState(false);
+
+  // Alan hatası ile genel hata AYRI: biri kutunun altına, diğeri
+  // butonun üstüne yazılıyor. Tek bir metinde toplasaydık "şifre
+  // yanlış" hatası e-posta kutusunun altında belirirdi.
+  const [epostaHatasi, setEpostaHatasi] = useState('');
+  const [hata, setHata] = useState('');
+  const [bilgi, setBilgi] = useState('');
+
+  // Doğrulanmamış hesap penceresi
+  const [dogrulamaAcik, setDogrulamaAcik] = useState(false);
+  const [dogrulamaMesaji, setDogrulamaMesaji] = useState('');
 
   // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
   //
-  // Neden goBack() değil: modal her zaman "Ana"nın üstüne açılıyor, yani deneme
-  // canGoBack() hep true dönüyordu ve kullanıcı geldiği sekmeye geri
-  // düşüyordu. Hesabım'dan gelen, giriş yapsa da vazgeçse de yine
-  // Hesabım'da uyanıyordu.
+  // Neden goBack() değil: modal her zaman "Ana"nın üstüne açılıyor,
+  // yani canGoBack() hep true dönüyordu ve kullanıcı geldiği sekmeye
+  // geri düşüyordu. Hesabım'dan gelen, giriş yapsa da vazgeçse de
+  // yine Hesabım'da uyanıyordu.
   //
   // Üç katı da belirtiyoruz çünkü her navigator kendi geçmişini tutar:
   //   'Ana'          → RootStack'teki sekme kabuğu
@@ -37,49 +95,53 @@ export default function GirisEkrani({ navigation }) {
     });
   }
 
-
-
   // Doğrulama linkini yeniden gönderir.
   // AuthContext üzerinden değil doğrudan apiPost ile çağırıyoruz:
   // bu işlem oturumla ilgili değil, tek seferlik basit bir istek.
   async function dogrulamaLinkiGonder() {
+    setDogrulamaAcik(false);
+
     try {
-      const veri = await apiPost('/auth/resend-verification', { email: email });
-      Alert.alert('Gönderildi', veri.mesaj);
-    } catch (hata) {
+      const veri = await apiPost('/auth/resend-verification', { email });
+      setBilgi(veri.mesaj);
+      setHata('');
+    } catch (e) {
       // Rate limit'e takılırsa ("15 dakikada 3 istek") mesajı burada görünür
-      Alert.alert('Gönderilemedi', hata.message);
+      setHata(e.message);
     }
   }
 
-
-
   async function girisButonu() {
-    if (!email || !sifre) {
-      Alert.alert('Eksik bilgi', 'Email ve şifre boş olamaz.');
+    setBilgi('');
+
+    if (!email.trim() || !sifre) {
+      setHata('E-posta ve şifre boş olamaz.');
       return;
     }
+
+    if (!epostaGecerliMi(email)) {
+      setEpostaHatasi('Lütfen geçerli bir e-posta adresi girin.');
+      return;
+    }
+
+    setEpostaHatasi('');
+    setHata('');
+
     try {
       setYukleniyor(true);
       await girisYap(email, sifre);
       kapat();   // ← giriş başarılı, modalı kapat ve geldiği yere dön
-    } catch (hata) {
+    } catch (e) {
       // ⭐ Email doğrulanmamışsa bu bir "hata" değil, eksik bir adım.
       // Backend'in gönderdiği KOD'a bakıyoruz, mesaj metnine değil —
       // metin ileride değişirse kontrol kırılmasın.
-      if (hata.kod === 'EMAIL_DOGRULANMADI') {
-        Alert.alert(
-          'Hesabın henüz doğrulanmadı',
-          hata.message + '\n\nMaili bulamıyorsan yeni bir link isteyebilirsin.',
-          [
-            { text: 'Linki tekrar gönder', onPress: dogrulamaLinkiGonder },
-            { text: 'Tamam', style: 'cancel' },
-          ]
-        );
+      if (e.kod === 'EMAIL_DOGRULANMADI') {
+        setDogrulamaMesaji(e.message);
+        setDogrulamaAcik(true);
         return;
       }
 
-      Alert.alert('Giriş başarısız', hata.message);
+      setHata(e.message);
     } finally {
       setYukleniyor(false);
     }
@@ -87,126 +149,341 @@ export default function GirisEkrani({ navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ---- LACİVERT BANT ---- */}
+      <View style={[styles.bant, { minHeight: bantYuksekligi }]}>
+        {/* ⚠️ KAPATMA X'İ DURUYOR (tasarımda yok).
+            Bu ekran bir modal ve klavye açıkken alttaki "Misafir
+            olarak devam et" butonu görünmeyebiliyor. Çıkış yolu her
+            zaman görünür olmalı; ikisi aynı yere gidiyor ama biri
+            "vazgeç", diğeri bilinçli bir tercih.
 
-      {/* ÜST BAR — kapatma butonu */}
-      <View style={styles.ustBar}>
-        <TouchableOpacity onPress={kapat} style={styles.kapatButon}>
-          <Ionicons name="close" size={26} color={renkler.yaziKoyu} />
+            ⚠️ MUTLAK KONUMDA: akışta olsaydı markayı aşağı iter ve
+            bandın dikey dengesini X'in boyu belirlerdi. */}
+        <TouchableOpacity
+          onPress={kapat}
+          style={styles.kapatButon}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Kapat"
+        >
+          <Ionicons name="close" size={24} color={renkler.lacivertYuzeyUstuYazi} />
         </TouchableOpacity>
+
+        <Text style={styles.marka}>Satık</Text>
+        <Text style={styles.slogan}>Alışverişe kaldığın yerden devam et.</Text>
       </View>
 
-      <View style={styles.icerik}>
-        <Text style={styles.baslik}>Giriş Yap</Text>
+      {/* ---- BEYAZ YAPRAK ---- */}
+      <KeyboardAvoidingView
+        style={styles.yaprakKap}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.yaprak}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.baslik}>Giriş Yap</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={renkler.yaziGri}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Şifre"
-          placeholderTextColor={renkler.yaziGri}
-          value={sifre}
-          onChangeText={setSifre}
-          secureTextEntry={true}
-        />
+          <FormAlani
+            etiket="E-posta"
+            ikon="mail-outline"
+            placeholder="e-posta@ornek.com"
+            value={email}
+            onChangeText={(metin) => {
+              setEmail(metin);
+              if (epostaHatasi) setEpostaHatasi('');
+              if (hata) setHata('');
+            }}
+            hata={epostaHatasi}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            editable={!yukleniyor}
+          />
 
-        <TouchableOpacity style={styles.buton} onPress={girisButonu} disabled={yukleniyor}>
-          {yukleniyor
-            ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-            : <Text style={styles.butonYazi}>Giriş Yap</Text>}
-        </TouchableOpacity>
+          <FormAlani
+            etiket="Şifre"
+            ikon="lock-closed-outline"
+            placeholder="••••••••"
+            value={sifre}
+            onChangeText={(metin) => {
+              setSifre(metin);
+              if (hata) setHata('');
+            }}
+            secureTextEntry={gizli}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!yukleniyor}
+            sagIkon={gizli ? 'eye-outline' : 'eye-off-outline'}
+            sagIkonEtiket={gizli ? 'Şifreyi göster' : 'Şifreyi gizle'}
+            onSagIkonBas={() => setGizli(!gizli)}
+          />
 
-        <TouchableOpacity onPress={() => navigation.navigate('SifremiUnuttum')}>
-          <Text style={styles.sifremiUnuttumYazi}>Şifremi unuttum</Text>
-        </TouchableOpacity>
+          {/* Sağa yaslı — tasarımdan. Şifre kutusunun hemen altında
+              duruyor çünkü aklına orada geliyor. */}
+          <TouchableOpacity
+            style={styles.unuttumSatir}
+            onPress={() => navigation.navigate('SifremiUnuttum')}
+          >
+            <Text style={styles.unuttumYazi}>Şifremi unuttum</Text>
+          </TouchableOpacity>
 
-        {/* replace: Giriş'i yığından çıkarır, Kayıt'ı yerine koyar */}
-        <TouchableOpacity onPress={() => navigation.replace('Kayit')}>
-          <Text style={styles.altYazi}>Hesabın yok mu? Kayıt ol</Text>
-        </TouchableOpacity>
+          {hata !== '' && (
+            <View style={styles.hataKutu}>
+              <Ionicons name="alert-circle" size={18} color={renkler.hata} />
+              <Text style={styles.hataYazi}>{hata}</Text>
+            </View>
+          )}
 
-        <TouchableOpacity onPress={kapat}>
-          <Text style={styles.misafirYazi}>Misafir olarak devam et</Text>
-        </TouchableOpacity>
-      </View>
+          {bilgi !== '' && (
+            <View style={styles.bilgiKutu}>
+              <Ionicons name="mail-outline" size={18} color={renkler.basari} />
+              <Text style={styles.bilgiYazi}>{bilgi}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.anaButon, yukleniyor && styles.butonPasif]}
+            onPress={girisButonu}
+            disabled={yukleniyor}
+            activeOpacity={0.85}
+          >
+            {yukleniyor
+              ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
+              : <Text style={styles.anaButonYazi}>Giriş Yap</Text>}
+          </TouchableOpacity>
+
+          {/* ⚠️ Çerçeve lacivert, turuncu değil: turuncu "asıl eylem"
+              demek ve bu ekranın asıl eylemi giriş yapmak. İkisi de
+              turuncu olsaydı hangisinin beklenen yol olduğu
+              okunmazdı. */}
+          <TouchableOpacity
+            style={styles.ikincilButon}
+            onPress={kapat}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.ikincilButonYazi}>Misafir olarak devam et</Text>
+          </TouchableOpacity>
+
+          {/* replace: Giriş'i yığından çıkarır, Kayıt'ı yerine koyar.
+              push olsaydı iki ekran üst üste birikir ve geri tuşu
+              kullanıcıyı az önce vazgeçtiği forma geri atardı. */}
+          <TouchableOpacity
+            style={styles.altSatir}
+            onPress={() => navigation.replace('Kayit')}
+          >
+            <Text style={styles.altYazi}>
+              Hesabın yok mu? <Text style={styles.altVurgu}>Kayıt ol</Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ⚠️ Bu pencere bir SORU sorduğu için pencere: kullanıcının
+          seçmesi gereken bir eylem var (linki tekrar iste). Sonuç
+          bildiren mesajlar ise ekrandaki kutulara yazılıyor. */}
+      <OnayPenceresi
+        acik={dogrulamaAcik}
+        ikon="mail-unread-outline"
+        baslik="Hesabın henüz doğrulanmadı"
+        mesaj={`${dogrulamaMesaji}\n\nMaili bulamıyorsan yeni bir link isteyebilirsin.`}
+        onayYazisi="Linki tekrar gönder"
+        vazgecYazisi="Tamam"
+        onOnayla={dogrulamaLinkiGonder}
+        onVazgec={() => setDogrulamaAcik(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const stilOlustur = (renkler) => StyleSheet.create({
+  /* Zemin lacivert: yaprağın yuvarlak köşelerinin arkasından bant
+     görünsün diye. Beyaz olsaydı köşeler kesik görünürdü. */
   kapsayici: {
     flex: 1,
-    backgroundColor: renkler.arkaPlan,
+    backgroundColor: renkler.lacivertYuzey,
   },
-  ustBar: {
-    flexDirection: 'row',
+
+  /* İçerik ALTA yaslı: referansta marka, bandın alt kenarına yakın
+     duruyor ve üstteki boşluk ekrana nefes aldırıyor. Ortalasaydık
+     bant büyüdükçe marka yapraktan uzaklaşır, ikisi ayrı ekran gibi
+     görünürdü. */
+  bant: {
     justifyContent: 'flex-end',
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingHorizontal: bosluk.genis,
+    paddingBottom: bosluk.dev + bosluk.orta,
   },
+
   kapatButon: {
-    width: 40,
-    height: 40,
+    position: 'absolute',
+    top: bosluk.kucuk,
+    right: bosluk.orta,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  icerik: {
+
+  marka: {
+    fontSize: yazi.dev,
+    lineHeight: satir.baslik + 10,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+    color: renkler.lacivertYuzeyUstuYazi,
+    letterSpacing: -0.5,
+  },
+
+  /* ⚠️ Slogan lacivertYuzeyPasif — yaziGri burada okunmuyor
+     (lacivert üstünde ~2,2:1). Bu token tam bu iş için var. */
+  slogan: {
+    fontSize: yazi.normal,
+    lineHeight: satir.normal,
+    color: renkler.lacivertYuzeyPasif,
+    marginTop: bosluk.mikro,
+  },
+
+  yaprakKap: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    paddingBottom: 80,
+    // Yaprak bandın son 24dp'sini örtüyor.
+    marginTop: -bosluk.genis,
   },
+
+  yaprak: {
+    flexGrow: 1,
+    backgroundColor: renkler.kartArka,
+    borderTopLeftRadius: kose.dev,
+    borderTopRightRadius: kose.dev,
+    paddingHorizontal: bosluk.genis,
+    paddingTop: bosluk.genis,
+    paddingBottom: bosluk.dev,
+  },
+
   baslik: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
+    fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
-    marginBottom: 24,
-    textAlign: 'center',
     color: renkler.yaziKoyu,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 16,
-    color: renkler.yaziKoyu,
-  },
-  buton: {
-    backgroundColor: renkler.anaRenk,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  butonYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: 16,
-    fontWeight: 'bold',
-    fontFamily: font.kalin,
-  },
-  sifremiUnuttumYazi: {
     textAlign: 'center',
-    marginTop: 14,
-    fontSize: 13,
-    color: renkler.yaziOrta,
+    marginBottom: bosluk.genis,
   },
-  altYazi: {
-    textAlign: 'center',
-    marginTop: 16,
+
+  unuttumSatir: {
+    alignSelf: 'flex-end',
+    paddingVertical: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
+  },
+
+  unuttumYazi: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
     color: renkler.anaRenk,
   },
-  misafirYazi: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: renkler.yaziGri,
-    fontSize: 13,
+
+
+  /* ---- DURUM KUTULARI ---- */
+
+  hataKutu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakHata,
+    borderLeftWidth: 3,
+    borderLeftColor: renkler.hata,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginBottom: bosluk.orta,
+  },
+
+  hataYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.hata,
+  },
+
+  bilgiKutu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    backgroundColor: renkler.yumusakBasari,
+    borderLeftWidth: 3,
+    borderLeftColor: renkler.basari,
+    borderRadius: kose.kucuk,
+    padding: bosluk.orta,
+    marginBottom: bosluk.orta,
+  },
+
+  bilgiYazi: {
+    flex: 1,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    color: renkler.basari,
+  },
+
+
+  /* ---- BUTONLAR ---- */
+
+  anaButon: {
+    backgroundColor: renkler.anaRenk,
+    height: 48,
+    borderRadius: kose.orta,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  butonPasif: {
+    opacity: 0.6,
+  },
+
+  anaButonYazi: {
+    color: renkler.anaRenkUstuYazi,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+  },
+
+  /* ⚠️ Kenarlık `yaziKoyu`, `lacivertYuzey` DEĞİL.
+     Önce lacivertti ve açık temada doğru duruyordu; koyu temada
+     zeminle (#182a54) neredeyse aynı renge düşüp buton kayboldu —
+     cihazda değil tarayıcıda yakalandı. Çerçeveyi yazının rengine
+     bağlamak iki temada da okunur bir kontrast veriyor. */
+  ikincilButon: {
+    height: 48,
+    borderWidth: 1.5,
+    borderColor: renkler.yaziKoyu,
+    borderRadius: kose.orta,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: bosluk.orta,
+  },
+
+  ikincilButonYazi: {
+    color: renkler.yaziKoyu,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
+  },
+
+  /* marginTop: 'auto' — kayıt satırı yaprağın DİBİNE yapışıyor.
+     Formun hemen altında olsaydı butonlarla arasında hiyerarşi
+     kalmaz, üçüncü bir eylem gibi okunurdu. */
+  altSatir: {
+    marginTop: 'auto',
+    paddingTop: bosluk.genis,
+    alignItems: 'center',
+  },
+
+  altYazi: {
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
+  },
+
+  altVurgu: {
+    color: renkler.anaRenk,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
   },
 });
