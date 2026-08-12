@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // ⭐ DEĞİŞTİ (GV/Faz 7.4) — dosyadaki elle yazılı ölçüler token'a bağlandı.
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,6 +69,25 @@ export default function SiparisDetayEkrani({ route, navigation }) {
       // ekranda duruyor, kullanıcı elle yazabilir. Bu yüzden hata
       // penceresi açmıyoruz — çözemeyeceği bir uyarı vermek gereksiz.
       console.log('Panoya kopyalanamadı:', hata.message);
+    }
+  }
+
+  // ⭐ YENİ (GV/Faz 7.5) — kargo firmasının takip sayfasını aç.
+  //
+  // ⚠️ `canOpenURL` sorulmuyor. Adres http(s) ve harici tarayıcıyı
+  // açmak her platformda destekleniyor; sorup cevabı beklemek bir
+  // dokunuşluk işi yavaşlatırdı. Yine de openURL reddedebilir
+  // (tarayıcısı olmayan cihaz) — o yüzden hata yakalanıyor.
+  //
+  // ⚠️ Hata penceresi AÇILMIYOR: numara zaten ekranda ve
+  // kopyalanabiliyor, müşteri kendi tarayıcısından bakabilir.
+  // Çözemeyeceği bir uyarı vermek yerine sessiz kalıyoruz — takip
+  // numarası kopyalamada verilen kararın aynısı.
+  async function takibiAc() {
+    try {
+      await Linking.openURL(siparis.trackingUrl);
+    } catch (hata) {
+      console.log('Takip sayfası açılamadı:', hata.message);
     }
   }
 
@@ -193,6 +212,38 @@ export default function SiparisDetayEkrani({ route, navigation }) {
                     : 'Numarayı kopyalamak için üzerine uzun bas'}
                 </Text>
               </View>
+
+              {/* ⭐ YENİ (GV/Faz 7.5, B7) — KARGOYU TAKİP ET
+
+                  ⚠️ Adresi SUNUCU kuruyor; burada firma adına göre
+                  şablon seçmiyoruz. `trackingUrl` yoksa buton hiç
+                  çizilmiyor — o firmanın takip adresi appsettings'te
+                  tanımlı değil demektir. Çalışmayan bir butonu soluk
+                  gösterip orada bırakmak, müşteriye neden
+                  basamadığını söylemez.
+
+                  ⚠️ Kutunun İÇİNDE ve takip bilgisinin altında:
+                  butonun konusu bu kutu. Ekranın altına yapışık bir
+                  çubuk yapılmadı — bu ekranın tek bir asıl eylemi
+                  yok, sipariş iptali de aşağıda duruyor.
+
+                  ⚠️ G9 — tasarımda bu buton taşıyordu. Yazı
+                  `flexShrink` ile daralıyor ve tek satıra
+                  sıkıştırılıyor. */}
+              {siparis.trackingUrl ? (
+                <TouchableOpacity
+                  style={styles.takipButon}
+                  onPress={takibiAc}
+                  activeOpacity={0.85}
+                  accessibilityRole="link"
+                  accessibilityLabel={`${siparis.shippingCompany} takip sayfasını aç`}
+                >
+                  <Ionicons name="cube-outline" size={18} color={renkler.anaRenkUstuYazi} />
+                  <Text style={styles.takipButonYazi} numberOfLines={1}>
+                    Kargoyu Takip Et
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -553,6 +604,29 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.basari,
     fontWeight: agirlik.yari,
     fontFamily: font.yari,
+  },
+
+  /* ⭐ YENİ (GV/Faz 7.5) — takip butonu.
+     Dolu turuncu: bu kutunun asıl eylemi ve kutuda başka basılabilir
+     bir şey yok (takip numarası uzun basmayla kopyalanıyor, o bir
+     kısayol). Üstteki ince ayraç butonu bilgiden ayırıyor. */
+  takipButon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: bosluk.kucuk,
+    marginTop: bosluk.orta,
+    paddingVertical: bosluk.orta,
+    borderRadius: kose.orta,
+    backgroundColor: renkler.anaRenk,
+  },
+
+  takipButonYazi: {
+    flexShrink: 1,
+    color: renkler.anaRenkUstuYazi,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.kalin,
+    fontFamily: font.kalin,
   },
 
   /* React Native Text bileşeni satır sonlarını ZATEN koruyor;
