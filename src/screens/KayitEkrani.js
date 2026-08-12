@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -135,6 +136,22 @@ export default function KayitEkrani({ navigation }) {
           <Ionicons name="close" size={24} color={renkler.lacivertYuzeyUstuYazi} />
         </TouchableOpacity>
 
+        {/* ⭐ YENİ (2026-08-12) — logo, Giriş ekranıyla AYNI karo.
+            İki ekran arasında `replace` ile gidilip geliniyor; logo
+            birinde olup diğerinde olmasaydı geçiş sıçrama gibi
+            görünürdü. Gerekçeler (beyaz karo, saydam olmayan dosya)
+            GirisEkrani'nda yazılı. */}
+        <View style={styles.logoKaro}>
+          <Image
+            source={require('../../assets/satik-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Satık"
+          />
+        </View>
+
+        {/* ⚠️ Burada marka adı DEĞİL bir eylem başlığı var; logo
+            markayı zaten söylüyor, bu satır ne yapıldığını söylüyor. */}
         <Text style={styles.marka}>Hesap Oluştur</Text>
         <Text style={styles.slogan}>Avantajlı alışveriş dünyasına katıl.</Text>
       </View>
@@ -261,10 +278,27 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.lacivertYuzey,
   },
 
+  /* ⭐ DEĞİŞTİ — içerik yatayda ORTALI (Giriş ekranıyla aynı). */
   bant: {
+    alignItems: 'center',
     paddingHorizontal: bosluk.genis,
     paddingTop: bosluk.kucuk,
-    paddingBottom: bosluk.dev,
+    paddingBottom: bosluk.genis,
+  },
+
+  logoKaro: {
+    width: 84,
+    height: 84,
+    borderRadius: kose.buyuk,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: bosluk.kucuk,
+  },
+
+  logo: {
+    width: '100%',
+    height: '100%',
   },
 
   kapatButon: {
@@ -284,13 +318,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.lacivertYuzeyUstuYazi,
-    marginTop: bosluk.kucuk,
+    textAlign: 'center',
+    marginTop: bosluk.orta,
   },
 
   slogan: {
     fontSize: yazi.normal,
     lineHeight: satir.normal,
     color: renkler.lacivertYuzeyPasif,
+    textAlign: 'center',
     marginTop: bosluk.mikro,
   },
 

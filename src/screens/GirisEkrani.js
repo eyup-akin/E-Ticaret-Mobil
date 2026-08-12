@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -169,7 +170,27 @@ export default function GirisEkrani({ navigation }) {
           <Ionicons name="close" size={24} color={renkler.lacivertYuzeyUstuYazi} />
         </TouchableOpacity>
 
-        <Text style={styles.marka}>Satık</Text>
+        {/* ⭐ YENİ (2026-08-12) — LOGO.
+
+            ⚠️ BEYAZ KARENİN İÇİNDE, doğrudan bandın üstünde değil.
+            Logo dosyası saydam DEĞİL (PNG renk tipi 2, alfa kanalı
+            yok); lacivert bandın üstüne koyduğumuz an arkasında
+            beyaz bir dikdörtgen görünürdü. Yuvarlak köşeli beyaz
+            karo bunu bir kusur olmaktan çıkarıp uygulama simgesi
+            diline çeviriyor.
+
+            ⚠️ Ayrıca "Satık" YAZISI KALDIRILDI: logonun içinde zaten
+            marka adı yazıyor ve ikisini birlikte göstermek aynı adı
+            ekranda iki kez yazmak olurdu. */}
+        <View style={styles.logoKaro}>
+          <Image
+            source={require('../../assets/satik-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Satık"
+          />
+        </View>
+
         <Text style={styles.slogan}>Alışverişe kaldığın yerden devam et.</Text>
       </View>
 
@@ -305,14 +326,31 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.lacivertYuzey,
   },
 
-  /* İçerik ALTA yaslı: referansta marka, bandın alt kenarına yakın
-     duruyor ve üstteki boşluk ekrana nefes aldırıyor. Ortalasaydık
-     bant büyüdükçe marka yapraktan uzaklaşır, ikisi ayrı ekran gibi
-     görünürdü. */
+  /* ⭐ DEĞİŞTİ — içerik hem dikeyde alta yaslı hem YATAYDA ORTALI.
+     Sola yaslıyken logo karosu köşede tek başına duruyordu; marka
+     işareti bir başlık değil, ekranın kimliği — ortası doğru yeri. */
   bant: {
     justifyContent: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: bosluk.genis,
-    paddingBottom: bosluk.dev + bosluk.orta,
+    paddingBottom: bosluk.genis,
+  },
+
+  /* Beyaz karo: logonun kendi beyaz zemini var, karo onu kusur
+     olmaktan çıkarıp simge diline çeviriyor. */
+  logoKaro: {
+    width: 104,
+    height: 104,
+    borderRadius: kose.dev,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: bosluk.kucuk,
+  },
+
+  logo: {
+    width: '100%',
+    height: '100%',
   },
 
   kapatButon: {
@@ -325,22 +363,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     alignItems: 'center',
   },
 
-  marka: {
-    fontSize: yazi.dev,
-    lineHeight: satir.baslik + 10,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-    color: renkler.lacivertYuzeyUstuYazi,
-    letterSpacing: -0.5,
-  },
-
   /* ⚠️ Slogan lacivertYuzeyPasif — yaziGri burada okunmuyor
      (lacivert üstünde ~2,2:1). Bu token tam bu iş için var. */
   slogan: {
     fontSize: yazi.normal,
     lineHeight: satir.normal,
     color: renkler.lacivertYuzeyPasif,
-    marginTop: bosluk.mikro,
+    textAlign: 'center',
+    marginTop: bosluk.orta,
   },
 
   yaprakKap: {

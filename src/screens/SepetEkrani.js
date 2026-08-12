@@ -588,15 +588,24 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* ⭐ DEĞİŞTİ (GV/Faz 6.1) — elle yazılı 24 yerine ölçek basamağı.
      yazi.baslik (22) ürün detayındaki ürün adıyla aynı: ikisi de
      ekranın en üst başlığı, farklı puntoda olmaları için sebep yok. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — BAŞLIK ORTALI VE DURUM ÇUBUĞUNDAN
+     UZAK. Cihazda başlık durum çubuğuna yapışık duruyordu ve sola
+     yaslıydı; sekme kökü ekranlarının hepsinde (Sepetim, Favorilerim,
+     Hesabım) başlık artık ortada — dördü de aynı dili konuşsun.
+
+     ⚠️ paddingBottom KÜÇÜLDÜ (8→4): altındaki arama çubuğunun kendi
+     dikey dolgusu var (8) ve ikisi üst üste binince başlıkla kutu
+     arasında ölü bir şerit oluşuyordu. */
   baslik: {
     fontSize: yazi.baslik,
     lineHeight: satir.baslik,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
+    textAlign: 'center',
     paddingHorizontal: sayfaKenari,
-    paddingTop: bosluk.orta,
-    paddingBottom: bosluk.kucuk,
+    paddingTop: bosluk.kucuk,
+    paddingBottom: bosluk.mikro,
   },
 
   liste: {
@@ -604,9 +613,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingBottom: bosluk.genis,
   },
 
+  /* ⭐ DEĞİŞTİ (2026-08-12) — arama çubuğu ile kargo şeridi ve
+     şeritle ilk ürün arasındaki boşluk 12'den 8'e indi.
+     ⚠️ Sebep: arama çubuğu kendi içinde 8dp dikey dolgu taşıyor;
+     buradaki 12 onun üstüne binince aradaki aralık 20dp'ye çıkıyor
+     ve ekranın üstü boşlukla doluyordu. */
   listeBasi: {
-    gap: bosluk.orta,
-    marginBottom: bosluk.orta,
+    gap: bosluk.kucuk,
+    marginBottom: bosluk.kucuk,
   },
 
   aramaBos: {

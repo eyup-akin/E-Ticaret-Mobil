@@ -8,14 +8,17 @@ import { apiGet, apiPost } from '../services/api';
 import { refreshTokenAl } from '../services/tokenStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
-import { gunBicimle } from '../utils/bicimlendir';
 
 export default function HesabimEkrani({ navigation }) {
   const { token, kullanici, cikisYap } = useAuth();
   const { renkler, koyuMu, temaDegistir } = useTema();
   const styles = stilOlustur(renkler);
 
-  const [profil, setProfil] = useState(null);   // email + üyelik tarihi buradan
+  /* ⚠️ Profil artık EKRANDA GÖSTERİLMİYOR ama hâlâ çekiliyor:
+     "Profili Düzenle" ekranı e-postayı kilitli göstermek için biliyor
+     olmalı ve onu buradan parametre olarak alıyor. Orada ayrıca
+     /auth/ben-kimim çağırmak gereksiz bir ağ turu olurdu. */
+  const [profil, setProfil] = useState(null);
 
   // Aktif oturum sayısı.
   //
@@ -191,46 +194,47 @@ export default function HesabimEkrani({ navigation }) {
         {token ? (
           /* ============ ÜYE GÖRÜNÜMÜ ============ */
           <>
-            {/* ⭐ DEĞİŞTİ (GV/Faz 7.1) — KİMLİK KARTINA BAŞ HARF AVATARI.
+            {/* ⭐ DEĞİŞTİ (2026-08-12) — KİMLİK KARTI KALDIRILDI,
+                YERİNE ORTALI BİR SELAMLAMA GELDİ.
 
-                ⚠️ Avatar zemini `lacivertYuzey` — yorum kartındakiyle
-                AYNI token. İki ekranda iki farklı avatar dili olmasın.
-                Turuncu yapılmadı: dekoratif ana renk Faz 1'de
-                düzeltilen hatanın ta kendisi.
+                Eskiden beyaz bir kartın içinde avatar + ad + e-posta +
+                üyelik tarihi vardı ve sağında bir chevron. Üç bilgiden
+                ikisi müşteriye bir şey söylemiyordu: **kendi
+                e-postasını ve ne zaman üye olduğunu zaten biliyor.**
+                Ekranın en üstündeki en büyük kutu, en az işe yarayan
+                bilgiyi taşıyordu — "Rol: musteri" satırını 7.1'de
+                eleyen gerekçenin aynısı.
+
+                Kalan: baş harf ve "Merhaba, [ad]". Biri kimin hesabı
+                olduğunu doğruluyor, diğeri selam veriyor.
+
+                ⚠️ KART DA GİTTİ, sadece içeriği değil. Beyaz kart
+                sayfanın kırık-beyaz zemininde yüzen bir kutuydu ve
+                altındaki menü kartlarıyla aynı ağırlıkta görünüyordu;
+                oysa bu bir menü değil, ekranın başlığı.
+
+                ⚠️ Kartın "Profili Düzenle"ye götüren dokunuşu
+                kaldırıldı ama işlev KAYBOLMADI: GÜVENLİK grubunda
+                aynı ada sahip bir satır zaten var. İki giriş noktası
+                bırakmak, aynı işi yapan iki kontrol demekti.
+
+                ⚠️ Avatar zemini `lacivertYuzey` — yorum kartındaki
+                avatarla AYNI token. Turuncu yapılmadı: dekoratif ana
+                renk Faz 1'de düzeltilen hatanın ta kendisi.
 
                 ⚠️ Harf toLocaleUpperCase('tr-TR') ile büyütülüyor —
-                "irem" → "İREM"; varsayılan büyütme "IREM" yapardı.
-
-                Kart tıklanabilir: kullanıcının ilk refleksi kendi adına
-                basmak ve hiçbir şey olmaması "bozuk mu?" hissi
-                veriyordu. Sağdaki chevron bunu söyleyen tek işaret. */}
-            <TouchableOpacity
-              style={styles.kimlikKart}
-              onPress={() =>
-                navigation.navigate('ProfilDuzenle', { eposta: profil?.email })
-              }
-              activeOpacity={0.7}
-            >
+                "irem" → "İREM"; varsayılan büyütme "IREM" yapardı. */}
+            <View style={styles.kimlik}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarHarf}>
                   {(kullanici?.fullName || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
                 </Text>
               </View>
 
-              <View style={styles.kimlikOrta}>
-                <Text style={styles.ad} numberOfLines={1}>{kullanici?.fullName}</Text>
-
-                {profil?.email ? (
-                  <Text style={styles.eposta} numberOfLines={1}>{profil.email}</Text>
-                ) : null}
-
-                {profil?.createdAt ? (
-                  <Text style={styles.uyelik}>Üye: {gunBicimle(profil.createdAt)}</Text>
-                ) : null}
-              </View>
-
-              <Ionicons name="chevron-forward" size={18} color={renkler.yaziGri} />
-            </TouchableOpacity>
+              <Text style={styles.merhaba} numberOfLines={1}>
+                Merhaba, {(kullanici?.fullName || '').trim().split(' ')[0] || 'hoş geldin'}
+              </Text>
+            </View>
 
             {/* ⚠️ G1 — 5. SEKME YOK. Tasarım bazı ekranlarda
                 "Kategoriler" diye beşinci bir sekme çiziyor; bizde
@@ -375,14 +379,16 @@ const stilOlustur = (renkler) => StyleSheet.create({
     paddingBottom: bosluk.dev,
   },
 
-  /* Başlık ile tema düğmesi aynı satırda, iki uçta.
-     ⚠️ Alt boşluk artık satırda, başlığın kendisinde değil: düğme
-     başlıktan yüksek olduğu için boşluk metne bağlı kalsaydı ekran
-     her tema değişiminde değil ama her punto ayarında kayardı. */
+  /* ⭐ DEĞİŞTİ (2026-08-12) — BAŞLIK ORTALI.
+     Sepetim ve Favorilerim ile aynı hizada dursun diye: üç sekme kökü
+     üç farklı başlık yerleşimi kullanıyordu.
+
+     ⚠️ Tema düğmesi MUTLAK KONUMDA. Akışta kalsaydı başlığı sola
+     iter ve "ortalı" başlık aslında düğmenin genişliği kadar kaymış
+     olurdu. */
   baslikSatir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    minHeight: 40,
     marginBottom: bosluk.normal,
   },
 
@@ -392,12 +398,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
+    textAlign: 'center',
   },
 
   /* 40dp — dokunma hedefinin alt sınırı. İkon 20dp; kalanı çevresine
      bırakılan boşluk, çünkü küçük yuvarlak düğmeler parmakla
      ıskalanıyor. */
   temaButon: {
+    position: 'absolute',
+    right: 0,
     width: 40,
     height: 40,
     borderRadius: kose.tam,
@@ -411,21 +420,18 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ---------- KİMLİK KARTI ---------- */
 
-  kimlikKart: {
-    flexDirection: 'row',
+  /* ⭐ DEĞİŞTİ (2026-08-12) — kart yok, ortalı bir selamlama var. */
+  kimlik: {
     alignItems: 'center',
-    gap: bosluk.orta,
-    backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
-    padding: bosluk.normal,
-    marginBottom: bosluk.normal,
+    marginBottom: bosluk.genis,
   },
 
+  /* 72dp: kartın içindeyken 56 yetiyordu, tek başına ortada duran bir
+     öğe olarak küçük kalıyordu. Ekranın "kim olduğunu" söyleyen tek
+     görsel bu. */
   avatar: {
-    width: 56,
-    height: 56,
+    width: 72,
+    height: 72,
     borderRadius: kose.tam,
     backgroundColor: renkler.lacivertYuzey,
     justifyContent: 'center',
@@ -434,38 +440,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   avatarHarf: {
     color: renkler.lacivertYuzeyUstuYazi,
-    fontSize: yazi.baslik,
+    fontSize: yazi.dev,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
   },
 
-  /* minWidth: 0 olmadan flex çocuğu içeriğinden küçülmüyor ve uzun bir
-     e-posta chevron'u karttan taşırıyor. */
-  kimlikOrta: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  ad: {
+  merhaba: {
     fontSize: yazi.buyuk,
+    lineHeight: satir.buyuk,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
-  },
-
-  eposta: {
-    fontSize: yazi.normal,
-    color: renkler.yaziOrta,
-    marginTop: 2,
-  },
-
-  /* ⭐ DEĞİŞTİ (GV/Faz 7.1) — "Rol:" satırı KALDIRILDI.
-     Müşterinin rolü her zaman "musteri"; kendisine söylemenin bir
-     bilgi değeri yok. Admin zaten panelden giriyor. */
-  uyelik: {
-    fontSize: yazi.kucuk,
-    color: renkler.yaziGri,
-    marginTop: bosluk.mikro,
+    textAlign: 'center',
+    marginTop: bosluk.orta,
   },
 
 

@@ -195,7 +195,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.arkaPlan,
   },
 
-  /* ⚠️ Geri oku YALNIZCA stack içinden gelindiğinde çiziliyor
+  /* ⭐ DEĞİŞTİ (2026-08-12) — ÜST BAR ARTIK BEYAZ BİR ŞERİT DEĞİL.
+     Kart zemini + alt çizgi, sayfanın kırık-beyaz zemininin üstünde
+     yabancı duran bir "araç çubuğu" gibi görünüyordu; uygulamanın
+     geri kalanında (Sepetim, Hesabım) başlık doğrudan sayfa zemininde
+     duruyor. Şerit kalktı, başlık sayfaya oturdu.
+
+     ⚠️ Geri oku YALNIZCA stack içinden gelindiğinde çiziliyor
      (canGoBack). Favorilerim hem bir sekme kökü hem de Hesabım
      menüsünden açılan bir alt ekran — G2 sekme kökünde geri oku
      istemiyor, alt ekranda ise gerekiyor. Koşul ikisini de doğru
@@ -203,20 +209,28 @@ const stilOlustur = (renkler) => StyleSheet.create({
   ustBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: bosluk.orta,
     paddingHorizontal: sayfaKenari,
-    paddingVertical: bosluk.orta,
-    borderBottomWidth: 1,
-    borderBottomColor: renkler.kenarlik,
-    backgroundColor: renkler.kartArka,
+    paddingTop: bosluk.kucuk,
+    paddingBottom: bosluk.mikro,
   },
 
+  /* ⚠️ Geri oku MUTLAK KONUMDA: akışta olsaydı başlığı sağa iter ve
+     "ortalı başlık" oku olan/olmayan ekranda iki farklı yerde
+     dururdu. Ortalama, okun varlığından bağımsız olmalı. */
   geriButon: {
-    width: 32,
+    position: 'absolute',
+    left: sayfaKenari,
+    zIndex: 1,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
   },
 
   ustBaslik: {
-    fontSize: yazi.buyuk,
+    flex: 1,
+    textAlign: 'center',
+    fontSize: yazi.baslik,
+    lineHeight: satir.baslik,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
