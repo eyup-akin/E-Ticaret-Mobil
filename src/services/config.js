@@ -1,32 +1,33 @@
-// Backend'in adresi TELEFONDAN erişildiği için "localhost" DEĞİL,
-// bilgisayarının ağdaki IP adresini kullanıyoruz.
+// Backend'in adresi TELEFONDAN erişildiği için "localhost" DEĞİL.
 //
-// IP kodun içinde gömülü DEĞİL — proje kökündeki .env dosyasından geliyor.
-// Ağ değişince sadece .env'deki IP'yi düzelt + Expo'yu yeniden başlat.
-//
+// Adres kodun içinde gömülü DEĞİL — proje kökündeki .env'den geliyor.
 // EXPO_PUBLIC_ önekli değişkenler Expo tarafından otomatik okunur.
 //
-// ⭐ DEĞİŞTİ — SABİT YEDEK IP KALDIRILDI.
+// ⭐ DEĞİŞTİ — IP DEĞİL, TAM ADRES.
 //
-// ⚠️ Eskiden burada `|| '192.168.1.199'` vardı. .env okunamadığında
-// uygulama SESSİZCE o eski ev ağına bağlanmaya çalışıyor ve "Sunucuya
-// ulaşılamadı" veriyordu. Geliştirici .env'i doğru sandığı için hatayı
-// yanlış yerde arıyordu.
+// ⚠️ Eskiden burada `'http://' + IP + ':5289'` kuruluyordu. Şema ve
+// port koda gömülü olduğu için HTTPS'li bir alan adına geçmek
+// imkânsızdı; Android 9+ ise düz HTTP'yi varsayılan olarak engelliyor.
 //
-// Artık eksik yapılandırma açıkça patlıyor: sessiz yanlış davranış
-// yerine gürültülü doğru hata. (Yorum satırı olarak duran üç eski IP
-// de silindi — git zaten hatırlıyor.)
-const IP = process.env.EXPO_PUBLIC_API_IP;
+// ⚠️ SABİT YEDEK YOK ve olmayacak: eskiden `|| '192.168.1.199'` vardı,
+// .env okunamayınca uygulama SESSİZCE eski ev ağına bağlanıp "sunucuya
+// ulaşılamadı" veriyordu ve hata yanlış yerde aranıyordu. Eksik
+// yapılandırma açıkça patlasın.
+const TABAN = process.env.EXPO_PUBLIC_API_TABAN;
 
-if (!IP) {
+if (!TABAN) {
   throw new Error(
-    'EXPO_PUBLIC_API_IP tanımlı değil. Proje kökünde .env dosyası var mı? ' +
-    'Örnek: EXPO_PUBLIC_API_IP=192.168.1.42 — ekledikten sonra "npx expo start -c" ile başlat.'
+    'EXPO_PUBLIC_API_TABAN tanımlı değil. Proje kökünde .env dosyası var mı? ' +
+    'Örnek: EXPO_PUBLIC_API_TABAN=https://ornek.ts.net — ekledikten sonra ' +
+    '"npx expo start -c" ile başlat.'
   );
 }
 
-// SUNUCU_URL → resimler için:   http://10.242.83.204:5289/uploads/urunler/a3f9.jpg
-export const SUNUCU_URL = 'http://' + IP + ':5289';
+// ⚠️ Sondaki eğik çizgi temizleniyor; yoksa adresler "//api" oluyor.
+const TEMIZ = TABAN.replace(/\/+$/, '');
 
-// API_URL → veri istekleri için: http://10.242.83.204:5289/api/products
+// SUNUCU_URL → resimler için:   https://ornek.ts.net/uploads/urunler/a3f9.jpg
+export const SUNUCU_URL = TEMIZ;
+
+// API_URL → veri istekleri için: https://ornek.ts.net/api/products
 export const API_URL = SUNUCU_URL + '/api';
