@@ -29,7 +29,7 @@ export default function HizliSiparislerimEkrani({ navigation }) {
   // Tekrarlama akışının tamamı ortak hook'ta — onay penceresi, sepet
   // tazeleme ve sonuç mesajı dahil. Sipariş detay ekranı da aynısını
   // kullanıyor.
-  const { sor: tekrarlaSor, islemde: tekrarIslemde } = useSiparisTekrarla();
+  const { sor: tekrarlaSor, islemde: tekrarIslemde, pencere: tekrarPenceresi } = useSiparisTekrarla();
 
   const [liste, setListe] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -192,6 +192,11 @@ export default function HizliSiparislerimEkrani({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* ⭐ Tekrarlama akışının kendi penceresi — onay, sonuç ve hata
+          adımlarının üçü de burada. Hook döndürüyor; ekran yalnızca
+          çiziyor. */}
+      {tekrarPenceresi}
 
       <OnayPenceresi
         acik={cikarilacak !== null}

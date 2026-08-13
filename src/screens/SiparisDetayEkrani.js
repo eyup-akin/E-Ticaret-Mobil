@@ -20,7 +20,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
 
   // ⭐ DEĞİŞTİ — tekrarlama akışının tamamı ortak hook'ta.
   // Sepet tazeleme, onay penceresi ve sonuç mesajı orada.
-  const { sor: tekrarlaSor, islemde: tekrarIslemde } = useSiparisTekrarla();
+  const { sor: tekrarlaSor, islemde: tekrarIslemde, pencere: tekrarPenceresi } = useSiparisTekrarla();
 
   const [siparis, setSiparis] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -553,6 +553,11 @@ export default function SiparisDetayEkrani({ route, navigation }) {
           </View>
         )}
       </View>
+      {/* ⭐ YENİ — tekrarlama akışının penceresi (onay / sonuç / hata).
+          Eskiden Alert.alert kullanılıyordu; sistem penceresi
+          uygulamanın temasını bilmiyor. Hook döndürüyor, ekran
+          yalnızca çiziyor. */}
+      {tekrarPenceresi}
     </SafeAreaView>
   );
 }

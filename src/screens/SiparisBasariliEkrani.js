@@ -48,6 +48,13 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
   const [islemde, setIslemde] = useState(false);
   const [hata, setHata] = useState('');
 
+  // ⭐ YENİ — "aynı içerikte zaten var" bilgisi.
+  //
+  // ⚠️ Hatadan AYRI bir state: bu bir hata değil, açıklama. Aynı
+  // değişkende tutup rengiyle oynasaydık "hata var mı?" sorusunun
+  // cevabı belirsizleşirdi.
+  const [bilgi, setBilgi] = useState('');
+
   async function hizliSiparisDegistir() {
     // ⚠️ Çift dokunma kalkanı. Buton disabled olsa da hızlı iki
     // dokunuş arasında state güncellemesi yetişmeyebiliyor; bayrağı
@@ -58,6 +65,7 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
 
     setIslemde(true);
     setHata('');
+    setBilgi('');
 
     // ⚠️ İYİMSER GÜNCELLEME YAPMIYORUZ.
     //
@@ -71,8 +79,20 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
         await apiDelete('/hizli-siparisler/' + siparisId);
         setKayitli(false);
       } else {
-        await apiPost('/hizli-siparisler/' + siparisId);
+        const cevap = await apiPost('/hizli-siparisler/' + siparisId);
         setKayitli(true);
+
+        // ⚠️ Sunucu aynı İÇERİKTE bir kaydın zaten olduğunu
+        // söyleyebiliyor (zeytinyağını ikinci kez sipariş edip tekrar
+        // kaydetmek gibi). O durumda yeni satır AÇILMIYOR ve müşteri
+        // bunu bilmeli — yoksa listede neden tek satır olduğunu
+        // anlamaz.
+        //
+        // ⚠️ Metne değil `mevcuttu` alanına bakıyoruz: mesaj yarın
+        // düzeltilirse metne bakan kod sessizce kırılırdı.
+        if (cevap?.mevcuttu) {
+          setBilgi(cevap.mesaj);
+        }
       }
     } catch (e) {
       // ⚠️ Hata SESSİZCE YUTULMUYOR ama ekranı da kaplamıyor.
@@ -219,6 +239,12 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             kırmızı bir kutu açmak iyi haberi gölgelerdi. */}
         {hata !== '' && (
           <Text style={styles.kaydetHata}>{hata}</Text>
+        )}
+
+        {/* ⚠️ Bilgi satırı GRİ, kırmızı değil: bir şey ters gitmedi,
+            yalnızca zaten olan bir şey anlatılıyor. */}
+        {bilgi !== '' && (
+          <Text style={styles.kaydetBilgi}>{bilgi}</Text>
         )}
 
         {/* ⭐ Tasarruf rozeti — küçük ama etkili bir dokunuş.
@@ -384,6 +410,14 @@ const stilOlustur = (renkler) => StyleSheet.create({
     width: '100%',
     marginTop: bosluk.kucuk,
     color: renkler.hata,
+    fontSize: yazi.kucuk,
+    textAlign: 'center',
+  },
+
+  kaydetBilgi: {
+    width: '100%',
+    marginTop: bosluk.kucuk,
+    color: renkler.yaziGri,
     fontSize: yazi.kucuk,
     textAlign: 'center',
   },
