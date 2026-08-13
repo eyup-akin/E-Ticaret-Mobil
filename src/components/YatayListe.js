@@ -11,6 +11,13 @@ import UrunKartiKompakt from './UrunKartiKompakt';
 //  urunler     : gösterilecek ürünler
 //  onUrunBas   : bir karta basıldı
 //  onTumunuBas : verilirse başlıkta "Tümünü gör" çıkar
+//  favoriSayisiniGoster : kartlarda "kaç kişi favoriledi" yazsın mı
+//
+//  ⚠️ FAVORİ SAYISI HER ŞERİTTE DEĞİL. Sunucu aynı ürün nesnesini
+//  birden çok şeritte paylaşıyor, yani sayı "sana özel" şeridindeki
+//  bir kartta da dolu olabilir. Gösterim kararı verinin varlığına
+//  değil ŞERİDİN KENDİSİNE bağlı: sayı ancak "en çok favorilenen"
+//  başlığının altında bir şey anlatıyor.
 //
 //  ⚠️ NEDEN BİLEŞENE ÇIKARILDI?
 //  Bu kalıp (başlık + yatay kaydırma + kompakt kart) "son gezdiğin
@@ -30,7 +37,13 @@ import UrunKartiKompakt from './UrunKartiKompakt';
 //  sanallaştırmanın kazancı yok, üstelik dikey FlatList'in içinde
 //  yatay FlatList React Native'de uyarı üretiyor.
 // ============================================================
-export default function YatayListe({ baslik, urunler, onUrunBas, onTumunuBas }) {
+export default function YatayListe({
+  baslik,
+  urunler,
+  onUrunBas,
+  onTumunuBas,
+  favoriSayisiniGoster = false,
+}) {
   if (!urunler || urunler.length === 0) {
     return null;
   }
@@ -49,7 +62,12 @@ export default function YatayListe({ baslik, urunler, onUrunBas, onTumunuBas }) 
         directionalLockEnabled
       >
         {urunler.map((u) => (
-          <UrunKartiKompakt key={u.id} urun={u} onPress={() => onUrunBas(u)} />
+          <UrunKartiKompakt
+            key={u.id}
+            urun={u}
+            onPress={() => onUrunBas(u)}
+            favoriSayisiniGoster={favoriSayisiniGoster}
+          />
         ))}
       </ScrollView>
     </View>

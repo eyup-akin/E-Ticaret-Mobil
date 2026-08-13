@@ -408,6 +408,11 @@ export default function AnaSayfaEkrani({ navigation }) {
             baslik={b.baslik}
             urunler={b.urunler}
             onUrunBas={(u) => navigation.navigate('UrunDetay', { urunId: u.id })}
+            /* ⭐ YENİ — favori sayısı YALNIZCA favori şeridinde.
+               Sunucu ürün nesnelerini şeritler arasında paylaşıyor,
+               yani sayı başka şeritteki bir kartta da dolu olabilir;
+               gerekçesi YatayListe'de yazılı. */
+            favoriSayisiniGoster={b.anahtar === 'favori'}
             /* ⚠️ "Tümünü gör" YALNIZCA IZGARADA KARŞILIĞI OLAN
                bölümde. İki bölümün karşılığı var: "Yeni gelenler" →
                `yeni` sıralaması, "En Popüler Ürünler" → `populer`

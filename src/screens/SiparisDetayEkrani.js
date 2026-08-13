@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 // ⭐ DEĞİŞTİ (GV/Faz 7.4) — dosyadaki elle yazılı ölçüler token'a bağlandı.
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking, Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiGet } from '../services/api';
+import { apiGet, apiPost } from '../services/api';
 import { useTema } from '../context/TemaContext';
+import { useSepet } from '../context/SepetContext';   // ⭐ YENİ
 import { odemeYazisi, odemeRengi } from '../utils/durum';
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';
 import KargoDurumu from '../components/KargoDurumu';
@@ -17,8 +18,16 @@ export default function SiparisDetayEkrani({ route, navigation }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
+  // ⭐ YENİ — "siparişi tekrarla" sepeti değiştiriyor; rozetin ve
+  // sepet ekranının güncel kalması için listeyi tazelemek gerekiyor.
+  const { sepetiYukle } = useSepet();
+
   const [siparis, setSiparis] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
+
+  // ⭐ YENİ — tekrarlama isteği sürüyor mu?
+  // Butonu kilitliyor: iki hızlı dokunuş adetleri iki katına çıkarırdı.
+  const [tekrarIslemde, setTekrarIslemde] = useState(false);
 
   // ⭐ YENİ — takip numarası panoya kopyalandı mı?
   //
@@ -88,6 +97,61 @@ export default function SiparisDetayEkrani({ route, navigation }) {
       await Linking.openURL(siparis.trackingUrl);
     } catch (hata) {
       console.log('Takip sayfası açılamadı:', hata.message);
+    }
+  }
+
+  // ⭐ YENİ — SİPARİŞİ TEKRARLA
+  //
+  // ⚠️ SEPETE NE EKLENECEĞİNE SUNUCU KARAR VERİYOR. Kalemleri burada
+  // tek tek /cart'a yollamak da mümkündü ama o zaman "hangi ürün artık
+  // satışta değil" kuralı mobile taşınır ve satırlar arasında kısmi
+  // başarı yönetmek gerekirdi. Tek istek, tek cevap, tek mesaj.
+  //
+  // ⚠️ ÖNCE ONAY SORULUYOR: sepette hâlihazırda ürün olabilir ve bu
+  // işlem onların üstüne ekliyor. Habersiz büyüyen bir sepet,
+  // müşterinin ödeme adımında fark edeceği bir sürprizdir.
+  function tekrarlaSor() {
+    Alert.alert(
+      'Siparişi tekrarla',
+      'Bu siparişteki ürünler sepetine eklenecek. Sepetindekiler silinmez, ' +
+      'üstüne eklenir.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Sepete ekle', onPress: tekrarla },
+      ]
+    );
+  }
+
+  async function tekrarla() {
+    try {
+      setTekrarIslemde(true);
+
+      const cevap = await apiPost('/orders/' + siparisId + '/tekrarla', {});
+
+      // ⚠️ Rozet ve sepet ekranı sunucudan tazeleniyor; adetleri
+      // burada hesaplayıp state'e yazsaydık 99 kırpması ve mevcut
+      // sepetle birleşme mobilde ikinci kez yazılmış olurdu.
+      await sepetiYukle();
+
+      // Mesajı sunucu kuruyor (hepsi eklendi / bir kısmı eklendi /
+      // hiçbiri eklenemedi). Hiçbiri eklenemediyse sepete gitmek
+      // anlamsız — müşteriyi değişmemiş bir ekrana göndermiyoruz.
+      if (cevap.eklenen === 0) {
+        Alert.alert('Sepete eklenemedi', cevap.mesaj);
+        return;
+      }
+
+      Alert.alert('Sepete eklendi', cevap.mesaj, [
+        { text: 'Kapat', style: 'cancel' },
+        {
+          text: 'Sepete git',
+          onPress: () => navigation.navigate('Sepet', { screen: 'SepetMain' }),
+        },
+      ]);
+    } catch (hata) {
+      Alert.alert('Hata', hata.message);
+    } finally {
+      setTekrarIslemde(false);
     }
   }
 
@@ -349,6 +413,38 @@ export default function SiparisDetayEkrani({ route, navigation }) {
                 <Text style={styles.urunToplam}>{paraBicimle(u.unitPrice * u.quantity)}</Text>
               </View>
             ))}
+
+            {/* ⭐ YENİ — SİPARİŞİ TEKRARLA
+
+                ⚠️ ÜRÜN LİSTESİNİN İÇİNDE, kutunun altında: butonun
+                konusu tam olarak bu liste. Ekranın altına yapışık bir
+                çubuk yapılmadı — bu ekranın tek bir asıl eylemi yok
+                (iptal, iade ve destek de aşağıda duruyor).
+
+                ⚠️ DURUMDAN BAĞIMSIZ çiziliyor, iptal edilmiş siparişte
+                de var: "iptal ettim ama yine de alacağım" meşru bir
+                istek ve o müşteri ürünleri elle aramak zorunda kalırdı.
+
+                ⚠️ Fiyat vaadi YOK. Buton "aynı fiyata al" demiyor;
+                sepete güncel fiyattan giriyor ve fiyat değiştiyse sepet
+                ekranı bunu zaten söylüyor. */}
+            <TouchableOpacity
+              style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
+              onPress={tekrarlaSor}
+              disabled={tekrarIslemde}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Siparişteki ürünleri sepete ekle"
+            >
+              <Ionicons
+                name="repeat-outline"
+                size={18}
+                color={renkler.anaRenk}
+              />
+              <Text style={styles.tekrarButonYazi}>
+                {tekrarIslemde ? 'Sepete ekleniyor...' : 'Siparişi tekrarla'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -780,6 +876,36 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
+  },
+
+  /* ⭐ YENİ — "Siparişi tekrarla" butonu.
+
+     ⚠️ DOLU TURUNCU DEĞİL, ÇERÇEVELİ. Dolu buton "bu ekranın asıl
+     eylemi" der; burada asıl eylem sipariş takibi. Kargo takip
+     butonu dolu çünkü o kendi kutusunun tek eylemi — bu kutuda
+     ise altında iptal, iade ve destek satırları var.
+
+     Üstteki ince ayraç butonu ürün listesinden ayırıyor. */
+  tekrarButon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: bosluk.kucuk,
+    marginTop: bosluk.orta,
+    paddingTop: bosluk.orta,
+    borderTopWidth: 1,
+    borderTopColor: renkler.kenarlik,
+  },
+
+  tekrarButonPasif: {
+    opacity: 0.5,
+  },
+
+  tekrarButonYazi: {
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenk,
   },
 
 

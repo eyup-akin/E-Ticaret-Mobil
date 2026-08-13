@@ -39,7 +39,7 @@ import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
 
 const GENISLIK = 140;
 
-function UrunKartiKompaktIc({ urun, onPress }) {
+function UrunKartiKompaktIc({ urun, onPress, favoriSayisiniGoster = false }) {
   const { favoriMi, favoriDegistir } = useFavorite();
   const { token } = useAuth();
   const { renkler } = useTema();
@@ -49,6 +49,14 @@ function UrunKartiKompaktIc({ urun, onPress }) {
   const favori = favoriMi(urun.id);
   const resim = resimUrl(urun.mainImageUrl);
   const tukendi = urun.stokDurumu === 'yok';
+
+  // ⭐ YENİ — "kaç kişi favoriledi".
+  //
+  // ⚠️ 0 İSE SATIR HİÇ ÇİZİLMİYOR. "0 kişi favoriledi" bir bilgi
+  // değil, ürün aleyhine bir iddia — hem de "en çok favorilenen"
+  // şeridinde çelişkili bir cümle. Puan satırındaki kararla aynı:
+  // olmayan sayıyı uydurmuyoruz.
+  const favoriSayisi = favoriSayisiniGoster ? (urun.favoriteCount ?? 0) : 0;
 
   // ⭐ YENİ (B1) — indirim durumu (kural utils/indirim.js'te).
   const { indirimliMi, eskiFiyat } = indirimBilgisi(urun);
@@ -90,6 +98,22 @@ function UrunKartiKompaktIc({ urun, onPress }) {
       </View>
 
       <Text style={styles.urunAd} numberOfLines={2}>{urun.name}</Text>
+
+      {/* ⭐ YENİ — KAÇ KİŞİ FAVORİLEDİ
+
+          ⚠️ FİYATIN ÜSTÜNDE, ADIN ALTINDA. Şeridin sırası "ne bu →
+          kaç kişi beğendi → kaç para": fiyat en son okunan ve en
+          ağır bilgi olarak kalıyor.
+
+          ⚠️ Kalp DOLU ve favoriRenk'te — sağ üstteki favori butonuyla
+          aynı dil. Ama bu bir buton DEĞİL, bu yüzden dokunulabilir
+          bir alana konmadı; basılabilir kalp zaten görselin üstünde. */}
+      {favoriSayisi > 0 && (
+        <View style={styles.favoriSatir}>
+          <Ionicons name="heart" size={11} color={renkler.favoriRenk} />
+          <Text style={styles.favoriYazi}>{favoriSayisi} kişi favoriledi</Text>
+        </View>
+      )}
 
       {/* ⭐ YENİ (B1) — indirimli üründe eski fiyat da görünüyor.
 
@@ -204,6 +228,23 @@ const stilOlustur = (renkler) => StyleSheet.create({
     // fiyatı aynı hizada kalsın.
     minHeight: satir.kucuk * 2,
     marginBottom: bosluk.mikro,
+  },
+
+  /* ⭐ YENİ — favori sayısı satırı.
+     Kart 140dp; ikon + metin tek satıra sığsın diye punto mikro ve
+     metin kırpılmaya bırakılıyor (numberOfLines JSX'te değil, sayı
+     kısa olduğu için gerekmiyor). */
+  favoriSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.mikro,
+    marginBottom: bosluk.mikro,
+  },
+
+  favoriYazi: {
+    fontSize: yazi.mikro,
+    lineHeight: satir.kucuk,
+    color: renkler.yaziGri,
   },
 
   fiyat: {
