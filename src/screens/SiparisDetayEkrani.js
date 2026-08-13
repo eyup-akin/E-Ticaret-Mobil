@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 // ⭐ DEĞİŞTİ (GV/Faz 7.4) — dosyadaki elle yazılı ölçüler token'a bağlandı.
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiGet, apiPost } from '../services/api';
+import { apiGet } from '../services/api';
 import { useTema } from '../context/TemaContext';
-import { useSepet } from '../context/SepetContext';   // ⭐ YENİ
+import { useSiparisTekrarla } from '../hooks/useSiparisTekrarla';   // ⭐ YENİ
 import { odemeYazisi, odemeRengi } from '../utils/durum';
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';
 import KargoDurumu from '../components/KargoDurumu';
@@ -18,16 +18,12 @@ export default function SiparisDetayEkrani({ route, navigation }) {
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
-  // ⭐ YENİ — "siparişi tekrarla" sepeti değiştiriyor; rozetin ve
-  // sepet ekranının güncel kalması için listeyi tazelemek gerekiyor.
-  const { sepetiYukle } = useSepet();
+  // ⭐ DEĞİŞTİ — tekrarlama akışının tamamı ortak hook'ta.
+  // Sepet tazeleme, onay penceresi ve sonuç mesajı orada.
+  const { sor: tekrarlaSor, islemde: tekrarIslemde } = useSiparisTekrarla();
 
   const [siparis, setSiparis] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
-
-  // ⭐ YENİ — tekrarlama isteği sürüyor mu?
-  // Butonu kilitliyor: iki hızlı dokunuş adetleri iki katına çıkarırdı.
-  const [tekrarIslemde, setTekrarIslemde] = useState(false);
 
   // ⭐ YENİ — takip numarası panoya kopyalandı mı?
   //
@@ -100,60 +96,11 @@ export default function SiparisDetayEkrani({ route, navigation }) {
     }
   }
 
-  // ⭐ YENİ — SİPARİŞİ TEKRARLA
+  // ⭐ DEĞİŞTİ — akış src/hooks/useSiparisTekrarla.js'e taşındı.
   //
-  // ⚠️ SEPETE NE EKLENECEĞİNE SUNUCU KARAR VERİYOR. Kalemleri burada
-  // tek tek /cart'a yollamak da mümkündü ama o zaman "hangi ürün artık
-  // satışta değil" kuralı mobile taşınır ve satırlar arasında kısmi
-  // başarı yönetmek gerekirdi. Tek istek, tek cevap, tek mesaj.
-  //
-  // ⚠️ ÖNCE ONAY SORULUYOR: sepette hâlihazırda ürün olabilir ve bu
-  // işlem onların üstüne ekliyor. Habersiz büyüyen bir sepet,
-  // müşterinin ödeme adımında fark edeceği bir sürprizdir.
-  function tekrarlaSor() {
-    Alert.alert(
-      'Siparişi tekrarla',
-      'Bu siparişteki ürünler sepetine eklenecek. Sepetindekiler silinmez, ' +
-      'üstüne eklenir.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Sepete ekle', onPress: tekrarla },
-      ]
-    );
-  }
-
-  async function tekrarla() {
-    try {
-      setTekrarIslemde(true);
-
-      const cevap = await apiPost('/orders/' + siparisId + '/tekrarla', {});
-
-      // ⚠️ Rozet ve sepet ekranı sunucudan tazeleniyor; adetleri
-      // burada hesaplayıp state'e yazsaydık 99 kırpması ve mevcut
-      // sepetle birleşme mobilde ikinci kez yazılmış olurdu.
-      await sepetiYukle();
-
-      // Mesajı sunucu kuruyor (hepsi eklendi / bir kısmı eklendi /
-      // hiçbiri eklenemedi). Hiçbiri eklenemediyse sepete gitmek
-      // anlamsız — müşteriyi değişmemiş bir ekrana göndermiyoruz.
-      if (cevap.eklenen === 0) {
-        Alert.alert('Sepete eklenemedi', cevap.mesaj);
-        return;
-      }
-
-      Alert.alert('Sepete eklendi', cevap.mesaj, [
-        { text: 'Kapat', style: 'cancel' },
-        {
-          text: 'Sepete git',
-          onPress: () => navigation.navigate('Sepet', { screen: 'SepetMain' }),
-        },
-      ]);
-    } catch (hata) {
-      Alert.alert('Hata', hata.message);
-    } finally {
-      setTekrarIslemde(false);
-    }
-  }
+  // "Hızlı Siparişlerim" ekranı ikinci tüketici oldu; onay metni,
+  // sepet tazeleme ve "hiçbiri eklenemedi" dalı iki yerde ayrı
+  // yazılsaydı sessizce ayrışırlardı. Gerekçenin tamamı hook'ta.
 
   if (yukleniyor) {
     return (
@@ -430,7 +377,7 @@ export default function SiparisDetayEkrani({ route, navigation }) {
                 ekranı bunu zaten söylüyor. */}
             <TouchableOpacity
               style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
-              onPress={tekrarlaSor}
+              onPress={() => tekrarlaSor(siparisId)}
               disabled={tekrarIslemde}
               activeOpacity={0.7}
               accessibilityRole="button"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
+import { View, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet } from '../services/api';
@@ -18,6 +18,8 @@ import KategoriSeridi from '../components/KategoriSeridi';
 import BolumBasligi from '../components/BolumBasligi';
 import YatayListe from '../components/YatayListe';   // ⭐ YENİ (7.5)
 import BosDurum from '../components/BosDurum';
+import YuzenKisayol from '../components/YuzenKisayol';        // ⭐ YENİ
+import { useKaydirmaGizleme } from '../hooks/useKaydirmaGizleme';   // ⭐ YENİ
 import SanaOzelSerit from '../components/SanaOzelSerit';   // ⭐ YENİ (B12)
 import { UrunIzgarasiIskeleti } from '../components/Iskelet';
 
@@ -136,6 +138,32 @@ export default function AnaSayfaEkrani({ navigation }) {
 
   // Kaydırmanın o anki konumu. Fark hesabı buna eklenecek.
   const kaydirmaY = useRef(0);
+
+  // ---- YÜZEN KISAYOL: NE ZAMAN KAYBOLACAK? ----
+  //
+  // Kural: "Tüm Ürünler" başlığı ekranın ORTASINA gelene kadar buton
+  // her zaman görünür; ondan sonrası kaydırma yönüne bakıyor.
+  //
+  // ⚠️ ÖLÇÜ BURADA SAKLANIYOR — ve bu, dosyanın yukarısındaki
+  // "ölçüyü saklama" dersiyle ÇELİŞMİYOR. Fark şu: oradaki ölçü bir
+  // KAYDIRMA HEDEFİ; birkaç piksel şaşarsa müşteri yanlış yere
+  // götürülür. Buradaki ölçü bir EŞİK; şaşarsa buton birkaç piksel
+  // erken ya da geç kaybolur — kimsenin fark etmediği bir sapma.
+  //
+  // ⚠️ ÖLÇÜLEMEZSE DE ÇALIŞIYOR. Eşik 0 kalırsa kural kendiliğinden
+  // "yalnızca yön" davranışına düşüyor: buton yine kaybolup geliyor,
+  // sadece sayfanın en üstünde de yön dinliyor. Yani yanlış ölçüm
+  // özelliği bozmuyor, sadece biraz farklı davranıyor.
+  const { height: ekranYuksekligi } = useWindowDimensions();
+  const [urunBolumuY, setUrunBolumuY] = useState(0);
+
+  const gizlenmeEsigi = urunBolumuY > 0
+    ? Math.max(0, urunBolumuY - ekranYuksekligi / 2)
+    : 0;
+
+  const { gorunur: kisayolGorunur, kaydirildi } = useKaydirmaGizleme({
+    esik: gizlenmeEsigi,
+  });
 
   // İlk açılışta kaydırma YOK — filtre boşken efekt yine de bir kez
   // çalışıyor ve o an kaydırmak, uygulamayı vitrini atlayarak açmak
@@ -445,7 +473,21 @@ export default function AnaSayfaEkrani({ navigation }) {
       {/* ⚠️ collapsable={false} — Android'de yalnızca yerleşim için
           duran View'lar yerel ağaçtan SİLİNİYOR; silinen View
           ölçülemez ve `measureInWindow` sessizce hiç dönmez. */}
-      <View style={styles.bolum} ref={urunBolumuRef} collapsable={false}>
+      {/* ⭐ YENİ — onLayout: yüzen kısayolun gizlenme eşiği için.
+          `y` başlık kabına göre ölçülüyor ve başlık içeriğin en
+          tepesinde durduğu için doğrudan "kaç piksel kaydırınca bu
+          bölüm ekranın tepesine gelir" demek.
+
+          ⚠️ Her tetiklenmede yeniden yazılıyor: üstteki banner
+          yüksekliği sonradan oturursa bölüm aşağı kayıyor ve eski
+          ölçü bayatlıyor. Yeni değer aynıysa React zaten render
+          etmiyor. */}
+      <View
+        style={styles.bolum}
+        ref={urunBolumuRef}
+        collapsable={false}
+        onLayout={(olay) => setUrunBolumuY(olay.nativeEvent.layout.y)}
+      >
         <BolumBasligi baslik="Tüm Ürünler" />
         <SiralamaSeridi secili={siralama} onSec={setSiralama} />
       </View>
@@ -481,7 +523,16 @@ export default function AnaSayfaEkrani({ navigation }) {
         /* ⚠️ Tek işi kaydırma konumunu bir ref'e yazmak — state'e
            yazsaydık her karede yeniden render olurdu ve ekranda
            konuma bağlı değişen hiçbir şey yok. */
-        onScroll={(olay) => { kaydirmaY.current = olay.nativeEvent.contentOffset.y; }}
+        /* ⭐ DEĞİŞTİ — aynı olay artık yüzen kısayolu da besliyor.
+           `kaydirildi` her karede iki sayı karşılaştırıyor ve
+           setState'i YALNIZCA görünürlük değiştiğinde çağırıyor;
+           tipik bir kaydırmada iki-üç kez. Asıl animasyon
+           useNativeDriver ile UI iş parçacığında dönüyor. */
+        onScroll={(olay) => {
+          const y = olay.nativeEvent.contentOffset.y;
+          kaydirmaY.current = y;
+          kaydirildi(y);
+        }}
         scrollEventThrottle={16}
         /* ⭐ DEĞİŞTİ (GV/Faz 9) — ÜÇ AYRI DURUM, ÜÇ AYRI CEVAP.
 
@@ -528,6 +579,18 @@ export default function AnaSayfaEkrani({ navigation }) {
         }
       />
       </View>
+
+      {/* ⭐ YENİ — HIZLI SİPARİŞLER KISAYOLU
+
+          ⚠️ Filtre panelinden ÖNCE çiziliyor: panel açıldığında
+          kısayolun onun üstünde kalmaması için. Panel tam ekran bir
+          katman ve sonra gelen kardeş, öncekinin üstünü kaplıyor. */}
+      <YuzenKisayol
+        gorunur={kisayolGorunur}
+        ikon="bookmark"
+        yazi="Hızlı Siparişlerim"
+        onPress={() => navigation.navigate('HizliSiparislerim')}
+      />
 
       <FiltrePaneli
         acik={panelAcik}
