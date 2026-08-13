@@ -1,3 +1,22 @@
+// ============================================
+// ⚠️ BU DOSYANIN BİR İKİZİ VAR:
+//        eticaret-admin/src/services/api.js
+//
+// Token yönetimi mantığı (tek refresh kilidi, 401 akışı, /auth/
+// muafiyeti, 403'te oturumu düşürmeme) ikisinde de AYNI ve öyle
+// kalmalı. Refresh mantığında bir değişiklik yapıyorsan İKİSİNE DE
+// uygula — biri güncellenip diğeri unutulursa iki istemci farklı
+// oturum davranışı gösterir ve fark ancak "mobilde çıkış atıyor ama
+// panelde atmıyor" gibi bir şikâyetle anlaşılır.
+//
+// Neden ortak bir pakete çıkarılmadı? İki AYRI git deposu ve
+// paylaşılan bir npm paketi yok. Paket açmanın bedeli (sürümleme,
+// iki depoda yayın) bu ölçekte kazancından büyük. Kopya BİLİNÇLİ;
+// bu not da onu bilinçli tutmak için.
+//
+// Farklar (kasıtlı): burada SecureStore asenkron, adminde localStorage
+// senkron; adminde ayrıca FormData yükleme ve dosya indirme var.
+// ============================================
 import { API_URL } from './config';
 import {
   tokenAl, tokenKaydet, tokenSil,

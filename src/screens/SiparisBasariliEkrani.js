@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
+import { apiPost, apiDelete } from '../services/api';
 // ⭐ YENİ — ortak para biçimlendirici.
 //
 // ⭐ DEĞİŞTİ — bu ekran tutarları "toFixed(2) + ' ₺'" ile yazıyordu
@@ -37,6 +38,54 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
 
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
+
+  // ⭐ YENİ — HIZLI SİPARİŞE KAYDETME
+  //
+  // ⚠️ Bu ekranda sipariş AZ ÖNCE oluştu, yani başlangıçta kayıtlı
+  // olamaz. "Kayıtlı mı?" diye sunucuya sormuyoruz — cevabı zaten
+  // biliyoruz. Sormak, her başarı ekranında gereksiz bir istek olurdu.
+  const [kayitli, setKayitli] = useState(false);
+  const [islemde, setIslemde] = useState(false);
+  const [hata, setHata] = useState('');
+
+  async function hizliSiparisDegistir() {
+    // ⚠️ Çift dokunma kalkanı. Buton disabled olsa da hızlı iki
+    // dokunuş arasında state güncellemesi yetişmeyebiliyor; bayrağı
+    // burada da kontrol etmek isteğin iki kez gitmesini engelliyor.
+    if (islemde) {
+      return;
+    }
+
+    setIslemde(true);
+    setHata('');
+
+    // ⚠️ İYİMSER GÜNCELLEME YAPMIYORUZ.
+    //
+    // Butonu hemen "Kaydedildi" yapıp arkadan istek atmak daha akıcı
+    // görünürdü ama istek başarısız olunca geri almak gerekirdi ve
+    // müşteri kaydettiğini sanıp listede bulamazdı. Kaydetme
+    // müşterinin bilerek yaptığı bir eylem; "oldu" demeden önce
+    // gerçekten olduğundan emin oluyoruz.
+    try {
+      if (kayitli) {
+        await apiDelete('/hizli-siparisler/' + siparisId);
+        setKayitli(false);
+      } else {
+        await apiPost('/hizli-siparisler/' + siparisId);
+        setKayitli(true);
+      }
+    } catch (e) {
+      // ⚠️ Hata SESSİZCE YUTULMUYOR ama ekranı da kaplamıyor.
+      //
+      // Sipariş başarıyla oluştu; bu ekranın asıl mesajı o. Kaydetme
+      // yan bir kolaylık — başarısız olduğunda kırmızı bir uyarı
+      // kutusuyla "siparişin alındı!" haberini gölgelemek yanlış
+      // olurdu. Butonun altında tek satır.
+      setHata(e.message || 'Kaydedilemedi, tekrar dener misin?');
+    } finally {
+      setIslemde(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
@@ -116,6 +165,61 @@ export default function SiparisBasariliEkrani({ route, navigation }) {
             <Text style={styles.deger}>Hazırlanıyor</Text>
           </View>
         </View>
+
+        {/* ⭐ YENİ — HIZLI SİPARİŞLERE KAYDET
+
+            ⚠️ NEDEN ALT BARDA DEĞİL, KARTIN ALTINDA?
+            Alt barda iki birincil eylem var: "Siparişlerime Git" ve
+            "Alışverişe Devam Et" — ikisi de bu ekrandan ÇIKIŞ yolu.
+            Üçüncü bir buton eklemek hem çubuğu kalabalıklaştırırdı hem
+            de bu eylemi çıkış yollarıyla aynı seviyeye koyardı. Oysa
+            kaydetme bu ekranda KALARAK yapılan, isteğe bağlı bir işlem
+            ve doğrudan üstündeki sipariş kartıyla ilgili — yeri onun
+            hemen altı.
+
+            ⚠️ Turuncu (anaRenk) ZEMİN KULLANILMIYOR. Bu ekranda tek
+            turuncu dolu buton "Siparişlerime Git" olmalı; ikinci bir
+            dolu turuncu, hangisinin asıl eylem olduğunu belirsizleştirirdi.
+            Burada yumuşak turuncu zemin + turuncu yazı: "tıklanabilir
+            ama birincil değil". */}
+        <TouchableOpacity
+          style={[styles.kaydetButon, kayitli && styles.kaydetButonAktif]}
+          onPress={hizliSiparisDegistir}
+          disabled={islemde}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: islemde, selected: kayitli }}
+          accessibilityLabel={
+            kayitli
+              ? 'Hızlı siparişlerinde kayıtlı, çıkarmak için dokun'
+              : 'Bu siparişi hızlı siparişlerine kaydet'
+          }
+        >
+          {islemde ? (
+            /* ⚠️ Yükleniyor göstergesi ikonun YERİNE geçiyor, yanına
+               değil: yanına koysaydık buton genişler ve içerik zıplardı. */
+            <ActivityIndicator size="small" color={renkler.anaRenk} />
+          ) : (
+            <Ionicons
+              /* Dolu / boş yıldız değil KİTAP AYRACI: yıldız bu
+                 uygulamada ürün puanı demek (Yildizlar bileşeni) ve
+                 aynı simgeyi ikinci bir anlamla kullanmak karıştırırdı. */
+              name={kayitli ? 'bookmark' : 'bookmark-outline'}
+              size={18}
+              color={renkler.anaRenk}
+            />
+          )}
+
+          <Text style={styles.kaydetYazi}>
+            {kayitli ? 'Hızlı siparişlerine eklendi' : 'Hızlı siparişlerime kaydet'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* ⚠️ Hata butonun ALTINDA, tek satır. Sipariş başarıyla
+            oluştu ve bu ekranın asıl haberi o; kaydetme hatası için
+            kırmızı bir kutu açmak iyi haberi gölgelerdi. */}
+        {hata !== '' && (
+          <Text style={styles.kaydetHata}>{hata}</Text>
+        )}
 
         {/* ⭐ Tasarruf rozeti — küçük ama etkili bir dokunuş.
             Müşteriye "iyi iş çıkardın" hissi verir ve bir dahaki
@@ -236,6 +340,54 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.yari,
     color: renkler.basari,
   },
+  /* ⭐ YENİ — HIZLI SİPARİŞE KAYDET BUTONU
+
+     Yumuşak turuncu zemin + turuncu yazı: tıklanabilir ama birincil
+     değil. Kenarlık yok — dolu zemin zaten sınırını çiziyor ve
+     kenarlık eklemek onu alt bardaki "Alışverişe Devam Et"
+     (çerçeveli, zeminsiz) butonuyla karıştırırdı.
+
+     ⚠️ minHeight: yükleniyor göstergesi ikonun yerine geçtiğinde
+     buton yüksekliği değişmesin diye. Sabitlemeseydik dokunma anında
+     altındaki içerik bir piksel zıplardı. */
+  kaydetButon: {
+    width: '100%',
+    minHeight: 48,
+    marginTop: bosluk.orta,
+    paddingVertical: bosluk.orta,
+    paddingHorizontal: bosluk.normal,
+    borderRadius: kose.orta,
+    backgroundColor: renkler.yumusakVurgu,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: bosluk.kucuk,
+  },
+
+  /* ⚠️ Kayıtlı hâlde YALNIZCA zemin bir tık koyulaşıyor; yazı ve ikon
+     rengi değişmiyor. Durumu asıl anlatan şey dolu ayraç ikonu ve
+     metnin kendisi ("eklendi") — rengi de değiştirseydik buton
+     "başka bir buton" gibi görünürdü. */
+  kaydetButonAktif: {
+    backgroundColor: renkler.acikKart,
+  },
+
+  kaydetYazi: {
+    color: renkler.anaRenk,
+    fontSize: yazi.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+  },
+
+  kaydetHata: {
+    width: '100%',
+    marginTop: bosluk.kucuk,
+    color: renkler.hata,
+    fontSize: yazi.kucuk,
+    textAlign: 'center',
+  },
+
   tasarrufRozet: {
     width: '100%',
     backgroundColor: renkler.yumusakBasari,
