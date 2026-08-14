@@ -131,21 +131,23 @@ export default function KartEkleEkrani({ navigation }) {
         style={styles.govde}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* ⭐ DEĞİŞTİ — GÖRSEL KAYDIRMA ALANININ DIŞINDA, SABİT.
+            Gerekçe AdresEkleEkrani'nda: oranla çizilince ekranın
+            dörtte birini kaplıyor ve forma inerken kayıp gidiyordu.
+            İki ekran aynı yükseklikte olmalı, aynı akışın parçaları. */}
+        <View style={styles.gorselKap}>
+          <Image
+            source={require('../../assets/gorseller/kart-ekle.png')}
+            style={styles.gorsel}
+            resizeMode="cover"
+          />
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.icerik}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ⚠️ Görsel pakete gömülü (require): sabit bir tanıtım
-              afişi, kampanya değil. Ağ olmadan da görünmeli. */}
-          <View style={styles.gorselKap}>
-            <Image
-              source={require('../../assets/gorseller/kart-ekle.png')}
-              style={styles.gorsel}
-              resizeMode="cover"
-            />
-          </View>
-
           <View style={styles.kart}>
             {/* ⚠️ `numaraFormatla` dörderli gruplama yapıyor
                 ("1234 5678 ..."). Ham hâlde 16 hane tek blok olarak
@@ -300,14 +302,19 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* ⚠️ `overflow: 'hidden'` şart: borderRadius tek başına Android'de
      içerideki Image'ı kırpmıyor. */
   gorselKap: {
+    marginHorizontal: sayfaKenari,
+    marginBottom: bosluk.kucuk,
     borderRadius: kose.dev,
     overflow: 'hidden',
     backgroundColor: renkler.acikKart,
   },
 
+  /* ⚠️ AdresEkleEkrani ile AYNI yükseklik (132). İki ekran arka
+     arkaya geziliyor (adres seç → kart seç) ve afişlerin farklı
+     boyda olması geçişte zıplama gibi görünürdü. */
   gorsel: {
     width: '100%',
-    aspectRatio: 2,
+    height: 132,
   },
 
   kart: {
