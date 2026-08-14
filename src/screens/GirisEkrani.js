@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -55,6 +55,16 @@ export default function GirisEkrani({ navigation }) {
   const [email, setEmail] = useState('');
   const [sifre, setSifre] = useState('');
   const [gizli, setGizli] = useState(true);
+
+  /* ⭐ YENİ — bant kaydırmanın içine alındığı için ölçüm ref'leri.
+   *
+   * ⚠️ Bu ekranda şifre kriter listesi YOK (o yalnızca kayıtta var),
+   * yani "kriterleri klavyenin üstüne çıkar" derdi burada geçerli
+   * değil. Yine de `yaprakY` tutuluyor: iki ekran arasında `replace`
+   * ile gidilip geliniyor ve yapıları birebir aynı kalmalı — biri
+   * kaydırılabilir diğeri değilse geçiş sıçrar. */
+  const kaydirmaRef = useRef(null);
+  const yaprakY = useRef(0);
   const [yukleniyor, setYukleniyor] = useState(false);
 
   // Alan hatası ile genel hata AYRI: biri kutunun altına, diğeri
@@ -141,26 +151,25 @@ export default function GirisEkrani({ navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ⭐⭐ DEĞİŞTİ — BANT ARTIK KAYDIRMANIN İÇİNDE.
+       *
+       * ⚠️ Kayıt ekranıyla AYNI değişiklik ve aynı gerekçe: bant
+       * ScrollView'in dışındayken ekranın yarısını kalıcı kaplıyor,
+       * klavye açılınca forma çok az yer kalıyordu. İki ekran
+       * arasında `replace` ile gidilip geliniyor; birinde kayıp
+       * diğerinde sabit bir bant, geçişi sıçrama gibi gösterirdi. */}
+      <KeyboardAvoidingView
+        style={styles.govde}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={kaydirmaRef}
+          contentContainerStyle={styles.kaydirmaIcerik}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
       {/* ---- LACİVERT BANT ---- */}
       <View style={styles.bant}>
-        {/* ⚠️ KAPATMA X'İ DURUYOR (tasarımda yok).
-            Bu ekran bir modal ve klavye açıkken alttaki "Misafir
-            olarak devam et" butonu görünmeyebiliyor. Çıkış yolu her
-            zaman görünür olmalı; ikisi aynı yere gidiyor ama biri
-            "vazgeç", diğeri bilinçli bir tercih.
-
-            ⚠️ MUTLAK KONUMDA: akışta olsaydı markayı aşağı iter ve
-            bandın dikey dengesini X'in boyu belirlerdi. */}
-        <TouchableOpacity
-          onPress={kapat}
-          style={styles.kapatButon}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Kapat"
-        >
-          <Ionicons name="close" size={24} color={renkler.lacivertYuzeyUstuYazi} />
-        </TouchableOpacity>
-
         {/* ⭐ YENİ (2026-08-12) — LOGO.
 
             ⚠️ BEYAZ KARENİN İÇİNDE, doğrudan bandın üstünde değil.
@@ -195,15 +204,10 @@ export default function GirisEkrani({ navigation }) {
       </View>
 
       {/* ---- BEYAZ YAPRAK ---- */}
-      <KeyboardAvoidingView
-        style={styles.yaprakKap}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <View
+        style={styles.yaprak}
+        onLayout={(olay) => { yaprakY.current = olay.nativeEvent.layout.y; }}
       >
-        <ScrollView
-          contentContainerStyle={styles.yaprak}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
           <FormAlani
             etiket="E-posta"
             ikon="mail-outline"
@@ -296,8 +300,27 @@ export default function GirisEkrani({ navigation }) {
               Hesabın yok mu? <Text style={styles.altVurgu}>Kayıt ol</Text>
             </Text>
           </TouchableOpacity>
+      </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ⭐ DEĞİŞTİ — KAPATMA X'İ KAYDIRMANIN DIŞINDA.
+          ⚠️ Bu ekranın kendi kuralı: "çıkış yolu her zaman görünür
+          olmalı" — bu ekran bir modal ve klavye açıkken alttaki
+          "Misafir olarak devam et" butonu görünmeyebiliyor. Bant
+          artık kayıyor; X onunla birlikte kaysaydı klavye açıkken
+          ekranda hiçbir çıkış kalmazdı.
+          ⚠️ Beyaz daire + gölge: altında bazen lacivert bant bazen
+          beyaz yaprak oluyor, tek renk ikon birinde kaybolurdu. */}
+      <TouchableOpacity
+        onPress={kapat}
+        style={styles.kapatButon}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Kapat"
+      >
+        <Ionicons name="close" size={22} color={renkler.yaziKoyu} />
+      </TouchableOpacity>
 
       {/* ⚠️ Bu pencere bir SORU sorduğu için pencere: kullanıcının
           seçmesi gereken bir eylem var (linki tekrar iste). Sonuç
@@ -354,14 +377,22 @@ const stilOlustur = (renkler) => StyleSheet.create({
     height: '100%',
   },
 
+  /* ⭐ DEĞİŞTİ — beyaz daire + gölge (Kayıt ekranıyla aynı).
+     ⚠️ Eskiden bandın içinde çıplak beyaz bir ikondu ve bandın
+     laciverdine güveniyordu. Bant artık kayıyor; X'in altında bazen
+     lacivert bazen beyaz yaprak oluyor, tek renk ikon birinde
+     kaybolurdu. */
   kapatButon: {
     position: 'absolute',
     top: bosluk.kucuk,
-    right: bosluk.orta,
-    width: 44,
-    height: 44,
+    right: bosluk.genis,
+    width: 36,
+    height: 36,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.kartArka,
     justifyContent: 'center',
     alignItems: 'center',
+    ...renkler.golgeSm,
   },
 
   /* Kayıt ekranındaki "Hesap Oluştur" ile aynı punto ve renk. */
@@ -385,14 +416,21 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginTop: bosluk.orta,
   },
 
-  yaprakKap: {
-    flex: 1,
-    // Yaprak bandın son 24dp'sini örtüyor.
-    marginTop: -bosluk.genis,
+  govde: { flex: 1 },
+
+  /* ⭐ DEĞİŞTİ — `yaprakKap` KALDIRILDI (bant kaydırmaya girdi).
+     ⚠️ `flexGrow: 1`: içerik ekrandan kısaysa yaprak yine de dibe
+     kadar uzasın, altında lacivert şerit kalmasın. */
+  kaydirmaIcerik: {
+    flexGrow: 1,
   },
 
   yaprak: {
     flexGrow: 1,
+
+    // ⚠️ Bandın son 24dp'sini örtüyor — eskiden `yaprakKap`'taydı.
+    marginTop: -bosluk.genis,
+
     backgroundColor: renkler.kartArka,
     borderTopLeftRadius: kose.dev,
     borderTopRightRadius: kose.dev,

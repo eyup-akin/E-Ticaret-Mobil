@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -57,6 +57,47 @@ export default function KayitEkrani({ navigation }) {
   const [sifre, setSifre] = useState('');
   const [sifreTekrar, setSifreTekrar] = useState('');
   const [gizli, setGizli] = useState(true);
+
+  /* ⭐ YENİ — ŞİFRE ALANINA BASINCA KRİTERLER KLAVYENİN ÜSTÜNE ÇIKSIN.
+   *
+   * ⚠️ SORUN: şifre kutusuna dokunulunca klavye açılıyor ve hemen
+   * altındaki "güçlü şifre" kriter listesini tamamen örtüyordu.
+   * Kullanıcı hangi kuralı sağlamadığını göremeden yazmaya
+   * çalışıyordu — listenin var olma sebebi tam olarak o an.
+   *
+   * ⚠️ ÇÖZÜM `KeyboardAvoidingView` DEĞİL: o, formu yukarı itiyor
+   * ama neyin görüneceğine karar vermiyor; şifre alanı ekranın
+   * dibinde kaldığı sürece altındaki liste yine kapalı kalıyordu.
+   * Odaklanınca şifre bloğunu ekranın ÜSTÜNE kaydırıyoruz — altındaki
+   * her şey (kriterler) böylece klavyenin üstünde kalıyor.
+   *
+   * ⚠️ Konum `useRef`'te, state'te DEĞİL: yalnızca kaydırma anında
+   * okunuyor ve state'e yazsaydık her ölçümde gereksiz bir render
+   * tetiklenirdi. */
+  const kaydirmaRef = useRef(null);
+
+  /* ⚠️⚠️ İKİ AYRI ÖLÇÜM, TOPLANARAK KULLANILIYOR.
+   *
+   * `onLayout` konumu HER ZAMAN doğrudan üst öğeye göre veriyor.
+   * Şifre bloğunun y'si yaprağın içindeki konumu; kaydırma ise
+   * içeriğin en üstünden ölçülüyor. Yalnızca blok y'sini kullansaydık
+   * bandın yüksekliği kadar EKSİK kaydırırdık ve şifre alanı yine
+   * ekranın ortasında kalırdı — hatanın sessiz olanı: bir şey oluyor
+   * ama yetmiyor. */
+  const yaprakY = useRef(0);
+  const sifreBlokY = useRef(0);
+
+  function sifreyeKaydir() {
+    /* ⚠️ GECİKME ŞART. Klavye animasyonla açılıyor ve Android'de
+       yerleşim onunla birlikte küçülüyor; hemen kaydırsaydık hedef
+       konum kaydırma sınırının dışında kalır, `scrollTo` onu kırpar
+       ve ekran yanlış yerde dururdu. */
+    setTimeout(() => {
+      const hedef = yaprakY.current + sifreBlokY.current - bosluk.kucuk;
+
+      kaydirmaRef.current?.scrollTo({ y: Math.max(0, hedef), animated: true });
+    }, 250);
+  }
 
   // ⚠️ Varsayılan false — onay kutusu önceden işaretli gelmez.
   const [sozlesmeOnayi, setSozlesmeOnayi] = useState(false);
@@ -130,22 +171,30 @@ export default function KayitEkrani({ navigation }) {
 
   return (
     <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ⭐⭐ DEĞİŞTİ — BANT ARTIK KAYDIRMANIN İÇİNDE.
+       *
+       * ⚠️ Eskiden ScrollView'in DIŞINDAYDI ve ekranın yarısını
+       * kalıcı olarak kaplıyordu: klavye açılınca forma 200dp'lik bir
+       * şerit kalıyor, şifre alanı ekranın dibine sıkışıyordu.
+       * Şimdi form aşağı kaydırılınca bant yukarı kayıp gidiyor ve
+       * ekranın tamamı forma kalıyor.
+       *
+       * ⚠️ Kapatma X'i BANTLA BİRLİKTE KAYMIYOR (aşağıda, kaydırmanın
+       * dışında). Bu ekranın kendi kuralı: "çıkış yolu her zaman
+       * görünür olmalı" — bant kayınca X de kaysaydı, klavye açıkken
+       * ekranda hiçbir çıkış kalmazdı. */}
+      <KeyboardAvoidingView
+        style={styles.govde}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={kaydirmaRef}
+          contentContainerStyle={styles.kaydirmaIcerik}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
       {/* ---- LACİVERT BANT ---- */}
       <View style={styles.bant}>
-        {/* ⚠️ Tasarımda GERİ OKU var, bizde KAPATMA X'İ.
-            Geri ok "bir önceki ekran Giriş'ti" varsayıyor; oysa bu
-            ekrana Hesabım'dan ve misafir kapısından da doğrudan
-            geliniyor. X her durumda aynı şeyi vaat ediyor. */}
-        <TouchableOpacity
-          onPress={kapat}
-          style={styles.kapatButon}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Kapat"
-        >
-          <Ionicons name="close" size={24} color={renkler.lacivertYuzeyUstuYazi} />
-        </TouchableOpacity>
-
         {/* ⭐ YENİ (2026-08-12) — logo, Giriş ekranıyla AYNI karo.
             İki ekran arasında `replace` ile gidilip geliniyor; logo
             birinde olup diğerinde olmasaydı geçiş sıçrama gibi
@@ -167,15 +216,10 @@ export default function KayitEkrani({ navigation }) {
       </View>
 
       {/* ---- BEYAZ YAPRAK ---- */}
-      <KeyboardAvoidingView
-        style={styles.yaprakKap}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <View
+        style={styles.yaprak}
+        onLayout={(olay) => { yaprakY.current = olay.nativeEvent.layout.y; }}
       >
-        <ScrollView
-          contentContainerStyle={styles.yaprak}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
           <FormAlani
             etiket="Ad Soyad"
             ikon="person-outline"
@@ -199,21 +243,29 @@ export default function KayitEkrani({ navigation }) {
             editable={!yukleniyor}
           />
 
-          <FormAlani
-            etiket="Şifre"
-            ikon="lock-closed-outline"
-            placeholder={`En az ${MIN_SIFRE} karakter`}
-            value={sifre}
-            onChangeText={(m) => alaniGuncelle('sifre', m, setSifre)}
-            hata={alanHatasi.sifre}
-            secureTextEntry={gizli}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!yukleniyor}
-            sagIkon={gizli ? 'eye-outline' : 'eye-off-outline'}
-            sagIkonEtiket={gizli ? 'Şifreyi göster' : 'Şifreyi gizle'}
-            onSagIkonBas={() => setGizli(!gizli)}
-          />
+          {/* ⚠️ Şifre alanı ve kriter listesi AYNI SARMALAYICIDA:
+              ölçtüğümüz konum ikisinin birlikte başladığı yer. Ayrı
+              ölçseydik listenin nerede bittiğini de hesaplamak
+              gerekirdi. */}
+          <View
+            onLayout={(olay) => { sifreBlokY.current = olay.nativeEvent.layout.y; }}
+          >
+            <FormAlani
+              etiket="Şifre"
+              ikon="lock-closed-outline"
+              placeholder={`En az ${MIN_SIFRE} karakter`}
+              value={sifre}
+              onChangeText={(m) => alaniGuncelle('sifre', m, setSifre)}
+              hata={alanHatasi.sifre}
+              secureTextEntry={gizli}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!yukleniyor}
+              onFocus={sifreyeKaydir}
+              sagIkon={gizli ? 'eye-outline' : 'eye-off-outline'}
+              sagIkonEtiket={gizli ? 'Şifreyi göster' : 'Şifreyi gizle'}
+              onSagIkonBas={() => setGizli(!gizli)}
+            />
 
           {/* ⚠️ Gösterge şifre alanının HEMEN ALTINDA, formun sonunda
               değil: kullanıcı yazarken görmeli. Bileşen 7.11'de
@@ -225,7 +277,8 @@ export default function KayitEkrani({ navigation }) {
               `marginBottom`'ı duruyordu ve iki şifre alanı arasında
               sebepsiz bir boşluk bırakıyordu. Boşluk artık
               bileşenin içinde. */}
-          <SifreGucu sifre={sifre} />
+            <SifreGucu sifre={sifre} />
+          </View>
 
           <FormAlani
             etiket="Şifre (Tekrar)"
@@ -280,8 +333,26 @@ export default function KayitEkrani({ navigation }) {
               Zaten hesabın var mı? <Text style={styles.altVurgu}>Giriş yap</Text>
             </Text>
           </TouchableOpacity>
+      </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ⭐ DEĞİŞTİ — KAPATMA X'İ KAYDIRMANIN DIŞINDA, HEP GÖRÜNÜR.
+          ⚠️ Tasarımda geri oku var, bizde X: geri ok "bir önceki
+          ekran Giriş'ti" varsayıyor, oysa bu ekrana Hesabım'dan ve
+          misafir kapısından da doğrudan geliniyor.
+          ⚠️ Beyaz daire içinde koyu ikon: bant kaydıkça altında
+          bazen lacivert bazen beyaz yaprak oluyor. Düz beyaz bir
+          ikon, yaprağın üstüne gelince görünmez olurdu. */}
+      <TouchableOpacity
+        onPress={kapat}
+        style={styles.kapatButon}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Kapat"
+      >
+        <Ionicons name="close" size={22} color={renkler.yaziKoyu} />
+      </TouchableOpacity>
 
       {/* ⚠️ Tek buton: geri alınacak bir şey yok, pencere yalnızca
           sonucu bildiriyor ve tek bir yere götürüyor. */}
@@ -333,12 +404,22 @@ const stilOlustur = (renkler) => StyleSheet.create({
     height: '100%',
   },
 
+  /* ⭐ DEĞİŞTİ — MUTLAK KONUM, akışta değil.
+     ⚠️ Eskiden bandın içindeydi ve `alignSelf: 'flex-end'` ile
+     sağa yaslanıyordu. Bant artık kayıyor; X ise kaymamalı.
+     ⚠️ Beyaz daire + gölge: altında bazen lacivert bant bazen beyaz
+     yaprak oluyor. Tek renk bir ikon, ikisinden birinde kaybolurdu. */
   kapatButon: {
-    alignSelf: 'flex-end',
-    width: 40,
-    height: 40,
+    position: 'absolute',
+    top: bosluk.kucuk,
+    right: bosluk.genis,
+    width: 36,
+    height: 36,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.kartArka,
     justifyContent: 'center',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    ...renkler.golgeSm,
   },
 
   /* ⚠️ Giriş'teki "Satık"tan bir punto küçük: orada marka adı var,
@@ -362,13 +443,23 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginTop: bosluk.mikro,
   },
 
-  yaprakKap: {
-    flex: 1,
-    marginTop: -bosluk.genis,
+  govde: { flex: 1 },
+
+  /* ⭐ DEĞİŞTİ — `yaprakKap` KALDIRILDI, yerine kaydırma kabı.
+     ⚠️ `flexGrow: 1` şart: içerik ekrandan kısaysa yaprak yine de
+     ekranın dibine kadar uzasın, altında lacivert bir şerit
+     kalmasın. */
+  kaydirmaIcerik: {
+    flexGrow: 1,
   },
 
   yaprak: {
     flexGrow: 1,
+
+    /* ⚠️ Bandın son 24dp'sini örtüyor — eskiden bu `yaprakKap`'ta
+       duruyordu; kap kalkınca yaprağın kendisine geçti. */
+    marginTop: -bosluk.genis,
+
     backgroundColor: renkler.kartArka,
     borderTopLeftRadius: kose.dev,
     borderTopRightRadius: kose.dev,
