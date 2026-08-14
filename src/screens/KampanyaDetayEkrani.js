@@ -191,26 +191,35 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.icerik} showsVerticalScrollIndicator={false}>
-        {/* ⚠️ Genişlik ekranın TAMAMI: afiş ne kadar geniş olursa
-            içindeki kupon o kadar okunur. Kenar boşluğu vermek onu
-            daraltmaktan başka bir işe yaramazdı. */}
-        <Image
-          source={kampanya.gorsel}
-          style={{ width: ekranGenisligi, height: ekranGenisligi / gorselOrani }}
-          resizeMode="cover"
-          onLoad={(olay) => {
-            // ⚠️ `source` uzak görsellerde de dolu geliyor; asıl
-            // ölçüler burada. Sıfıra bölmeye karşı korumalı.
-            const { width, height } = olay.nativeEvent.source ?? {};
-            if (width > 0 && height > 0) setGorselOrani(width / height);
-          }}
-        />
+        {/* ⭐ DEĞİŞTİ — AFİŞ ARTIK YUVARLAK KÖŞELİ VE KENARLI.
+            ⚠️ Ekranın tamamını kaplıyordu; köşeler keskindi ve afiş
+            sayfanın parçası değil, üstüne yapıştırılmış gibi
+            duruyordu. Kenar boşluğu `sayfaKenari` — altındaki
+            kartlarla aynı dikey çizgide.
+            ⚠️ Genişlik AZALDI ama okunurluk düşmedi: görsel artık
+            kırpılmıyor, tamamı görünüyor. */}
+        <View style={styles.gorselKap}>
+          <Image
+            source={kampanya.gorsel}
+            style={{ width: '100%', aspectRatio: gorselOrani }}
+            resizeMode="cover"
+            onLoad={(olay) => {
+              // ⚠️ `source` uzak görsellerde de dolu geliyor; asıl
+              // ölçüler burada. Sıfıra bölmeye karşı korumalı.
+              const { width, height } = olay.nativeEvent.source ?? {};
+              if (width > 0 && height > 0) setGorselOrani(width / height);
+            }}
+          />
+        </View>
 
         <View style={styles.yaprak}>
           <Text style={styles.baslik}>{kampanya.baslik}</Text>
 
           <View style={styles.sureSatiri}>
-            <Ionicons name="time-outline" size={15} color={renkler.yaziGri} />
+            {/* ⭐ DEĞİŞTİ — turuncu. Süre kampanyanın en kritik
+                bilgisi ("ne zamana kadar"); gri, onu açıklamanın
+                altına gömüyordu. */}
+            <Ionicons name="time-outline" size={15} color={renkler.anaRenk} />
             <Text style={styles.sureYazi}>{kampanya.bitisMetni}</Text>
           </View>
 
@@ -227,6 +236,14 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
 
             {kuponlar.map((k) => (
               <View key={k.id ?? k.code} style={styles.kuponKart}>
+                {/* ⭐ YENİ — SOL TURUNCU ŞERİT.
+                    ⚠️ Kartın kendi kenarlığı kaldırıldı; sınırı artık
+                    bu şerit ve yumuşak zemin veriyor. İnce turuncu bir
+                    çerçeve, ekrandaki dolu turuncu butonla aynı rengi
+                    paylaşıp "bu da mı basılabilir?" sorusunu
+                    doğuruyordu. */}
+                <View style={styles.kuponSerit} />
+
                 <View style={styles.kuponSol}>
                   <Text style={styles.kuponKod}>{k.code}</Text>
                   <Text style={styles.kuponIndirim}>{indirimMetni(k)}</Text>
@@ -274,9 +291,22 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
           <View style={styles.bolum}>
             <Text style={styles.bolumBaslik}>Kampanya koşulları</Text>
 
+            {/* ⭐ DEĞİŞTİ — madde işareti nokta değil TİK.
+                ⚠️ Nokta "bunlar bir liste" der; tik "bunlar geçerli
+                koşullar" der. Kampanya koşulları müşteriye kısıt
+                değil güvence veriyor ("tek siparişte kullanılabilir",
+                "30 Kasım'a kadar geçerli") ve tik o tonu taşıyor.
+                ⚠️ Tik YEŞİL DEĞİL turuncu: yeşil bu uygulamada
+                "başarılı işlem" demek ve burada tamamlanmış bir şey
+                yok, sadece bir liste. */}
             {kampanya.kosullar.map((madde, i) => (
               <View key={i} style={styles.maddeSatir}>
-                <View style={styles.maddeNokta} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={17}
+                  color={renkler.anaRenk}
+                  style={styles.maddeTik}
+                />
                 <Text style={styles.maddeYazi}>{madde}</Text>
               </View>
             ))}
@@ -323,6 +353,16 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   icerik: { paddingBottom: bosluk.dev },
 
+  /* ⭐ YENİ — afişin yuvarlak köşeli kabı.
+     ⚠️ `overflow: 'hidden'` ŞART: borderRadius tek başına Android'de
+     içerideki Image'ı kırpmıyor, köşeler kare kalıyordu. */
+  gorselKap: {
+    marginHorizontal: sayfaKenari,
+    borderRadius: kose.dev,
+    overflow: 'hidden',
+    backgroundColor: renkler.acikKart,
+  },
+
   /* ⭐ YENİ — üst şerit. Favorilerim ve Hızlı Siparişlerim ile aynı
      desen: ok solda mutlak konumda, başlık ortalı. */
   ustBar: {
@@ -359,11 +399,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
      afişin alt şeridini kapatıyordu. Görsel artık kırpılmadan tam
      gösterildiği için alt kenarını örtmek, kazanılan alanı geri
      vermek olurdu. */
+  /* ⭐ DEĞİŞTİ — yaprak artık tam genişlikte bir şerit değil, KART.
+     ⚠️ Afiş yuvarlatılınca altındaki keskin köşeli beyaz blok
+     yamalı duruyordu. Aynı kenar boşluğu ve aynı köşe yarıçapı,
+     ikisini tek bir yığın gibi gösteriyor. */
   yaprak: {
     backgroundColor: renkler.kartArka,
-    paddingHorizontal: bosluk.normal,
-    paddingTop: bosluk.normal,
-    paddingBottom: bosluk.normal,
+    marginHorizontal: sayfaKenari,
+    marginTop: bosluk.orta,
+    borderRadius: kose.dev,
+    padding: bosluk.normal,
+    ...renkler.golgeSm,
   },
 
   baslik: {
@@ -425,14 +471,35 @@ const stilOlustur = (renkler) => StyleSheet.create({
    * Şimdi kod tam genişlikte, buton altında. Dikeyde birkaç piksel
    * daha yer kaplıyor ama bu ekranda aşağı kaydırılacak yer zaten
    * bol; darlık dikeyde değil yataydaydı. */
+  /* ⭐ DEĞİŞTİ — ÇERÇEVE GİTTİ, SOL ŞERİT GELDİ.
+     ⚠️ İnce turuncu çerçeve, hemen altındaki dolu turuncu "Kopyala"
+     butonuyla aynı rengi paylaşıyordu ve kartın kendisi de
+     basılabilir sanılıyordu. Şerit kimlik veriyor, eylem iddia
+     etmiyor.
+     ⚠️ `overflow: 'hidden'` şart: şerit mutlak konumda ve köşe
+     yarıçapının dışına taşardı. */
   kuponKart: {
     backgroundColor: renkler.yumusakVurgu,
-    borderWidth: 1,
-    borderColor: renkler.anaRenk,
     borderRadius: kose.buyuk,
-    padding: bosluk.normal,
+    paddingVertical: bosluk.normal,
+    paddingRight: bosluk.normal,
+
+    // ⚠️ Sol dolgu şeridin genişliğini de içeriyor: içerik şeridin
+    // üstüne binmesin.
+    paddingLeft: bosluk.genis,
+
     marginBottom: bosluk.orta,
     gap: bosluk.normal,
+    overflow: 'hidden',
+  },
+
+  kuponSerit: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    backgroundColor: renkler.anaRenk,
   },
 
   kuponSol: { minWidth: 0 },
@@ -505,18 +572,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
   maddeSatir: {
     flexDirection: 'row',
     gap: bosluk.kucuk,
-    marginBottom: bosluk.kucuk,
+    marginBottom: bosluk.orta,
   },
 
-  // ⚠️ Madde işareti olarak "•" karakteri değil bir View:
-  // metin karakteri satır yüksekliğine göre kayıyor ve maddeler
-  // hizasız duruyordu.
-  maddeNokta: {
-    width: 5,
-    height: 5,
-    borderRadius: kose.tam,
-    backgroundColor: renkler.yaziGri,
-    marginTop: 7,
+  /* ⭐ DEĞİŞTİ — nokta yerine tik ikonu.
+     ⚠️ Eski `maddeNokta` stili KALDIRILDI, ölü kod bırakılmadı.
+     ⚠️ `marginTop: 2` — ikon metnin ilk satırıyla hizalansın.
+     Metin karakteri (•) kullansaydık satır yüksekliğine göre kayar
+     ve maddeler hizasız dururdu; bu gerekçe nokta için de
+     geçerliydi, ikon için de geçerli. */
+  maddeTik: {
+    marginTop: 2,
   },
 
   maddeYazi: {

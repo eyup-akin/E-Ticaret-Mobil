@@ -5,6 +5,15 @@ import SiparislerimEkrani from '../screens/SiparislerimEkrani';
 import SiparisDetayEkrani from '../screens/SiparisDetayEkrani';
 import AdresSecEkrani from '../screens/AdresSecEkrani';
 import KartSecEkrani from '../screens/KartSecEkrani';
+
+// ⭐ YENİ — adres ve kart EKLEME artık ayrı ekranlar.
+// ⚠️ İkisi de HER İKİ stack'e kaydedilmek zorunda: liste ekranları
+// hem Hesabım'da hem sipariş akışında yaşıyor ve "ekle" bağlantısı
+// ikisinden de tıklanabiliyor. Yalnızca birine koysaydık diğerinde
+// uygulama "böyle bir rota yok" diye patlardı — Numaralarim'de
+// öğrenilen dersin aynısı.
+import AdresEkleEkrani from '../screens/AdresEkleEkrani';
+import KartEkleEkrani from '../screens/KartEkleEkrani';
 import NumaralarimEkrani from '../screens/NumaralarimEkrani';   // ⭐ YENİ (4.9)
 
 // ⭐ YENİ (Aşama 8.4) — destek ekranları
@@ -37,6 +46,8 @@ export default function HesabimStack() {
       <Stack.Screen name="SiparisDetay" component={SiparisDetayEkrani} />
       <Stack.Screen name="Adreslerim" component={AdresSecEkrani} />
       <Stack.Screen name="Kartlarim" component={KartSecEkrani} />
+      <Stack.Screen name="AdresEkle" component={AdresEkleEkrani} />
+      <Stack.Screen name="KartEkle" component={KartEkleEkrani} />
       <Stack.Screen name="Numaralarim" component={NumaralarimEkrani} />{/* ⭐ YENİ (4.9) */}
       <Stack.Screen name="Odemelerim" component={OdemelerimEkrani} />
 

@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  TextInput,
   Alert,
   ScrollView,
   KeyboardAvoidingView,
@@ -16,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTema } from '../context/TemaContext';
-import { apiGet, apiPost, apiDelete } from '../services/api';
+import { apiGet, apiDelete } from '../services/api';
 import OnayPenceresi from '../components/OnayPenceresi';
 
 export default function AdresSecEkrani({ route, navigation }) {
@@ -29,20 +28,15 @@ export default function AdresSecEkrani({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [seciliId, setSeciliId] = useState(null);
 
-  // Yeni adres formu
-  const [formAcik, setFormAcik] = useState(false);
-  const [baslik, setBaslik] = useState('');
-  const [acikAdres, setAcikAdres] = useState('');
-  const [sehir, setSehir] = useState('');
-  const [kaydediliyor, setKaydediliyor] = useState(false);
-
-  // ⭐ YENİ (4.9) — telefon artık serbest metin DEĞİL, defterden seçim.
-  //
-  // ⚠️ Eskiden burada `telefon` diye bir metin state'i vardı ve her
-  // adres kendi numara KOPYASINI taşıyordu. Müşteri numarasını
-  // değiştirince bütün adresleri tek tek düzeltmesi gerekiyordu.
-  const [numaralar, setNumaralar] = useState([]);
-  const [seciliTelefonId, setSeciliTelefonId] = useState(null);
+  /* ⭐ DEĞİŞTİ — FORM STATE'LERİ BU EKRANDAN GİTTİ.
+   *
+   * Başlık, açık adres, şehir, telefon seçimi ve kaydetme durumu
+   * artık AdresEkleEkrani'nda yaşıyor. Bu ekran yalnızca LİSTELİYOR
+   * ve seçtiriyor.
+   *
+   * ⚠️ Telefon defteri de gitti: numarayı yalnızca form soruyordu.
+   * Burada tutmaya devam etseydik her liste açılışında gereksiz bir
+   * /phones isteği atılırdı. */
 
   // ⭐ YENİ (GV/Faz 6.8) — silinecek adres. null = pencere kapalı.
   //
@@ -66,73 +60,11 @@ export default function AdresSecEkrani({ route, navigation }) {
     }
   }
 
-  // ⭐ YENİ (4.9) — telefon defteri.
-  //
-  // ⚠️ Ekran her odaklandığında yeniden çekiliyor: müşteri
-  // "Numaralarımı yönet" bağlantısıyla defterine gidip yeni bir
-  // numara ekleyip dönebilir. Sadece ilk açılışta çekseydik yeni
-  // numara listede görünmez ve müşteri onu neden seçemediğini
-  // anlamazdı.
-  async function numaralariGetir() {
-    try {
-      const veri = await apiGet('/phones');
-      setNumaralar(veri);
-
-      // Varsayılan numara ön seçili gelsin: müşterinin çoğu
-      // adresinde aranacak numara zaten asıl numarasıdır.
-      //
-      // ⚠️ Sadece HİÇ seçim yokken; müşteri başka bir numara
-      // seçtiyse her odaklanmada onu ezmek olurdu.
-      setSeciliTelefonId((onceki) => {
-        if (onceki !== null) return onceki;
-        const varsayilan = veri.find((n) => n.varsayilanMi) || veri[0];
-        return varsayilan ? varsayilan.id : null;
-      });
-    } catch (hata) {
-      console.log('Numaralar alınamadı:', hata.message);
-    }
-  }
-
   useFocusEffect(
     useCallback(() => {
       adresleriGetir();
-      numaralariGetir();
     }, [])
   );
-
-  async function adresEkle() {
-    if (!baslik || !acikAdres || !sehir) {
-      Alert.alert('Eksik bilgi', 'Tüm alanları doldur.');
-      return;
-    }
-    // ⚠️ Ayrı mesaj: "tüm alanları doldur" demek, seçilecek bir
-    // numarası olmayan müşteriye ne yapacağını söylemiyor.
-    if (!seciliTelefonId) {
-      Alert.alert(
-        'Telefon gerekli',
-        'Kargo için bir numara seçmelisin. Numaran yoksa "Numaralarımı yönet" ile ekleyebilirsin.'
-      );
-      return;
-    }
-    try {
-      setKaydediliyor(true);
-      await apiPost('/addresses', {
-        title: baslik,
-        fullAddress: acikAdres,
-        city: sehir,
-        phoneId: seciliTelefonId,   // ⭐ DEĞİŞTİ (4.9)
-      });
-      setBaslik('');
-      setAcikAdres('');
-      setSehir('');
-      setFormAcik(false);
-      await adresleriGetir();
-    } catch (hata) {
-      Alert.alert('Hata', hata.message);
-    } finally {
-      setKaydediliyor(false);
-    }
-  }
 
   function devamEt() {
     if (!seciliId) {
@@ -289,7 +221,7 @@ export default function AdresSecEkrani({ route, navigation }) {
           contentContainerStyle={styles.icerik}
           keyboardShouldPersistTaps="handled"
         >
-          {adresler.length === 0 && !formAcik && (
+          {adresler.length === 0 && (
             <Text style={styles.bosYazi}>
               Henüz adresin yok. Aşağıdan ekleyebilirsin.
             </Text>
@@ -297,128 +229,28 @@ export default function AdresSecEkrani({ route, navigation }) {
 
           {adresler.map(adresKarti)}
 
-          {formAcik ? (
-            <View style={styles.form}>
-              <Text style={styles.formBaslik}>Yeni Adres</Text>
+          {/* ⭐ DEĞİŞTİ — SATIR İÇİ FORM KALDIRILDI, AYRI EKRANA GEÇTİ.
+              ⚠️ Form bu listenin içinde açılıyordu: liste uzunsa
+              ekranın altında kalıyor, ayrıca "vazgeç" ile "sil"
+              butonları aynı ekranda yan yana duruyordu. Artık
+              AdresEkleEkrani'na gidiliyor.
+              ⚠️ Dönüşte liste kendini tazeliyor (useFocusEffect),
+              yeni adres elle eklenmiyor — sunucudaki gerçek ne ise o
+              görünüyor.
 
-              <TextInput
-                style={styles.input}
-                placeholder="Başlık (Ev, İş...)"
-                placeholderTextColor={renkler.yaziGri}
-                value={baslik}
-                onChangeText={setBaslik}
-              />
-              <TextInput
-                style={[styles.input, styles.inputCok]}
-                placeholder="Açık adres"
-                placeholderTextColor={renkler.yaziGri}
-                value={acikAdres}
-                onChangeText={setAcikAdres}
-                multiline
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Şehir"
-                placeholderTextColor={renkler.yaziGri}
-                value={sehir}
-                onChangeText={setSehir}
-              />
-              {/* ⭐ DEĞİŞTİ (4.9) — TELEFON ARTIK YAZILMIYOR, SEÇİLİYOR.
-
-                  ⚠️ Serbest metin alanı kaldırıldı çünkü her adres
-                  numaranın kendi kopyasını taşıyordu: müşteri
-                  numarasını değiştirdiğinde N adresi tek tek
-                  düzeltmek zorundaydı. Artık adres numarayı
-                  REFERANS ediyor.
-
-                  ⚠️ Numara EKLEME buraya konmadı, ayrı ekranda.
-                  Buraya da bir "numara ekle" formu koysaydık aynı
-                  form iki yerde yaşardı ve yarın doğrulama kuralı
-                  değişince biri unutulurdu. Bağlantı, formu açık
-                  bırakarak deftere gidiyor — yazdıkların kaybolmuyor,
-                  çünkü bu ekran yığında duruyor. */}
-              <Text style={styles.alanBaslik}>Kargo için aranacak numara</Text>
-
-              {numaralar.length === 0 ? (
-                <Text style={styles.numaraYok}>
-                  Kayıtlı numaran yok. Aşağıdan ekleyip geri dönebilirsin.
-                </Text>
-              ) : (
-                <View style={styles.numaraListe}>
-                  {numaralar.map((n) => {
-                    const secili = seciliTelefonId === n.id;
-                    return (
-                      <TouchableOpacity
-                        key={n.id}
-                        style={[styles.numaraSatir, secili && styles.numaraSatirSecili]}
-                        onPress={() => setSeciliTelefonId(n.id)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: secili }}
-                      >
-                        <Ionicons
-                          name={secili ? 'radio-button-on' : 'radio-button-off'}
-                          size={20}
-                          color={secili ? renkler.anaRenk : renkler.yaziGri}
-                        />
-                        <Text style={styles.numaraYazi}>{n.gorunum}</Text>
-                        <Text style={styles.numaraEtiket} numberOfLines={1}>{n.etiket}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={styles.numaraYonet}
-                onPress={() => navigation.navigate('Numaralarim')}
-                hitSlop={6}
-              >
-                <Ionicons name="call-outline" size={16} color={renkler.anaRenk} />
-                <Text style={styles.numaraYonetYazi}>Numaralarımı yönet</Text>
-              </TouchableOpacity>
-
-              <View style={styles.formButonlar}>
-                <TouchableOpacity
-                  style={styles.iptalButon}
-                  onPress={() => setFormAcik(false)}
-                >
-                  <Text style={styles.iptalYazi}>Vazgeç</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.kaydetButon}
-                  onPress={adresEkle}
-                  disabled={kaydediliyor}
-                >
-                  {kaydediliyor ? (
-                    <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-                  ) : (
-                    <Text style={styles.kaydetYazi}>Kaydet</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            /* ⭐ DEĞİŞTİ (GV/Faz 6.8) — "Yeni adres ekle" SATIRI.
-
-               Tasarım burayı KESİKLİ çerçeveyle çiziyor. Biz düz
-               çerçeve + yumuşak zemin kullanıyoruz.
-
-               ⚠️ Sebep tasarım sistemi skill'inde yazılı:
-               `borderStyle: 'dashed'` Android'de yuvarlatılmış
-               köşelerle birlikte ÇİZİLMİYOR. Kesikli yazsaydık iOS'ta
-               kesikli, Android'de düz görünürdü — yani iki platformda
-               iki farklı tasarım. Ayrımı zemin ve artı ikonu
-               veriyor. */
-            <TouchableOpacity
-              style={styles.ekleSatir}
-              onPress={() => setFormAcik(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.ekleYazi}>Yeni adres ekle</Text>
-              <Ionicons name="add" size={22} color={renkler.anaRenk} />
-            </TouchableOpacity>
-          )}
+              ⚠️ Tasarım burayı KESİKLİ çerçeveyle çiziyor; biz düz
+              çerçeve + yumuşak zemin kullanıyoruz. Sebep tasarım
+              sistemi skill'inde yazılı: `borderStyle: 'dashed'`
+              Android'de yuvarlatılmış köşelerle birlikte ÇİZİLMİYOR,
+              yani iOS'ta kesikli Android'de düz görünürdü. */}
+          <TouchableOpacity
+            style={styles.ekleSatir}
+            onPress={() => navigation.navigate('AdresEkle')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.ekleYazi}>Yeni adres ekle</Text>
+            <Ionicons name="add" size={22} color={renkler.anaRenk} />
+          </TouchableOpacity>
         </ScrollView>
 
         {secimModu && (
@@ -623,149 +455,26 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ---------- FORM ---------- */
 
-  form: {
-    backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
-    padding: bosluk.normal,
-  },
 
-  formBaslik: {
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-    marginBottom: bosluk.orta,
-  },
 
-  input: {
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: kose.orta,
-    padding: bosluk.orta,
-    marginBottom: bosluk.kucuk,
-    fontSize: yazi.orta,
-    color: renkler.yaziKoyu,
-    backgroundColor: renkler.arkaPlan,
-  },
 
-  inputCok: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
 
 
   /* ---------- TELEFON SEÇİMİ (4.9) ---------- */
 
-  /* ⚠️ Formdaki tek ETİKETLİ alan bu — diğerleri yer tutucuyla
-     kendini anlatıyor. Sebep: bir input'un ne istediği yer
-     tutucudan okunur ama bir radyo listesinin ne sorduğu
-     okunmaz. Etiket olmadan liste "bu numaralar da ne?" diye
-     bakılan bir yığın olurdu. */
-  alanBaslik: {
-    fontSize: yazi.kucuk,
-    color: renkler.yaziOrta,
-    marginTop: bosluk.kucuk,
-    marginBottom: bosluk.kucuk,
-  },
 
-  numaraYok: {
-    fontSize: yazi.kucuk,
-    lineHeight: satir.kucuk,
-    color: renkler.yaziGri,
-    marginBottom: bosluk.kucuk,
-  },
 
-  numaraListe: {
-    gap: bosluk.kucuk,
-    marginBottom: bosluk.kucuk,
-  },
 
-  numaraSatir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: bosluk.kucuk,
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: kose.orta,
-    paddingHorizontal: bosluk.orta,
-    paddingVertical: bosluk.kucuk,
-    backgroundColor: renkler.arkaPlan,
-  },
 
-  /* Adres ve kart kartlarındaki kararın aynısı: seçilince kalınlık
-     değil RENK ve ZEMİN değişiyor. Kalınlık değişseydi satır 1px
-     büyüyüp altındakileri iterdi. */
-  numaraSatirSecili: {
-    borderColor: renkler.anaRenk,
-    backgroundColor: renkler.yumusakVurgu,
-  },
 
-  numaraYazi: {
-    fontSize: yazi.normal,
-    color: renkler.yaziKoyu,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-  },
 
-  numaraEtiket: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: yazi.kucuk,
-    color: renkler.yaziGri,
-  },
 
-  numaraYonet: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: bosluk.mikro,
-    alignSelf: 'flex-start',
-    marginBottom: bosluk.orta,
-  },
 
-  numaraYonetYazi: {
-    fontSize: yazi.kucuk,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-    color: renkler.anaRenk,
-  },
 
-  formButonlar: {
-    flexDirection: 'row',
-    gap: bosluk.kucuk,
-    marginTop: bosluk.mikro,
-  },
 
-  iptalButon: {
-    flex: 1,
-    paddingVertical: bosluk.orta,
-    borderRadius: kose.orta,
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    alignItems: 'center',
-  },
 
-  iptalYazi: {
-    color: renkler.yaziOrta,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-  },
 
-  kaydetButon: {
-    flex: 1,
-    paddingVertical: bosluk.orta,
-    borderRadius: kose.orta,
-    backgroundColor: renkler.anaRenk,
-    alignItems: 'center',
-  },
 
-  kaydetYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-  },
 
 
   /* ---------- ALT ÇUBUK ---------- */

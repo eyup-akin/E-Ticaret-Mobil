@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  TextInput,
   Alert,
   ScrollView,
   KeyboardAvoidingView,
@@ -15,10 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { apiGet, apiPost, apiDelete } from '../services/api';
+import { apiGet, apiDelete } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import OnayPenceresi from '../components/OnayPenceresi';
-import { tarihFormatla, tarihiParcala, numaraFormatla, numarayiTemizle } from '../services/kartYardimci';
 
 export default function KartSecEkrani({ route, navigation }) {
   // adresId varsa SİPARİŞ AKIŞINDAYIZ (seçim modu)
@@ -33,13 +31,10 @@ export default function KartSecEkrani({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [seciliId, setSeciliId] = useState(null);
 
-  // Yeni kart formu
-  const [formAcik, setFormAcik] = useState(false);
-  const [sahip, setSahip] = useState('');
-  const [numara, setNumara] = useState('');
-  const [tarih, setTarih] = useState('');     // "05/31" formatında
-  const [cvv, setCvv] = useState('');
-  const [kaydediliyor, setKaydediliyor] = useState(false);
+  /* ⭐ DEĞİŞTİ — FORM STATE'LERİ BU EKRANDAN GİTTİ.
+   * Kart numarası, CVV ve kaydetme durumu artık KartEkleEkrani'nda.
+   * ⚠️ Hassas verinin bu ekranda hiç tutulmaması ayrıca iyi: liste
+   * ekranı açık kaldığı sürece CVV bellekte duruyordu. */
 
   // ⭐ YENİ (GV/Faz 6.10) — silinecek kart. Gerekçe AdresSec'te yazılı:
   // sistem penceresi tema dışı kalıyordu.
@@ -62,47 +57,6 @@ export default function KartSecEkrani({ route, navigation }) {
       kartlariGetir();
     }, [])
   );
-
-  async function kartEkle() {
-    const temizNumara = numarayiTemizle(numara);
-    const tarihBilgi = tarihiParcala(tarih);
-
-    if (!sahip || !temizNumara || !tarih || !cvv) {
-      Alert.alert('Eksik bilgi', 'Tüm alanları doldur.');
-      return;
-    }
-    if (temizNumara.length !== 16) {
-      Alert.alert('Geçersiz kart', 'Kart numarası 16 haneli olmalı.');
-      return;
-    }
-    if (!tarihBilgi) {
-      Alert.alert('Geçersiz tarih', 'Son kullanma tarihini AA/YY şeklinde gir (örnek: 05/31).');
-      return;
-    }
-
-    try {
-      setKaydediliyor(true);
-      await apiPost('/cards', {
-        cardHolderName: sahip,
-        cardNumber: temizNumara,        // backend SADECE son 4 haneyi saklar
-        expiryMonth: tarihBilgi.ay,
-        expiryYear: tarihBilgi.yil,
-        cvv: cvv,                       // backend ASLA saklamaz
-      });
-
-      // Formu temizle — hassas veri hafızada kalmasın
-      setSahip('');
-      setNumara('');
-      setTarih('');
-      setCvv('');
-      setFormAcik(false);
-      await kartlariGetir();
-    } catch (hata) {
-      Alert.alert('Hata', hata.message);
-    } finally {
-      setKaydediliyor(false);
-    }
-  }
 
   async function kartiSil(item) {
     try {
@@ -238,7 +192,7 @@ export default function KartSecEkrani({ route, navigation }) {
           contentContainerStyle={styles.icerik}
           keyboardShouldPersistTaps="handled"
         >
-          {kartlar.length === 0 && !formAcik && (
+          {kartlar.length === 0 && (
             <Text style={styles.bosYazi}>
               Henüz kartın yok. Aşağıdan ekleyebilirsin.
             </Text>
@@ -246,97 +200,17 @@ export default function KartSecEkrani({ route, navigation }) {
 
           {kartlar.map(kartKarti)}
 
-          {formAcik ? (
-            <View style={styles.form}>
-              <Text style={styles.formBaslik}>Yeni Kart</Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Kart üzerindeki isim"
-                placeholderTextColor={renkler.yaziGri}
-                value={sahip}
-                onChangeText={setSahip}
-                autoCapitalize="characters"
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="1234 5678 9012 3456"
-                placeholderTextColor={renkler.yaziGri}
-                value={numara}
-                onChangeText={(metin) => setNumara(numaraFormatla(metin))}
-                keyboardType="number-pad"
-                maxLength={19}   // 16 rakam + 3 boşluk
-              />
-
-              <View style={styles.ikiliSatir}>
-                <TextInput
-                  style={[styles.input, styles.inputYarim]}
-                  placeholder="AA/YY"
-                  placeholderTextColor={renkler.yaziGri}
-                  value={tarih}
-                  onChangeText={(metin) => setTarih(tarihFormatla(metin))}
-                  keyboardType="number-pad"
-                  maxLength={5}   // "05/31"
-                />
-                <TextInput
-                  style={[styles.input, styles.inputYarim]}
-                  placeholder="CVV"
-                  placeholderTextColor={renkler.yaziGri}
-                  value={cvv}
-                  onChangeText={(metin) => setCvv(metin.replace(/\D/g, ''))}
-                  keyboardType="number-pad"
-                  maxLength={3}
-                  secureTextEntry
-                />
-              </View>
-
-              {/* ⭐ DEĞİŞTİ (GV/Faz 6.10) — GÜVENLİK NOTU ARTIK
-                  KİLİT İKONLU BİR KUTU, italik bir dipnot değil.
-
-                  ⚠️ Bu cümle ekrandaki en önemli metin: müşteri kart
-                  numarasını yazarken "bu nereye gidiyor" diye
-                  düşünüyor. İtalik gri dipnot, okunmayan yerdi. */}
-              <View style={styles.guvenlikKutu}>
-                <Ionicons name="lock-closed" size={16} color={renkler.basari} />
-                <Text style={styles.guvenlikYazi}>
-                  Kart numaran ve CVV'n saklanmaz — sadece son 4 hane kaydedilir.
-                </Text>
-              </View>
-
-              <View style={styles.formButonlar}>
-                <TouchableOpacity
-                  style={styles.iptalButon}
-                  onPress={() => setFormAcik(false)}
-                >
-                  <Text style={styles.iptalYazi}>Vazgeç</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.kaydetButon}
-                  onPress={kartEkle}
-                  disabled={kaydediliyor}
-                >
-                  {kaydediliyor ? (
-                    <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-                  ) : (
-                    <Text style={styles.kaydetYazi}>Kaydet</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            /* Kesikli çerçeve kullanılmadı; gerekçe AdresSec'te:
-               Android yuvarlak köşeyle birlikte çizmiyor. */
-            <TouchableOpacity
-              style={styles.ekleSatir}
-              onPress={() => setFormAcik(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.ekleYazi}>Yeni kart ekle</Text>
-              <Ionicons name="add" size={22} color={renkler.anaRenk} />
-            </TouchableOpacity>
-          )}
+          {/* ⭐ DEĞİŞTİ — SATIR İÇİ FORM KALDIRILDI, AYRI EKRANA GEÇTİ.
+              Gerekçe AdresSecEkrani'ndaki notta; ikisi aynı akışın
+              iki adımı ve aynı şekilde davranmalı. */}
+          <TouchableOpacity
+            style={styles.ekleSatir}
+            onPress={() => navigation.navigate('KartEkle')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.ekleYazi}>Yeni kart ekle</Text>
+            <Ionicons name="add" size={22} color={renkler.anaRenk} />
+          </TouchableOpacity>
         </ScrollView>
 
         {/* Devam butonu SADECE seçim modunda */}
@@ -550,95 +424,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ---------- FORM ---------- */
 
-  form: {
-    backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
-    borderWidth: 1,
-    borderColor: renkler.kenarlik,
-    padding: bosluk.normal,
-  },
 
-  formBaslik: {
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-    color: renkler.yaziKoyu,
-    marginBottom: bosluk.orta,
-  },
 
-  input: {
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    borderRadius: kose.orta,
-    padding: bosluk.orta,
-    marginBottom: bosluk.kucuk,
-    fontSize: yazi.orta,
-    color: renkler.yaziKoyu,
-    backgroundColor: renkler.arkaPlan,
-  },
 
-  ikiliSatir: {
-    flexDirection: 'row',
-    gap: bosluk.kucuk,
-  },
 
-  inputYarim: {
-    flex: 1,
-  },
 
-  guvenlikKutu: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: bosluk.kucuk,
-    backgroundColor: renkler.yumusakBasari,
-    borderRadius: kose.kucuk,
-    paddingVertical: bosluk.kucuk,
-    paddingHorizontal: bosluk.orta,
-    marginBottom: bosluk.orta,
-  },
 
-  guvenlikYazi: {
-    flex: 1,
-    fontSize: yazi.kucuk,
-    lineHeight: satir.kucuk,
-    color: renkler.basari,
-  },
 
-  formButonlar: {
-    flexDirection: 'row',
-    gap: bosluk.kucuk,
-  },
 
-  iptalButon: {
-    flex: 1,
-    paddingVertical: bosluk.orta,
-    borderRadius: kose.orta,
-    borderWidth: 1,
-    borderColor: renkler.inputKenar,
-    alignItems: 'center',
-  },
 
-  iptalYazi: {
-    color: renkler.yaziOrta,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-  },
 
-  kaydetButon: {
-    flex: 1,
-    paddingVertical: bosluk.orta,
-    borderRadius: kose.orta,
-    backgroundColor: renkler.anaRenk,
-    alignItems: 'center',
-  },
 
-  kaydetYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-  },
 
 
   /* ---------- ALT ÇUBUK ---------- */

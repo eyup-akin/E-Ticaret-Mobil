@@ -40,6 +40,20 @@ export default function FormAlani({
   sagIkon,
   onSagIkonBas,
   sagIkonEtiket,
+
+  /* ⭐ YENİ — çok satırlı kutu (açık adres için).
+   *
+   * ⚠️ Neden ayrı bir prop, neden dışarıdan `style` DEĞİL?
+   * `style` verilseydi taban stilin TAMAMINI ezerdi (aşağıda
+   * girdiOzellikleri en sona yayılıyor) ve kutu kenarlıksız,
+   * puntosuz kalırdı. Sessizce bozulan bir kullanım açmak yerine
+   * niyeti adlandırıyoruz.
+   *
+   * ⚠️ `multiline` prop'u ÇAĞIRAN tarafından verilmiyor, burada
+   * ekleniyor: ikisini ayrı bırakmak "cokSatirli ama multiline
+   * değil" gibi çalışmayan bir kombinasyona izin verirdi. */
+  cokSatirli = false,
+
   ...girdiOzellikleri
 }) {
   const { renkler } = useTema();
@@ -51,7 +65,11 @@ export default function FormAlani({
     <View style={styles.alan}>
       {etiket ? <Text style={styles.etiket}>{etiket}</Text> : null}
 
-      <View style={[styles.sarmal, hataliMi && styles.sarmalHatali]}>
+      <View style={[
+        styles.sarmal,
+        cokSatirli && styles.sarmalCokSatirli,
+        hataliMi && styles.sarmalHatali,
+      ]}>
         {ikon ? (
           <Ionicons
             name={ikon}
@@ -62,8 +80,14 @@ export default function FormAlani({
         ) : null}
 
         <TextInput
-          style={styles.girdi}
+          style={[styles.girdi, cokSatirli && styles.girdiCokSatirli]}
           placeholderTextColor={renkler.yaziGri}
+          multiline={cokSatirli}
+
+          /* ⚠️ Android'de çok satırlı kutuda metin DİKEY ORTALANIYOR
+             ve ilk satır kutunun ortasından başlıyor. iOS'ta böyle
+             bir sorun yok. `textAlignVertical` bunu düzeltiyor. */
+          textAlignVertical={cokSatirli ? 'top' : 'center'}
           {...girdiOzellikleri}
         />
 
@@ -124,6 +148,13 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderColor: renkler.hata,
   },
 
+  /* ⚠️ İkon ve metin ÜSTTEN hizalanıyor: ortadan hizalansaydı
+     üç satırlık bir adreste ikon ortada asılı kalırdı. */
+  sarmalCokSatirli: {
+    alignItems: 'flex-start',
+    paddingVertical: bosluk.orta,
+  },
+
   solIkon: {
     // Metin kutusuyla aynı hizada dursun diye ayrı bir dolgu yok;
     // hizalama sarmalın alignItems'ından geliyor.
@@ -137,6 +168,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
     height: 48,
     fontSize: yazi.orta,
     color: renkler.yaziKoyu,
+  },
+
+  /* ⚠️ Sabit yükseklik KALKIYOR, yerine minimum geliyor: kutu
+     yazdıkça büyüsün. `height` kalsaydı multiline hiçbir işe
+     yaramaz, metin görünmeyen bir alana akardı. */
+  girdiCokSatirli: {
+    height: undefined,
+    minHeight: 96,
+    paddingTop: 0,
   },
 
   sagIkonKutu: {
