@@ -139,6 +139,34 @@ export default function KayitEkrani({ navigation }) {
     return () => abone.remove();
   }, []);
 
+  // ⚠️ Varsayılan false — onay kutusu önceden işaretli gelmez.
+  const [sozlesmeOnayi, setSozlesmeOnayi] = useState(false);
+
+  const [yukleniyor, setYukleniyor] = useState(false);
+  const [hata, setHata] = useState('');
+  const [alanHatasi, setAlanHatasi] = useState({});
+
+  // Kayıt sonucu penceresi — Alert değil, uygulamanın kendi dili.
+  const [basariAcik, setBasariAcik] = useState(false);
+  const [basariMesaji, setBasariMesaji] = useState('');
+
+  // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
+  // (GirisEkrani'ndaki ile birebir aynı mantık — açıklaması orada.)
+  function kapat() {
+    navigation.navigate('Ana', {
+      screen: 'AnaSayfa',
+      params: { screen: 'AnaSayfaMain' },
+    });
+  }
+
+  // Bir alana yazılınca o alanın hatası ve genel hata siliniyor:
+  // düzeltmeye başlamış birine hâlâ eski hatayı göstermek gürültü.
+  function alaniGuncelle(anahtar, deger, setter) {
+    setter(deger);
+    if (alanHatasi[anahtar]) setAlanHatasi((o) => ({ ...o, [anahtar]: '' }));
+    if (hata) setHata('');
+  }
+
   async function kayitButonu() {
     const hatalar = {};
 
