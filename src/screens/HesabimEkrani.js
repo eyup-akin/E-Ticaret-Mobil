@@ -373,7 +373,7 @@ export default function HesabimEkrani({ navigation }) {
               yalnızca stili değiştirseydik, ekranda solda duran
               düğme ekran okuyucuda ikinci sırada okunurdu. */}
           <TouchableOpacity
-            style={styles.temaButon}
+            style={[styles.temaButon, styles.temaButonSol]}
             onPress={() => temaDegistir(koyuMu ? 'acik' : 'koyu')}
             activeOpacity={0.7}
             accessibilityRole="button"
@@ -696,15 +696,33 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* ⚠️ `top` BURADA YOK: güvenli alan cihaza göre değişiyor ve
      bileşende `insets.top` ile veriliyor. Sabit bir sayı yazsaydık
      çentikli telefonda düğme durum çubuğunun altında kalırdı. */
+  /* Başlık satırındaki düğme — çıkışla yer değiştirdiği için solda. */
+  temaButonSol: {
+    position: 'absolute',
+    left: 0,
+  },
+
+  /* Misafir görünümündeki yüzen düğme — sağ üstte. */
   temaButonYuzen: {
+    position: 'absolute',
     right: bosluk.normal,
     zIndex: 1,
   },
 
+  /* ⭐⭐ DEĞİŞTİ — KONUM BU STİLDEN ÇIKARILDI, SADECE GÖRÜNÜM KALDI.
+   *
+   * ⚠️⚠️ BURADA BİR HATA YAŞANDI, TEKRARLAMASIN.
+   *
+   * Bu stil İKİ YERDE kullanılıyor: başlık satırındaki düğme ve
+   * misafir görünümündeki yüzen düğme. İçine `position: absolute`
+   * + `left: 0` yazılmıştı. Yüzen kullanım kendi stilinde
+   * `right` veriyor ama React Native'de sabit genişlikli mutlak bir
+   * öğede `left` kazanıyor — yüzen düğme sessizce SOL ÜSTE kaydı.
+   * Hiçbir uyarı yok, sadece yanlış yerde duruyor.
+   *
+   * Konum artık her kullanımın kendi işi; bu stil yalnızca düğmenin
+   * NASIL GÖRÜNDÜĞÜNÜ tanımlıyor. */
   temaButon: {
-    // ⭐ DEĞİŞTİ — sağdan sola geçti (çıkışla yer değiştirdi).
-    position: 'absolute',
-    left: 0,
     width: 40,
     height: 40,
     borderRadius: kose.tam,

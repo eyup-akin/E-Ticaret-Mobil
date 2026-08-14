@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,85 +56,105 @@ export default function KayitEkrani({ navigation }) {
   const [adSoyad, setAdSoyad] = useState('');
   const [email, setEmail] = useState('');
   const [sifre, setSifre] = useState('');
-  const [sifreTekrar, setSifreTekrar] = useState('');
   const [gizli, setGizli] = useState(true);
 
-  /* ⭐ YENİ — ŞİFRE ALANINA BASINCA KRİTERLER KLAVYENİN ÜSTÜNE ÇIKSIN.
+  /* ⭐ YENİ — ŞİFRE ALANINA BASINCA KRİTERLERİN TAMAMI GÖRÜNSÜN.
    *
    * ⚠️ SORUN: şifre kutusuna dokunulunca klavye açılıyor ve hemen
-   * altındaki "güçlü şifre" kriter listesini tamamen örtüyordu.
-   * Kullanıcı hangi kuralı sağlamadığını göremeden yazmaya
-   * çalışıyordu — listenin var olma sebebi tam olarak o an.
+   * altındaki "güçlü şifre" kriter listesini örtüyordu. Kullanıcı
+   * hangi kuralı sağlamadığını göremeden yazmaya çalışıyordu —
+   * listenin var olma sebebi tam olarak o an.
    *
-   * ⚠️ ÇÖZÜM `KeyboardAvoidingView` DEĞİL: o, formu yukarı itiyor
-   * ama neyin görüneceğine karar vermiyor; şifre alanı ekranın
-   * dibinde kaldığı sürece altındaki liste yine kapalı kalıyordu.
-   * Odaklanınca şifre bloğunu ekranın ÜSTÜNE kaydırıyoruz — altındaki
-   * her şey (kriterler) böylece klavyenin üstünde kalıyor.
+   * ⚠️ `KeyboardAvoidingView` TEK BAŞINA YETMİYOR: o, formu yukarı
+   * itiyor ama neyin görüneceğine karar vermiyor. Şifre alanı
+   * görünen alanın dibinde kaldığı sürece altındaki liste yine
+   * kapalı kalıyor.
    *
-   * ⚠️ Konum `useRef`'te, state'te DEĞİL: yalnızca kaydırma anında
-   * okunuyor ve state'e yazsaydık her ölçümde gereksiz bir render
-   * tetiklenirdi. */
+   * ⚠️ İLK DENEMEDE "bloğu ekranın TEPESİNE kaydır" yazılmıştı ve
+   * YETMEDİ: kaydırma, içeriğin sonuna dayanınca kırpılıyor
+   * (`contentHeight - visibleHeight` sınırı) ve blok tepeye
+   * çıkamıyordu. Şimdiki hesap tersten kuruluyor — bloğun ALT
+   * KENARINI görünen alanın altına oturtacak kadar kaydırıyoruz.
+   * Gereken en az kaydırma bu ve her zaman ulaşılabilir.
+   */
   const kaydirmaRef = useRef(null);
 
-  /* ⚠️⚠️ İKİ AYRI ÖLÇÜM, TOPLANARAK KULLANILIYOR.
+  /* ⚠️⚠️ ÜÇ AYRI ÖLÇÜM, HEPSİ GEREKLİ.
    *
-   * `onLayout` konumu HER ZAMAN doğrudan üst öğeye göre veriyor.
-   * Şifre bloğunun y'si yaprağın içindeki konumu; kaydırma ise
-   * içeriğin en üstünden ölçülüyor. Yalnızca blok y'sini kullansaydık
-   * bandın yüksekliği kadar EKSİK kaydırırdık ve şifre alanı yine
-   * ekranın ortasında kalırdı — hatanın sessiz olanı: bir şey oluyor
-   * ama yetmiyor. */
+   * `onLayout` konumu HER ZAMAN doğrudan üst öğeye göre veriyor:
+   *   yaprakY      → yaprağın kaydırma içeriği içindeki yeri
+   *   sifreBlokY   → şifre bloğunun YAPRAK içindeki yeri
+   *   sifreBlokBoy → bloğun (kutu + kriter listesi) yüksekliği
+   * İkisini toplamadan kullansaydık bandın yüksekliği kadar eksik
+   * kaydırırdık — bir şey olur ama yetmez, yani hatanın sessiz olanı.
+   *
+   * Değerler state'te DEĞİL ref'te: yalnızca kaydırma anında
+   * okunuyorlar ve state'e yazmak her ölçümde gereksiz bir render
+   * tetiklerdi. */
   const yaprakY = useRef(0);
   const sifreBlokY = useRef(0);
+  const sifreBlokBoy = useRef(0);
 
-  function sifreyeKaydir() {
-    /* ⚠️ GECİKME ŞART. Klavye animasyonla açılıyor ve Android'de
-       yerleşim onunla birlikte küçülüyor; hemen kaydırsaydık hedef
-       konum kaydırma sınırının dışında kalır, `scrollTo` onu kırpar
-       ve ekran yanlış yerde dururdu. */
-    setTimeout(() => {
-      const hedef = yaprakY.current + sifreBlokY.current - bosluk.kucuk;
+  /* Kaydırma alanının O ANKİ görünen yüksekliği.
+   *
+   * ⚠️ SABİT EKRAN YÜKSEKLİĞİ KULLANILMIYOR. Klavye açılınca
+   * yerleşim küçülüyor (Android'de pencere `resize`, iOS'ta
+   * KeyboardAvoidingView'in dolgusu) ve `onLayout` yeni yükseklikle
+   * tekrar tetikleniyor. Ekran yüksekliğini kullansaydık klavyenin
+   * kapladığı alanı hesaba katmamış olurduk — düzeltmeye çalıştığımız
+   * şeyin ta kendisi. */
+  const gorunurYukseklik = useRef(0);
 
-      kaydirmaRef.current?.scrollTo({ y: Math.max(0, hedef), animated: true });
-    }, 250);
+  // Şifre alanı şu an odakta mı? Klavye olayında buna bakılıyor.
+  const sifreOdakta = useRef(false);
+
+  function kriterleriGoster() {
+    if (gorunurYukseklik.current === 0) return;
+
+    const blokAlt = yaprakY.current + sifreBlokY.current + sifreBlokBoy.current;
+
+    // Bloğun alt kenarı görünen alanın altına otursun + nefes payı.
+    const hedef = blokAlt - gorunurYukseklik.current + bosluk.normal;
+
+    kaydirmaRef.current?.scrollTo({ y: Math.max(0, hedef), animated: true });
   }
 
-  // ⚠️ Varsayılan false — onay kutusu önceden işaretli gelmez.
-  const [sozlesmeOnayi, setSozlesmeOnayi] = useState(false);
-
-  const [yukleniyor, setYukleniyor] = useState(false);
-  const [hata, setHata] = useState('');
-  const [alanHatasi, setAlanHatasi] = useState({});
-
-  // Kayıt sonucu penceresi — Alert değil, uygulamanın kendi dili.
-  const [basariAcik, setBasariAcik] = useState(false);
-  const [basariMesaji, setBasariMesaji] = useState('');
-
-  // MODALI KAPAT → HER ZAMAN ANA SAYFAYA DÖN
-  // (GirisEkrani'ndaki ile birebir aynı mantık — açıklaması orada.)
-  function kapat() {
-    navigation.navigate('Ana', {
-      screen: 'AnaSayfa',
-      params: { screen: 'AnaSayfaMain' },
+  /* ⚠️ KLAVYE OLAYINA BAĞLI, zamanlayıcıya DEĞİL.
+   *
+   * Önce 250ms'lik bir `setTimeout` kullanılıyordu ve bu bir tahmindi:
+   * klavye animasyonu cihazdan cihaza değişiyor, yavaş bir telefonda
+   * kaydırma klavye açılmadan önce çalışıp yanlış yerde duruyordu.
+   * `keyboardDidShow` tam olarak "klavye yerine oturdu" diyor.
+   *
+   * ⚠️ İçindeki küçük gecikme yerleşim ölçümü için: olay ile
+   * `onLayout`'un yeni yüksekliği yazması arasında bir kare fark
+   * olabiliyor. */
+  useEffect(() => {
+    const abone = Keyboard.addListener('keyboardDidShow', () => {
+      if (sifreOdakta.current) {
+        setTimeout(kriterleriGoster, 60);
+      }
     });
-  }
 
-  // Bir alana yazılınca o alanın hatası ve genel hata siliniyor:
-  // düzeltmeye başlamış birine hâlâ eski hatayı göstermek gürültü.
-  function alaniGuncelle(anahtar, deger, setter) {
-    setter(deger);
-    if (alanHatasi[anahtar]) setAlanHatasi((o) => ({ ...o, [anahtar]: '' }));
-    if (hata) setHata('');
-  }
+    return () => abone.remove();
+  }, []);
 
   async function kayitButonu() {
     const hatalar = {};
 
     if (!adSoyad.trim()) hatalar.ad = 'Adını ve soyadını yaz.';
     if (!epostaGecerliMi(email)) hatalar.eposta = 'Lütfen geçerli bir e-posta adresi girin.';
+    /* ⭐ DEĞİŞTİ — "şifre tekrar" alanı KALDIRILDI.
+     *
+     * ⚠️ Tekrar alanının tek işi yazım hatasını yakalamaktı. Bu
+     * ekranda şifre alanının kendi "göster/gizle" düğmesi var: kullanıcı
+     * yazdığını GÖREBİLİYOR, yani hatayı doğrulamanın daha doğrudan
+     * bir yolu zaten mevcut. Üstelik yanlış yazılmış bir şifre geri
+     * alınamaz da değil — "şifremi unuttum" akışı çalışıyor.
+     *
+     * ⚠️ Sunucuda böyle bir alan hiç yoktu (RegisterDto tek şifre
+     * alıyor); tekrar yalnızca istemci tarafı bir kontroldü. */
     if (sifre.length < MIN_SIFRE) hatalar.sifre = `Şifre en az ${MIN_SIFRE} karakter olmalı.`;
-    else if (sifre !== sifreTekrar) hatalar.tekrar = 'Şifreler birbiriyle eşleşmiyor.';
 
     if (!sozlesmeOnayi) {
       setHata('Devam etmek için gizlilik politikası ve kullanım koşullarını onaylaman gerekiyor.');
@@ -192,6 +213,12 @@ export default function KayitEkrani({ navigation }) {
           contentContainerStyle={styles.kaydirmaIcerik}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+
+          /* ⚠️ Klavye açılınca bu ölçü KÜÇÜLÜYOR ve olay yeniden
+             tetikleniyor — kaydırma hesabının dayandığı sayı bu. */
+          onLayout={(olay) => {
+            gorunurYukseklik.current = olay.nativeEvent.layout.height;
+          }}
         >
       {/* ---- LACİVERT BANT ---- */}
       <View style={styles.bant}>
@@ -247,8 +274,24 @@ export default function KayitEkrani({ navigation }) {
               ölçtüğümüz konum ikisinin birlikte başladığı yer. Ayrı
               ölçseydik listenin nerede bittiğini de hesaplamak
               gerekirdi. */}
+          {/* ⚠️ Şifre kutusu ve kriter listesi AYNI SARMALAYICIDA:
+              ölçtüğümüz şey ikisinin BİRLİKTE kapladığı alan. Ayrı
+              ölçseydik listenin nerede bittiğini ayrıca hesaplamak
+              gerekirdi.
+
+              ⚠️ Yükseklik DEĞİŞİYOR: şifre boşken `SifreGucu` null
+              dönüyor, ilk karakterde liste beliriyor ve blok
+              büyüyor. O anda `onLayout` tekrar tetikleniyor; odaktaysak
+              yeniden kaydırıyoruz, yoksa liste belirir belirmez
+              klavyenin altında kalırdı. */}
           <View
-            onLayout={(olay) => { sifreBlokY.current = olay.nativeEvent.layout.y; }}
+            onLayout={(olay) => {
+              const { y, height } = olay.nativeEvent.layout;
+              sifreBlokY.current = y;
+              sifreBlokBoy.current = height;
+
+              if (sifreOdakta.current) kriterleriGoster();
+            }}
           >
             <FormAlani
               etiket="Şifre"
@@ -261,7 +304,15 @@ export default function KayitEkrani({ navigation }) {
               autoCapitalize="none"
               autoCorrect={false}
               editable={!yukleniyor}
-              onFocus={sifreyeKaydir}
+              onFocus={() => {
+                sifreOdakta.current = true;
+
+                /* ⚠️ Burada da çağrılıyor: klavye ZATEN AÇIKSA
+                   (e-posta alanından şifreye geçiş) `keyboardDidShow`
+                   bir daha tetiklenmiyor ve kaydırma hiç olmazdı. */
+                setTimeout(kriterleriGoster, 60);
+              }}
+              onBlur={() => { sifreOdakta.current = false; }}
               sagIkon={gizli ? 'eye-outline' : 'eye-off-outline'}
               sagIkonEtiket={gizli ? 'Şifreyi göster' : 'Şifreyi gizle'}
               onSagIkonBas={() => setGizli(!gizli)}
@@ -279,19 +330,6 @@ export default function KayitEkrani({ navigation }) {
               bileşenin içinde. */}
             <SifreGucu sifre={sifre} />
           </View>
-
-          <FormAlani
-            etiket="Şifre (Tekrar)"
-            ikon="lock-closed-outline"
-            placeholder="Şifreni tekrar yaz"
-            value={sifreTekrar}
-            onChangeText={(m) => alaniGuncelle('tekrar', m, setSifreTekrar)}
-            hata={alanHatasi.tekrar}
-            secureTextEntry={gizli}
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!yukleniyor}
-          />
 
           {/* ⭐ YENİ (Aşama 10) — açık rıza. Kutu önceden işaretli
               DEĞİL; metinlere dokununca tam metin açılıyor. */}
