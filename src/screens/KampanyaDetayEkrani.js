@@ -55,19 +55,34 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true);
   const [kopyalanan, setKopyalanan] = useState(null);
 
+  /* ⭐ YENİ (B2) — kampanya artık SUNUCUDAN geliyor, yani
+     alınamama ihtimali var. Veri yerelken bu durum yoktu.
+
+     ⚠️ Mesaj sunucudan geliyor ve iki durumu ayırıyor: kampanya
+     silinmiş/yayından kaldırılmışsa "bulunamadı", bağlantı yoksa
+     "sunucuya ulaşılamadı". Tek bir "bulunamadı" yazsaydık kopuk
+     internetteki müşteri kampanyanın kaldırıldığını sanırdı. */
+  const [hata, setHata] = useState('');
+
   useEffect(() => {
     let iptal = false;
 
     (async () => {
-      const k = await kampanyaGetir(kampanyaId);
-      if (iptal) return;
+      let k;
 
-      setKampanya(k);
+      try {
+        k = await kampanyaGetir(kampanyaId);
+      } catch (e) {
+        if (iptal) return;
 
-      if (!k) {
+        setHata(e.message);
         setYukleniyor(false);
         return;
       }
+
+      if (iptal) return;
+
+      setKampanya(k);
 
       // ⚠️ Kupon başına ayrı istek atılıyor ama bu kabul edilebilir:
       // bir kampanyada en fazla 2-3 kupon var. Toplu bir uç yazmak
@@ -122,7 +137,18 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
   if (!kampanya) {
     return (
       <View style={styles.ortala}>
-        <Text style={styles.bosYazi}>Kampanya bulunamadı.</Text>
+        <Text style={styles.bosYazi}>{hata || 'Kampanya bulunamadı.'}</Text>
+
+        {/* ⚠️ Geri butonu BURADA da lazım: yüzen buton yalnızca
+            içerik çizildiğinde görünüyor ve müşteri bu ekranda
+            kalırsa çıkacak yeri kalmazdı. */}
+        <TouchableOpacity
+          style={styles.bosGeri}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.bosGeriYazi}>Geri dön</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -245,6 +271,24 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontSize: yazi.orta,
     fontFamily: font.normal,
     color: renkler.yaziGri,
+    textAlign: 'center',
+    paddingHorizontal: bosluk.genis,
+  },
+
+  bosGeri: {
+    marginTop: bosluk.normal,
+    paddingHorizontal: bosluk.genis,
+    paddingVertical: bosluk.kucuk,
+    borderRadius: kose.orta,
+    borderWidth: 1,
+    borderColor: renkler.anaRenk,
+  },
+
+  bosGeriYazi: {
+    fontSize: yazi.normal,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenk,
   },
 
   icerik: { paddingBottom: bosluk.dev },

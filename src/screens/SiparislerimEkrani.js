@@ -1,5 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View, Text, FlatList, StyleSheet, Platform, TouchableOpacity,
+  ScrollView, ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +15,7 @@ import BosDurum from '../components/BosDurum';
 import { SatirListesiIskeleti } from '../components/Iskelet';
 import Chip from '../components/Chip';
 import Rozet from '../components/Rozet';
+import { useSiparisTekrarla } from '../hooks/useSiparisTekrarla';
 import { durumYazisi, odemeYazisi, odemeRengi } from '../utils/durum';
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
@@ -51,6 +55,24 @@ export default function SiparislerimEkrani({ navigation }) {
   const { token } = useAuth();
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
+
+  /* ⭐ YENİ — "Siparişi Tekrarla" akışının tamamı ortak hook'ta:
+     onay penceresi, sepete ekleme, sonuç ve hata adımları.
+
+     ⚠️ Burada üçüncü tüketici olduk (sipariş detayı ve hızlı
+     siparişler). Akış kopyalanmadığı için onay metni, sepet
+     tazeleme ve "hiçbiri eklenemedi" dalı üç ekranda da aynı.
+
+     ⚠️ `islemde` TEK BAYRAK, kart başına değil: bir siparişi
+     tekrarlarken diğer kartların butonları da kilitleniyor. Kart
+     başına tutmak için hook'un durumu id'ye göre saklaması
+     gerekirdi; istek yarım saniye sürüyor ve aynı anda iki farklı
+     siparişi tekrarlamak diye bir kullanım yok. */
+  const {
+    sor: tekrarlaSor,
+    islemde: tekrarIslemde,
+    pencere: tekrarPenceresi,
+  } = useSiparisTekrarla();
 
   const [siparisler, setSiparisler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
@@ -186,6 +208,32 @@ export default function SiparislerimEkrani({ navigation }) {
               Aynı düzeltme sepette, onay ve başarı ekranlarında da
               yapıldı. */}
           <Text style={styles.tutar}>{paraBicimle(item.total)}</Text>
+
+          {/* ⭐ YENİ — SİPARİŞİ TEKRARLA
+
+              ⚠️ ÇERÇEVELİ, DOLU DEĞİL. Kartın kendisi zaten
+              basılabilir (detaya gider) ve dolu turuncu bir buton
+              o asıl eylemi bastırırdı. Tekrarlama sık ama ikincil
+              bir iş; çerçeve "eylem" der, "önce buna bas" demez.
+
+              ⚠️ İç TouchableOpacity dokunmayı YUTUYOR, dıştaki
+              karta geçmiyor — yani butona basınca sipariş detayı
+              açılmıyor. React Native'de iç içe dokunulabilirlerde
+              içteki kazanıyor, ayrıca bir şey yapmak gerekmiyor. */}
+          <TouchableOpacity
+            style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
+            onPress={() => tekrarlaSor(item.id)}
+            disabled={tekrarIslemde}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel={item.orderNumber + ' siparişini tekrarla'}
+          >
+            {tekrarIslemde ? (
+              <ActivityIndicator size="small" color={renkler.anaRenk} />
+            ) : (
+              <Text style={styles.tekrarYazi}>Siparişi Tekrarla</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -317,6 +365,15 @@ export default function SiparislerimEkrani({ navigation }) {
           />
         </>
       )}
+
+      {/* ⭐ Tekrarlama akışının penceresi — onay, "sepete eklendi"
+          ve hata adımlarının üçü de burada. Hook döndürüyor, ekran
+          yalnızca çiziyor.
+
+          ⚠️ Koşullu blokların DIŞINDA: liste boşken de açık
+          kalabilmeli. (Pratikte olmaz ama pencereyi bir listenin
+          varlığına bağlamak sonradan kırılacak bir bağ olurdu.) */}
+      {tekrarPenceresi}
     </SafeAreaView>
   );
 }
@@ -439,11 +496,15 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderTopColor: renkler.kenarlik,
   },
 
+  /* ⚠️ Satırda üç şey var (ödeme · tutar · buton) ve daralınca
+     kısalacak olan BU: tutar okunaklı kalmalı, buton da metnini
+     tam yazmalı. Ödeme bilgisi ise kartın en az kritik parçası. */
   odeme: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: bosluk.mikro,
     flexShrink: 1,
+    minWidth: 0,
   },
 
   odemeYazi: {
@@ -463,5 +524,39 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
+
+    // ⚠️ Butonla aynı satırda: tutar kısalmasın, kısalacaksa
+    // soldaki ödeme bilgisi kısalsın. Rakamın ortasından kesilen
+    // bir fiyat okunamaz hale gelir.
+    flexShrink: 0,
+  },
+
+  /* ---------- SİPARİŞİ TEKRARLA ---------- */
+
+  tekrarButon: {
+    flexShrink: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: bosluk.orta,
+    paddingVertical: bosluk.kucuk,
+    borderRadius: kose.orta,
+    borderWidth: 1.5,
+    borderColor: renkler.anaRenk,
+
+    // ⚠️ Yükleme çarkı yazının yerine geçiyor; genişlik sabit
+    // olmasaydı buton o an daralıp kartın düzeni zıplardı.
+    minWidth: 132,
+    minHeight: 34,
+  },
+
+  tekrarButonPasif: {
+    opacity: 0.5,
+  },
+
+  tekrarYazi: {
+    fontSize: yazi.kucuk,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenk,
   },
 });
