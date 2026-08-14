@@ -37,6 +37,49 @@ const CUBUK_GIZLENEN_EKRANLAR = [
   'SiparisBasarili',
 ];
 
+/* ⭐ YENİ — HER SEKMENİN KÖK EKRANI.
+ *
+ * ⚠️⚠️ BU BİR HATA DÜZELTMESİ, süs değil.
+ *
+ * Müşteri Hesabım → Siparişlerim'e girip alttaki "Hesabım" sekmesine
+ * bastığında HİÇBİR ŞEY OLMUYORDU. Diğer sekmeler çalıştığı için
+ * "uygulama takıldı" gibi görünüyordu; oysa sekme zaten seçiliydi.
+ *
+ * React Navigation'da seçili sekmeye basmak VARSAYILAN OLARAK bir şey
+ * yapmaz — yığını köke sarma davranışı elle eklenmek zorunda. Sekme
+ * çubuğu yalnızca "seçili değilse geç" mantığı çalıştırıyor.
+ *
+ * ⚠️ Favoriler burada YOK: o bir stack değil, tek ekran. Kökü zaten
+ * kendisi.
+ */
+const SEKME_KOKLERI = {
+  AnaSayfa: 'AnaSayfaMain',
+  Sepet: 'SepetMain',
+  Hesabim: 'HesabimMain',
+};
+
+/* Sekmeye basıldığında: sekme zaten seçiliyse yığını köke sar.
+ *
+ * ⚠️ `StackActions.popToTop()` KULLANILMADI. O eylem, çağrıldığı
+ * navigasyon nesnesinden YUKARI doğru yayılıyor; buradaki nesne sekme
+ * navigatörüne ait ve içteki yığına ulaşamıyor. `navigate` ise iç
+ * navigatörü hedef alıyor ve hedef ekran yığında zaten varsa ona
+ * GERİ DÖNÜYOR — istediğimiz tam olarak bu.
+ */
+function sekmeDinleyicileri({ navigation, route }) {
+  return {
+    tabPress: () => {
+      const kok = SEKME_KOKLERI[route.name];
+      if (!kok) return;
+
+      // Sekme seçili değilse varsayılan geçiş zaten doğru olanı yapar.
+      if (!navigation.isFocused()) return;
+
+      navigation.navigate(route.name, { screen: kok });
+    },
+  };
+}
+
 export default function MainTabNavigator() {
   const { renkler } = useTema();
 
@@ -91,11 +134,17 @@ export default function MainTabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="AnaSayfa" component={AnaSayfaStack} options={{ title: 'Ana Sayfa' }} />
+      <Tab.Screen
+        name="AnaSayfa"
+        component={AnaSayfaStack}
+        options={{ title: 'Ana Sayfa' }}
+        listeners={sekmeDinleyicileri}
+      />
       <Tab.Screen name="Favoriler" component={FavorilerimEkrani} options={{ title: 'Favorilerim' }} />
       <Tab.Screen
         name="Sepet"
         component={SepetStack}
+        listeners={sekmeDinleyicileri}
         options={({ route }) => {
           const ekran = getFocusedRouteNameFromRoute(route);
 
@@ -110,7 +159,12 @@ export default function MainTabNavigator() {
           };
         }}
       />
-      <Tab.Screen name="Hesabim" component={HesabimStack} options={{ title: 'Hesabım' }} />
+      <Tab.Screen
+        name="Hesabim"
+        component={HesabimStack}
+        options={{ title: 'Hesabım' }}
+        listeners={sekmeDinleyicileri}
+      />
     </Tab.Navigator>
   );
 }

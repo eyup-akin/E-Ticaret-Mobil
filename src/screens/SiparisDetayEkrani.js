@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 // ⭐ DEĞİŞTİ (GV/Faz 7.4) — dosyadaki elle yazılı ölçüler token'a bağlandı.
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking, Image } from 'react-native';
 import * as Clipboard from 'expo-clipboard';   // ⭐ YENİ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet } from '../services/api';
+import { SUNUCU_URL } from '../services/config';   // ⭐ YENİ — ürün resminin tam adresi
 import { useTema } from '../context/TemaContext';
 import { useSiparisTekrarla } from '../hooks/useSiparisTekrarla';   // ⭐ YENİ
 import { odemeYazisi, odemeRengi } from '../utils/durum';
@@ -350,9 +351,23 @@ export default function SiparisDetayEkrani({ route, navigation }) {
           <View style={styles.kutu}>
             {siparis.items.map((u, i) => (
               <View key={i} style={styles.urunSatir}>
-                <View style={styles.harfKutu}>
-                  <Text style={styles.harfYazi}>{u.productName.charAt(0)}</Text>
-                </View>
+                {/* ⭐ DEĞİŞTİ — ÜRÜN RESMİ. Baş harf artık yalnızca
+                    YEDEK: resmi olmayan ya da silinmiş ürünlerde
+                    çiziliyor. Kırık bir görsel yerine bilinçli bir
+                    yedek — sepette ve ürün kartında da aynı desen. */}
+                {u.productImageUrl ? (
+                  <Image
+                    source={{ uri: SUNUCU_URL + u.productImageUrl }}
+                    style={styles.urunGorsel}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.harfKutu}>
+                    <Text style={styles.harfYazi}>
+                      {u.productName.charAt(0).toLocaleUpperCase('tr-TR')}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.urunOrta}>
                   <Text style={styles.urunAd} numberOfLines={2}>{u.productName}</Text>
                   <Text style={styles.urunBirim}>{paraBicimle(u.unitPrice)} × {u.quantity}</Text>
@@ -790,6 +805,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
   // ⭐ DEĞİŞTİ (GV/Faz 1) — ana renk zemin olmaktan çıkarıldı.
   // Gerekçe UrunKarti.resimYok'ta yazılı: turuncu eylem rengi,
   // resimsiz ürünün yer tutucusu bir eylem değil.
+  /* ⭐ YENİ — ürün resmi.
+     ⚠️ Ölçüler harf karosuyla BİREBİR aynı: bir siparişte hem resmi
+     olan hem olmayan ürünler bulunabiliyor ve farklı boyda olsalardı
+     satırlar hizasız dizilirdi. */
+  urunGorsel: {
+    width: 44,
+    height: 44,
+    borderRadius: kose.kucuk,
+    backgroundColor: renkler.acikKart,
+  },
+
   harfKutu: {
     width: 44,
     height: 44,

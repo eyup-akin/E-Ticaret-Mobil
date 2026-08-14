@@ -209,32 +209,31 @@ export default function SiparislerimEkrani({ navigation }) {
               yapıldı. */}
           <Text style={styles.tutar}>{paraBicimle(item.total)}</Text>
 
-          {/* ⭐ YENİ — SİPARİŞİ TEKRARLA
-
-              ⚠️ ÇERÇEVELİ, DOLU DEĞİL. Kartın kendisi zaten
-              basılabilir (detaya gider) ve dolu turuncu bir buton
-              o asıl eylemi bastırırdı. Tekrarlama sık ama ikincil
-              bir iş; çerçeve "eylem" der, "önce buna bas" demez.
-
-              ⚠️ İç TouchableOpacity dokunmayı YUTUYOR, dıştaki
-              karta geçmiyor — yani butona basınca sipariş detayı
-              açılmıyor. React Native'de iç içe dokunulabilirlerde
-              içteki kazanıyor, ayrıca bir şey yapmak gerekmiyor. */}
-          <TouchableOpacity
-            style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
-            onPress={() => tekrarlaSor(item.id)}
-            disabled={tekrarIslemde}
-            activeOpacity={0.75}
-            accessibilityRole="button"
-            accessibilityLabel={item.orderNumber + ' siparişini tekrarla'}
-          >
-            {tekrarIslemde ? (
-              <ActivityIndicator size="small" color={renkler.anaRenk} />
-            ) : (
-              <Text style={styles.tekrarYazi}>Siparişi Tekrarla</Text>
-            )}
-          </TouchableOpacity>
         </View>
+
+        {/* ⭐⭐ DEĞİŞTİ — BUTON KENDİ SATIRINDA, TAM GENİŞLİKTE.
+            ⚠️ Ödeme bilgisi, tutar ve buton AYNI SATIRDAYDI ve üçü
+            birbirinin üstüne biniyordu: kart numarası tutarın altında
+            kalıyor, "₺43.970,13" gibi uzun bir tutarda ikisi iç içe
+            geçiyordu (cihazda görüldü). Dar ekranda üç öğeyi bir
+            satıra sığdırmak mümkün değil.
+            ⚠️ Artık DOLU turuncu: kendi satırında tek başına
+            durduğuna göre kartın asıl dokunuşuyla yarışmıyor ve
+            tasarım referansı da böyle. */}
+        <TouchableOpacity
+          style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
+          onPress={() => tekrarlaSor(item.id)}
+          disabled={tekrarIslemde}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={item.orderNumber + ' siparişini tekrarla'}
+        >
+          {tekrarIslemde ? (
+            <ActivityIndicator size="small" color={renkler.anaRenkUstuYazi} />
+          ) : (
+            <Text style={styles.tekrarYazi}>Siparişi Tekrarla</Text>
+          )}
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   }
@@ -384,12 +383,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.arkaPlan,
   },
 
-  ortala: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: renkler.arkaPlan,
-  },
 
   baslik: {
     fontSize: yazi.baslik,
@@ -496,9 +489,9 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderTopColor: renkler.kenarlik,
   },
 
-  /* ⚠️ Satırda üç şey var (ödeme · tutar · buton) ve daralınca
-     kısalacak olan BU: tutar okunaklı kalmalı, buton da metnini
-     tam yazmalı. Ödeme bilgisi ise kartın en az kritik parçası. */
+  /* ⚠️ Satırda artık İKİ şey var (ödeme · tutar) ve daralınca
+     kısalacak olan bu: tutar okunaklı kalmalı. Ödeme bilgisi
+     kartın en az kritik parçası. */
   odeme: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -525,28 +518,24 @@ const stilOlustur = (renkler) => StyleSheet.create({
     fontFamily: font.kalin,
     color: renkler.yaziKoyu,
 
-    // ⚠️ Butonla aynı satırda: tutar kısalmasın, kısalacaksa
-    // soldaki ödeme bilgisi kısalsın. Rakamın ortasından kesilen
-    // bir fiyat okunamaz hale gelir.
+    // ⚠️ Tutar kısalmasın, kısalacaksa soldaki ödeme bilgisi
+    // kısalsın. Rakamın ortasından kesilen bir fiyat okunamaz.
     flexShrink: 0,
   },
 
   /* ---------- SİPARİŞİ TEKRARLA ---------- */
 
+  /* ⭐ DEĞİŞTİ — tam genişlik, dolu turuncu.
+     ⚠️ `minWidth` KALKTI: o değer buton bir satırın sağındayken
+     "Kopyalandı"ya benzer metin değişimlerinde zıplamasın diye
+     vardı. Genişlik artık kartın kendisi tarafından belirleniyor. */
   tekrarButon: {
-    flexShrink: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: bosluk.orta,
-    paddingVertical: bosluk.kucuk,
+    height: 44,
+    marginTop: bosluk.orta,
     borderRadius: kose.orta,
-    borderWidth: 1.5,
-    borderColor: renkler.anaRenk,
-
-    // ⚠️ Yükleme çarkı yazının yerine geçiyor; genişlik sabit
-    // olmasaydı buton o an daralıp kartın düzeni zıplardı.
-    minWidth: 132,
-    minHeight: 34,
+    backgroundColor: renkler.anaRenk,
   },
 
   tekrarButonPasif: {
@@ -554,9 +543,9 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   tekrarYazi: {
-    fontSize: yazi.kucuk,
+    fontSize: yazi.normal,
     fontWeight: agirlik.yari,
     fontFamily: font.yari,
-    color: renkler.anaRenk,
+    color: renkler.anaRenkUstuYazi,
   },
 });

@@ -356,7 +356,24 @@ const stilOlustur = (renkler) => StyleSheet.create({
     borderWidth: 1,
     borderColor: renkler.kenarlik,
     padding: bosluk.normal,
-    ...renkler.golgeSm,
+
+    /* ⚠️⚠️ GÖLGE KALDIRILDI — SEÇİLİ KARTTA HATA ÜRETİYORDU.
+     *
+     * `golgeSm` içinde `elevation` var ve seçili kart zemini
+     * `yumusakVurgu`, yani SAYDAM bir renk (rgba). Android
+     * yükseltilmiş bir görünümün gölgesini arkasına çiziyor; zemin
+     * saydam olunca o gölge FİLTRENİN ALTINDAN görünüyor ve kartın
+     * içinde gri bir dikdörtgen beliriyordu (cihazda görüldü).
+     *
+     * ⚠️ Çözüm "seçiliyken gölgeyi kapat" DEĞİL: o zaman seçili kart
+     * düz, diğerleri yükseltilmiş görünür ve seçim bir kusur gibi
+     * okunurdu. Gölge iki durumdan da kalktı; kartı zaten 1px
+     * kenarlık ve yuvarlak köşe tanımlıyor.
+     *
+     * ⚠️ `yumusakVurgu`'yu opak bir tona çevirmek de düşünüldü ve
+     * ELENDİ: tema dosyasında bu rengin neden rgba olduğu yazılı —
+     * hem beyaz kart hem kırık-beyaz sayfa üstünde kullanılıyor ve
+     * düz renk ikisinden birinde tutmuyor. */
   },
 
   /* ⚠️ Kenarlık KALINLAŞMIYOR, sadece rengi ve zemin değişiyor.
