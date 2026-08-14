@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
-import { apiPost, apiPut, oturumBittiKaydet } from '../services/api';
+import { apiPost, apiPut, apiDelete, apiYukle, oturumBittiKaydet } from '../services/api';
 import {
   tokenKaydet, tokenAl, tokenSil,
   kullaniciKaydet, kullaniciAl, kullaniciSil,
@@ -47,8 +47,17 @@ export function AuthProvider({ children }) {
   async function girisYap(email, sifre) {
     const veri = await apiPost('/auth/login', { email: email, password: sifre });
 
-    // backend { token, fullName, role } döndürüyor
-    const kul = { id: veri.id, fullName: veri.fullName, role: veri.role };
+    // backend { token, fullName, role, profilFotoUrl } döndürüyor
+    const kul = {
+      id: veri.id,
+      fullName: veri.fullName,
+      role: veri.role,
+
+      // ⭐ YENİ — avatar uygulama açılır açılmaz doğru çizilsin.
+      // Yalnızca profil ucundan alsaydık, giriş yapan müşteri
+      // fotoğrafını ancak Hesabım'a girip çıkınca görürdü.
+      profilFotoUrl: veri.profilFotoUrl ?? null,
+    };
 
     await tokenKaydet(veri.token);
 
@@ -105,12 +114,53 @@ export function AuthProvider({ children }) {
       id: veri.id,
       fullName: veri.fullName,
       role: veri.role,
+      profilFotoUrl: veri.profilFotoUrl ?? null,   // ⭐ YENİ
     };
 
     await kullaniciKaydet(guncel);  // kalıcı kopya
     setKullanici(guncel);           // ekranlardaki kopya
 
     return veri; // { mesaj, ... } — ekran mesajı gösterecek
+  }
+
+  // ---------- ⭐ YENİ — PROFİL FOTOĞRAFI ----------
+  //
+  // ⚠️ Ad soyad güncellemeyle AYNI gerekçe: fotoğraf yolu iki yerde
+  // saklı (state + SecureStore) ve ikisini birden güncellemek kimlik
+  // durumunun sahibinin işi. Ekran doğrudan API'yi çağırsaydı,
+  // uygulamayı kapatıp açınca eski fotoğraf geri gelirdi.
+  //
+  // ⚠️ `dosya` = { uri, name, type } — RN'in FormData'sı böyle
+  // istiyor, gerekçesi services/api.js'te.
+  async function profilFotoYukle(dosya) {
+    const veri = await apiYukle('/auth/profil-foto', dosya);
+
+    await fotoyuYaz(veri.profilFotoUrl);
+
+    return veri;
+  }
+
+  async function profilFotoSil() {
+    const veri = await apiDelete('/auth/profil-foto');
+
+    await fotoyuYaz(null);
+
+    return veri;
+  }
+
+  // İki kopyayı birlikte günceller.
+  //
+  // ⚠️ `kullanici` null iken çağrılamaz (oturum yoksa bu uçlar zaten
+  // 401 döner) ama yine de kontrol ediyoruz: null'a yayılma operatörü
+  // uygulamak sessizce {profilFotoUrl} gibi kimliksiz bir nesne
+  // üretir ve ekranda ad kaybolurdu.
+  async function fotoyuYaz(url) {
+    if (!kullanici) return;
+
+    const guncel = { ...kullanici, profilFotoUrl: url };
+
+    await kullaniciKaydet(guncel);
+    setKullanici(guncel);
   }
 
   // ---------- ⭐ YENİ — ŞİFRE DEĞİŞTİR ----------
@@ -223,6 +273,8 @@ export function AuthProvider({ children }) {
 
         // ⭐ YENİ
         profilGuncelle,
+        profilFotoYukle,
+        profilFotoSil,
         sifreDegistir,
         hesabiKapat,
       }}

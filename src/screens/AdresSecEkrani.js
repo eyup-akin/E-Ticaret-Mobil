@@ -178,6 +178,18 @@ export default function AdresSecEkrani({ route, navigation }) {
         accessibilityState={secimModu ? { selected: secili } : undefined}
       >
         <View style={styles.kartUst}>
+          {/* ⭐ YENİ — BAŞLIĞIN YANINDA KONUM İKONU.
+              ⚠️ Kart tarafında bu rol lacivert kare ikonun; burada
+              başlık ("Ev", "İş") zaten kimliği taşıdığı için kare
+              gereksiz olurdu. Küçük turuncu bir pin, adres kartını
+              kart kartından ayırmaya yetiyor.
+              ⚠️ Turuncu ama BASILABİLİR DEĞİL — ikon tek başına eylem
+              ima etmiyor; ekrandaki tek dolu turuncu öğe "Kaydet"
+              butonu ve o bambaşka bir boyutta. */}
+          <View style={styles.adresIkon}>
+            <Ionicons name="location" size={16} color={renkler.anaRenkKoyu} />
+          </View>
+
           <Text style={styles.adresBaslik} numberOfLines={1}>{item.title}</Text>
 
           {secimModu ? (
@@ -189,21 +201,42 @@ export default function AdresSecEkrani({ route, navigation }) {
           ) : (
             /* Yönetim modunda seçim yok, silme var. İki mod aynı
                köşeyi kullanıyor: kartın sağ üstü "bu karta dair
-               eylem" yeri. */
+               eylem" yeri.
+
+               ⭐ DEĞİŞTİ — çıplak ikon yerine yumuşak kırmızı daire;
+               gerekçe KartSecEkrani'nda. */
             <TouchableOpacity
+              style={styles.silDaire}
               onPress={() => setSilinecek(item)}
               hitSlop={8}
               accessibilityLabel="Adresi sil"
             >
-              <Ionicons name="trash-outline" size={20} color={renkler.hata} />
+              <Ionicons name="trash-outline" size={18} color={renkler.hata} />
             </TouchableOpacity>
           )}
         </View>
 
         <Text style={styles.adresMetin}>{item.fullAddress}</Text>
-        <Text style={styles.adresSehir}>{item.city}</Text>
 
-        {item.phone ? <Text style={styles.adresTelefon}>{item.phone}</Text> : null}
+        {/* ⭐ DEĞİŞTİ — ŞEHİR VE TELEFON ARTIK İKONLU, ALT ALTA DEĞİL.
+            ⚠️ Eskiden iki ayrı gri satırdı ve hangisinin ne olduğu
+            ancak içeriğe bakarak anlaşılıyordu ("Denizli" mi şehir mi
+            mahalle mi?). İkon, etiket yazmadan bunu söylüyor.
+            ⚠️ `flexWrap`: uzun şehir + telefon dar ekranda alt alta
+            düşsün, kırpılmasın. */}
+        <View style={styles.metaSatir}>
+          <View style={styles.metaOge}>
+            <Ionicons name="business-outline" size={13} color={renkler.yaziGri} />
+            <Text style={styles.metaYazi}>{item.city}</Text>
+          </View>
+
+          {item.phone ? (
+            <View style={styles.metaOge}>
+              <Ionicons name="call-outline" size={13} color={renkler.yaziGri} />
+              <Text style={styles.metaYazi}>{item.phone}</Text>
+            </View>
+          ) : null}
+        </View>
       </TouchableOpacity>
     );
   }
@@ -480,12 +513,18 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ---------- ADRES KARTI ---------- */
 
+  /* ⭐ DEĞİŞTİ — kart gölgeli ve daha yuvarlak (KartSecEkrani ile
+     birebir aynı ölçüler: iki ekran aynı akışın iki adımı).
+     ⚠️ `elevation` tek başına yazılmadı — iOS'ta hiçbir etkisi yok.
+     ⚠️ Kenarlık duruyor: koyu temada gölge görünmüyor, sınırı o
+     taşıyor. */
   kart: {
     backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
+    borderRadius: kose.dev,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
     padding: bosluk.normal,
+    ...renkler.golgeSm,
   },
 
   /* ⚠️ Kenarlık KALINLAŞMIYOR, sadece rengi ve zemin değişiyor.
@@ -518,16 +557,46 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.yaziOrta,
   },
 
-  adresSehir: {
-    fontSize: yazi.kucuk,
-    color: renkler.yaziGri,
-    marginTop: 2,
+  /* ⭐ YENİ — başlığın yanındaki turuncu pin karesi. */
+  adresIkon: {
+    width: 28,
+    height: 28,
+    borderRadius: kose.kucuk,
+    backgroundColor: renkler.yumusakVurgu,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
-  adresTelefon: {
+  /* ⭐ YENİ — şehir ve telefon tek satırda, ikonlu.
+     ⚠️ `adresSehir` ve `adresTelefon` stilleri KALDIRILDI, ölü kod
+     bırakılmadı: ikisinin de tek tüketicisi buydu. */
+  metaSatir: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: bosluk.normal,
+    marginTop: bosluk.kucuk,
+  },
+
+  metaOge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.mikro,
+  },
+
+  metaYazi: {
     fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginTop: bosluk.kucuk,
+  },
+
+  /* ⭐ YENİ — silme dairesi (KartSecEkrani ile aynı). */
+  silDaire: {
+    width: 36,
+    height: 36,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.yumusakHata,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
 

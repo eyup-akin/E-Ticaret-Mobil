@@ -3,7 +3,7 @@ import {
   View, Text, Image, ScrollView, StyleSheet, TouchableOpacity,
   ActivityIndicator, useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { apiGet } from '../services/api';
@@ -47,13 +47,25 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
 
   const { renkler } = useTema();
   const { width: ekranGenisligi } = useWindowDimensions();
-  const { top: guvenliUst } = useSafeAreaInsets();
   const styles = stilOlustur(renkler);
 
   const [kampanya, setKampanya] = useState(null);
   const [kuponlar, setKuponlar] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [kopyalanan, setKopyalanan] = useState(null);
+
+  /* ⭐ YENİ — AFİŞİN GERÇEK ORANI.
+   *
+   * ⚠️ Kutu SABİT 2:1 İDİ ve afiş `cover` ile kırpılıyordu. Kampanya
+   * görselleri tasarlanmış birer poster: her pikselinde yazı var ve
+   * kırpılan kenar çoğu zaman kupon kodunun kendisi oluyordu.
+   * Müşteri "kuponu göremiyorum" diyordu — haklı olarak.
+   *
+   * Oran artık görselin kendisinden okunuyor, yani hiçbir şey
+   * kırpılmıyor. 2 yalnızca ölçülene kadarki başlangıç değeri
+   * (panelin önerdiği oran) — sıfır verseydik yükleme anında
+   * yerleşim zıplardı. */
+  const [gorselOrani, setGorselOrani] = useState(2);
 
   /* ⭐ YENİ (B2) — kampanya artık SUNUCUDAN geliyor, yani
      alınamama ihtimali var. Veri yerelken bu durum yoktu.
@@ -154,18 +166,46 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
   }
 
   return (
-    // edges boş: görsel ekranın en üstünden başlıyor.
-    // (Ürün detayındaki kararın aynısı.)
-    <SafeAreaView style={styles.kapsayici} edges={[]}>
+    /* ⭐ DEĞİŞTİ — edges artık ['top'].
+     *
+     * ⚠️ Eskiden boştu ve görsel ekranın en tepesinden başlıyordu;
+     * geri butonu da onun ÜSTÜNDE yüzüyordu. Ürün detayında bu
+     * doğru bir karar: orada hero bir ürün fotoğrafı ve köşesi
+     * genelde boş. Kampanya afişi ise tasarlanmış bir poster —
+     * köşede de yazı var ve buton onu kapatıyordu. */
+    <SafeAreaView style={styles.kapsayici} edges={['top']}>
+      {/* ⭐ YENİ — GERİ BUTONU ARTIK GÖRSELİN ÜSTÜNDE DEĞİL.
+          Kendi şeridinde duruyor; afişin hiçbir yeri kapanmıyor. */}
+      <View style={styles.ustBar}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.geriButon}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Geri"
+        >
+          <Ionicons name="arrow-back" size={24} color={renkler.yaziKoyu} />
+        </TouchableOpacity>
+
+        <Text style={styles.ustBaslik} numberOfLines={1}>Kampanya</Text>
+      </View>
+
       <ScrollView contentContainerStyle={styles.icerik} showsVerticalScrollIndicator={false}>
+        {/* ⚠️ Genişlik ekranın TAMAMI: afiş ne kadar geniş olursa
+            içindeki kupon o kadar okunur. Kenar boşluğu vermek onu
+            daraltmaktan başka bir işe yaramazdı. */}
         <Image
           source={kampanya.gorsel}
-          style={{ width: ekranGenisligi, height: ekranGenisligi / 2 }}
+          style={{ width: ekranGenisligi, height: ekranGenisligi / gorselOrani }}
           resizeMode="cover"
+          onLoad={(olay) => {
+            // ⚠️ `source` uzak görsellerde de dolu geliyor; asıl
+            // ölçüler burada. Sıfıra bölmeye karşı korumalı.
+            const { width, height } = olay.nativeEvent.source ?? {};
+            if (width > 0 && height > 0) setGorselOrani(width / height);
+          }}
         />
 
-        {/* İçerik yaprağı görselin üstüne biniyor — ürün detayıyla
-            aynı hareket, aynı ölçüler. */}
         <View style={styles.yaprak}>
           <Text style={styles.baslik}>{kampanya.baslik}</Text>
 
@@ -243,16 +283,6 @@ export default function KampanyaDetayEkrani({ route, navigation }) {
           </View>
         )}
       </ScrollView>
-
-      {/* Yüzen geri butonu — ürün detayıyla aynı desen ve aynı
-          güvenli alan hesabı. */}
-      <TouchableOpacity
-        style={[styles.geriYuzen, { top: guvenliUst + bosluk.orta }]}
-        onPress={() => navigation.goBack()}
-        hitSlop={8}
-      >
-        <Ionicons name="arrow-back" size={22} color={renkler.yaziKoyu} />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -293,25 +323,46 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   icerik: { paddingBottom: bosluk.dev },
 
-  geriYuzen: {
-    position: 'absolute',
-    left: bosluk.orta,
-    width: 40,
-    height: 40,
-    borderRadius: kose.tam,
-    backgroundColor: renkler.kartArka,
-    justifyContent: 'center',
+  /* ⭐ YENİ — üst şerit. Favorilerim ve Hızlı Siparişlerim ile aynı
+     desen: ok solda mutlak konumda, başlık ortalı. */
+  ustBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    ...renkler.golgeSm,
+    paddingHorizontal: sayfaKenari,
+    paddingTop: bosluk.kucuk,
+    paddingBottom: bosluk.kucuk,
   },
 
+  /* ⚠️ Ok MUTLAK KONUMDA: akışta olsaydı başlığı sağa iter ve
+     ortalama okun genişliğine bağlı kalırdı. */
+  geriButon: {
+    position: 'absolute',
+    left: sayfaKenari,
+    zIndex: 1,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+  },
+
+  ustBaslik: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: yazi.orta,
+    lineHeight: satir.orta,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.yaziKoyu,
+  },
+
+  /* ⭐ DEĞİŞTİ — yaprak artık görselin ÜSTÜNE BİNMİYOR.
+     ⚠️ Eskiden `marginTop: -bosluk.genis` ile 24dp biniyordu ve
+     afişin alt şeridini kapatıyordu. Görsel artık kırpılmadan tam
+     gösterildiği için alt kenarını örtmek, kazanılan alanı geri
+     vermek olurdu. */
   yaprak: {
     backgroundColor: renkler.kartArka,
-    marginTop: -bosluk.genis,
-    borderTopLeftRadius: kose.dev,
-    borderTopRightRadius: kose.dev,
     paddingHorizontal: bosluk.normal,
-    paddingTop: bosluk.genis,
+    paddingTop: bosluk.normal,
     paddingBottom: bosluk.normal,
   },
 
@@ -364,22 +415,32 @@ const stilOlustur = (renkler) => StyleSheet.create({
      borderStyle:'dashed' Android'de yuvarlak köşelerle birlikte
      çizilmiyor (tasarım sistemi skill'inde yazılı). Ayrımı dolu
      kenarlık ve yumuşak turuncu zemin veriyor. */
+  /* ⭐ DEĞİŞTİ — KUPON KARTI ARTIK ALT ALTA, YAN YANA DEĞİL.
+   *
+   * ⚠️ Eskiden satırdı: solda kod, sağda 118dp'lik "Kopyala"
+   * butonu. Kupon kodu (HOSGELDIN300 gibi uzun ve harf aralıklı)
+   * kalan dar alana sıkışıyordu — müşterinin bu ekranda okuması
+   * gereken TEK şey oydu.
+   *
+   * Şimdi kod tam genişlikte, buton altında. Dikeyde birkaç piksel
+   * daha yer kaplıyor ama bu ekranda aşağı kaydırılacak yer zaten
+   * bol; darlık dikeyde değil yataydaydı. */
   kuponKart: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: bosluk.orta,
     backgroundColor: renkler.yumusakVurgu,
     borderWidth: 1,
     borderColor: renkler.anaRenk,
     borderRadius: kose.buyuk,
     padding: bosluk.normal,
     marginBottom: bosluk.orta,
+    gap: bosluk.normal,
   },
 
-  kuponSol: { flex: 1, minWidth: 0 },
+  kuponSol: { minWidth: 0 },
 
   kuponKod: {
-    fontSize: yazi.buyuk,
+    // ⭐ DEĞİŞTİ — bir punto büyüdü. Ekranın asıl bilgisi bu ve
+    // artık genişlik sıkıntısı yok.
+    fontSize: yazi.baslik,
     fontWeight: agirlik.kalin,
     fontFamily: font.kalin,
     lineHeight: satir.buyuk,
@@ -415,19 +476,20 @@ const stilOlustur = (renkler) => StyleSheet.create({
     marginTop: bosluk.mikro,
   },
 
+  /* ⭐ DEĞİŞTİ — buton artık kartın TAM GENİŞLİĞİNDE.
+     ⚠️ `minWidth: 118` kalktı: o değer, buton bir satırın sağında
+     dururken "Kopyalandı" yazısına geçince zıplamasın diye vardı.
+     Genişlik artık kartın kendisi tarafından belirleniyor, yani
+     metin değişse de tek piksel oynamıyor. */
   kopyaButon: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: bosluk.mikro,
     backgroundColor: renkler.anaRenk,
     paddingHorizontal: bosluk.orta,
-    paddingVertical: bosluk.kucuk,
+    paddingVertical: bosluk.orta,
     borderRadius: kose.orta,
-
-    // Buton içeriğe göre daralmasın; "Kopyalandı" yazısı
-    // "Kopyala"dan uzun ve basınca genişlemesi zıplama yaratırdı.
-    minWidth: 118,
-    justifyContent: 'center',
   },
 
   kopyaButonAktif: { backgroundColor: renkler.basari },

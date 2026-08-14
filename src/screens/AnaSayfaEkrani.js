@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, FlatList, StyleSheet, useWindowDimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet } from '../services/api';
@@ -104,6 +104,20 @@ export default function AnaSayfaEkrani({ navigation }) {
   // çiziliyor. Sıralamayı burada sabitleseydik yarın bölüm sırası
   // değiştiğinde uygulama güncellemesi gerekirdi.
   const [bolumler, setBolumler] = useState([]);
+
+  // Bölüm isteklerinin sıra numarası — gerekçe bolumleriGetir'de.
+  const bolumIstekSirasi = useRef(0);
+
+  /* ⭐ YENİ — AŞAĞI ÇEKİP YENİLEME
+   *
+   * ⚠️ `yukleniyor`DAN AYRI BİR BAYRAK, bilerek.
+   *
+   * `yukleniyor` true olduğunda ekran iskelete dönüyor. Yenilemede
+   * onu kullansaydık müşteri parmağını çektiği anda mevcut içerik
+   * kaybolur, yerine gri kutular gelirdi — oysa elinde zaten
+   * çalışan bir sayfa var ve yalnızca tazelenmesini istedi.
+   * RefreshControl'ün kendi çarkı geri bildirim için yeterli. */
+  const [yenileniyor, setYenileniyor] = useState(false);
 
   // ---- FİLTRELEYİNCE ÜRÜNLERE KAYDIRMA ----
   //
@@ -216,9 +230,15 @@ export default function AnaSayfaEkrani({ navigation }) {
   }
 
   // ---- ÜRÜN IZGARASI ----
-  async function urunleriGetir(arama, aktifFiltre, aktifSiralama) {
+  /* ⭐ DEĞİŞTİ — `sessiz` parametresi eklendi.
+   *
+   * ⚠️ Aşağı çekip yenilerken iskelet GÖSTERİLMEMELİ: müşterinin
+   * elinde çalışan bir sayfa var, onu gri kutulara çevirmek
+   * "içeriğim kayboldu" hissi verir. Sessiz çağrıda `yukleniyor`
+   * hiç değişmiyor, geri bildirimi RefreshControl'ün çarkı veriyor. */
+  async function urunleriGetir(arama, aktifFiltre, aktifSiralama, sessiz = false) {
     try {
-      setYukleniyor(true);
+      if (!sessiz) setYukleniyor(true);
       setAgHatasi(false);
 
       const yol = '/products' + filtreSorgusuKur(aktifFiltre, {
@@ -240,7 +260,32 @@ export default function AnaSayfaEkrani({ navigation }) {
       setUrunler([]);
       setAgHatasi(true);
     } finally {
-      setYukleniyor(false);
+      if (!sessiz) setYukleniyor(false);
+    }
+  }
+
+  /* ⭐ YENİ — SAYFAYI TAZELE (aşağı çekince)
+   *
+   * ⚠️ Üç isteğin üçü de PARALEL ve `allSettled` ile: ürünler,
+   * kategoriler ve vitrin bölümleri birbirinden bağımsız. `all`
+   * kullansaydık kategori isteği patladığında ürünler de
+   * tazelenmemiş sayılırdı — oysa her biri kendi hatasını zaten
+   * kendi içinde yönetiyor.
+   *
+   * ⚠️ Çark, isteklerin üçü de bitene kadar dönüyor. Yalnızca
+   * ürünleri bekleseydik çark durduktan sonra şeritler değişmeye
+   * devam eder ve ekran "kendi kendine oynuyor" gibi görünürdü. */
+  async function sayfayiYenile() {
+    setYenileniyor(true);
+
+    try {
+      await Promise.allSettled([
+        urunleriGetir(uygulananArama, filtre, siralama, true),
+        bolumleriGetir(),
+        kategorileriGetir(),
+      ]);
+    } finally {
+      setYenileniyor(false);
     }
   }
 
@@ -252,23 +297,29 @@ export default function AnaSayfaEkrani({ navigation }) {
     urunleriGetir(uygulananArama, filtre, siralama);
   }, [uygulananArama, filtre, siralama]);
 
-  // ---- KATEGORİLER — bir kez ----
-  useEffect(() => {
-    let iptal = false;
-
-    (async () => {
-      try {
-        const veri = await apiGet('/categories');
-        if (!iptal) setKategoriler(veri);
-      } catch (hata) {
-        // ⚠️ Kategori şeridi çizilemezse ana sayfa yine çalışıyor:
-        // bölüm hiç görünmüyor, ürün ızgarası yerinde duruyor.
-        console.log('Kategoriler alınamadı:', hata.message);
-      }
-    })();
-
-    return () => { iptal = true; };
+  // ---- KATEGORİLER ----
+  //
+  // ⭐ DEĞİŞTİ — gövde adlı bir fonksiyona alındı; ikinci tüketicisi
+  // aşağı çekip yenileme. (Bölümlerdeki taşımanın aynısı.)
+  const kategorileriGetir = useCallback(async () => {
+    try {
+      const veri = await apiGet('/categories');
+      setKategoriler(veri);
+    } catch (hata) {
+      // ⚠️ Kategori şeridi çizilemezse ana sayfa yine çalışıyor:
+      // bölüm hiç görünmüyor, ürün ızgarası yerinde duruyor.
+      //
+      // ⚠️ Hata olduğunda liste BOŞALTILMIYOR: elimizdeki kategoriler
+      // hâlâ geçerli. Bölümlerden farkı bu — orada veri gezme
+      // geçmişine bağlı ve bayatlayabiliyor, kategori listesi ise
+      // nadiren değişiyor.
+      console.log('Kategoriler alınamadı:', hata.message);
+    }
   }, []);
+
+  useEffect(() => {
+    kategorileriGetir();
+  }, [kategorileriGetir]);
 
   // ---- VİTRİN BÖLÜMLERİ (7.4) ----
   //
@@ -291,33 +342,49 @@ export default function AnaSayfaEkrani({ navigation }) {
   // ⚠️ BÖLÜMLER İKİNCİL VERİ: istek patlarsa şeritler hiç
   // çizilmiyor ama ürün ızgarası yerinde duruyor. Vitrin şeridi
   // yüzünden ana içeriği kaybetmek olmaz.
+  /* ⭐ DEĞİŞTİ — gövde useFocusEffect'in içinden ADLI BİR FONKSİYONA
+   * alındı. İkinci tüketicisi çıktı: aşağı çekip yenileme.
+   *
+   * ⚠️ useCallback ŞART: useFocusEffect'in bağımlılığı ve her
+   * render'da yeni bir fonksiyon üretilseydi efekt her seferinde
+   * yeniden kurulur, ekran her render'da bölümleri tekrar çekerdi. */
+  const bolumleriGetir = useCallback(async () => {
+    // ⚠️ SON İSTEK KAZANIR.
+    //
+    // Eski hâlde her efekt kurulumunda bir `iptal` bayrağı vardı ve
+    // temizlikte kapanıyordu. Fonksiyon dışarı alınınca o bayrak
+    // çalışmaz oldu: yenileme çağrısının bir "temizliği" yok.
+    // Sayaç ikisini birden çözüyor — ekrandan çıkıp hemen dönmek ya
+    // da yenilerken sekme değiştirmek, eski cevabın yenisinin
+    // üstüne yazmasına yol açmıyor.
+    const sira = ++bolumIstekSirasi.current;
+
+    const idler = await sonGezilenleriOku();
+
+    // ⚠️ Geçmiş boşsa da istek atılıyor: "popüler", "favori" ve
+    // "yeni" bölümleri gezme geçmişine bağlı değil. Atlamak,
+    // ilk kez açan müşteriye bomboş bir vitrin göstermek olurdu.
+    const sorgu = idler.length > 0
+      ? '?gezilenIdler=' + idler.join(',')
+      : '';
+
+    try {
+      const veri = await apiGet('/products/anasayfa' + sorgu);
+      if (sira !== bolumIstekSirasi.current) return;
+
+      setBolumler(veri.bolumler || []);
+    } catch (hata) {
+      if (sira !== bolumIstekSirasi.current) return;
+
+      setBolumler([]);
+      console.log('Ana sayfa bölümleri alınamadı:', hata.message);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let iptal = false;
-
-      (async () => {
-        const idler = await sonGezilenleriOku();
-
-        // ⚠️ Geçmiş boşsa da istek atılıyor: "popüler", "favori" ve
-        // "yeni" bölümleri gezme geçmişine bağlı değil. Atlamak,
-        // ilk kez açan müşteriye bomboş bir vitrin göstermek olurdu.
-        const sorgu = idler.length > 0
-          ? '?gezilenIdler=' + idler.join(',')
-          : '';
-
-        try {
-          const veri = await apiGet('/products/anasayfa' + sorgu);
-          if (iptal) return;
-
-          setBolumler(veri.bolumler || []);
-        } catch (hata) {
-          if (!iptal) setBolumler([]);
-          console.log('Ana sayfa bölümleri alınamadı:', hata.message);
-        }
-      })();
-
-      return () => { iptal = true; };
-    }, [])
+      bolumleriGetir();
+    }, [bolumleriGetir])
   );
 
   /* ---- BÖLÜMLER GÖRÜNSÜN MÜ? ----
@@ -519,6 +586,23 @@ export default function AnaSayfaEkrani({ navigation }) {
         contentContainerStyle={styles.liste}
         ListHeaderComponent={basliklar}
         showsVerticalScrollIndicator={false}
+
+        /* ⭐ YENİ — AŞAĞI ÇEKİP YENİLE
+           ⚠️ Renkler temadan: iOS'ta tek renk (`tintColor`), Android'de
+           dizi (`colors`) bekleniyor — ikisini de vermek zorunlu, biri
+           eksikse o platformda çark sistemin varsayılan mavisiyle
+           çiziliyor ve uygulamanın paletine yabancı duruyor.
+           ⚠️ `progressBackgroundColor` da şart: Android'de çarkın
+           arkasındaki daire beyaz kalıyor ve koyu temada parlıyor. */
+        refreshControl={
+          <RefreshControl
+            refreshing={yenileniyor}
+            onRefresh={sayfayiYenile}
+            tintColor={renkler.anaRenk}
+            colors={[renkler.anaRenk]}
+            progressBackgroundColor={renkler.kartArka}
+          />
+        }
 
         /* ⚠️ Tek işi kaydırma konumunu bir ref'e yazmak — state'e
            yazsaydık her karede yeniden render olurdu ve ekranda

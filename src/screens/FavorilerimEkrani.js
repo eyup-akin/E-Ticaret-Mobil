@@ -11,8 +11,38 @@ import { useAuth } from '../context/AuthContext';
 import GirisGerekliEkrani from '../components/GirisGerekliEkrani';
 import AramaCubugu from '../components/AramaCubugu';
 import BosDurum from '../components/BosDurum';
+import Chip from '../components/Chip';   // ⭐ YENİ — sekmeler
 import UrunKarti from '../components/UrunKarti';   // ⭐ ana sayfadaki kartın aynısı
 import { UrunIzgarasiIskeleti } from '../components/Iskelet';
+import { indirimBilgisi } from '../utils/indirim';   // ⭐ YENİ
+
+/* ⭐ YENİ — FavoriteDto → UrunKarti'nın beklediği "urun" şekli.
+ *
+ * ⚠️ Bileşenin DIŞINA alındı: hem kart çizerken hem de indirim
+ * süzgecinde lazım. İçeride kalsaydı süzgeç `item.eskiFiyat`'ı
+ * kendi eliyle okur ve iki yerde iki farklı alan adı kullanılırdı —
+ * DTO'da bir ad değiştiğinde biri sessizce çalışmaz hale gelirdi. */
+function urunSekli(item) {
+  return {
+    id: item.productId,
+    name: item.productName,
+    price: item.productPrice,
+
+    // ⭐ YENİ — indirim rozetinin çıkabilmesi için şart.
+    // Bu alan FavoriteDto'da yoktu; ana sayfada rozet çıkarken
+    // favorilerde çıkmıyordu.
+    eskiFiyat: item.eskiFiyat,
+
+    // ⭐ DEĞİŞTİ — ham stok yerine türetilmiş alanlar.
+    // Sunucu FavoriteDto'da da ProductDto ile AYNI iki alanı
+    // gönderiyor; böylece favori listesindeki kart ile ana
+    // sayfadaki kart aynı bilgiyi aynı biçimde alıyor.
+    stokDurumu: item.stokDurumu,
+    kalanAdet: item.kalanAdet,
+
+    mainImageUrl: item.productImageUrl,
+  };
+}
 
 export default function FavorilerimEkrani({ navigation }) {
   const { token } = useAuth();
@@ -23,6 +53,20 @@ export default function FavorilerimEkrani({ navigation }) {
   const [favoriler, setFavoriler] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [aramaMetni, setAramaMetni] = useState('');
+
+  /* ⭐ YENİ — SEKME: 'tumu' | 'indirim'
+   *
+   * ⚠️ SÜZGEÇ CİHAZDA, SUNUCUDA DEĞİL — bilerek.
+   *
+   * Favori listesi zaten tamamı tek istekte geliyor (sayfalama yok)
+   * ve indirim bilgisi her satırda mevcut. Sunucuya ikinci bir uç
+   * açsaydık, "indirimde mi" kuralı dördüncü kez yazılırdı ve iki
+   * sekme arasında geçiş her seferinde ağ isteği isterdi.
+   *
+   * ⚠️ Kural yine de ELLE YAZILMIYOR: `indirimBilgisi` çağrılıyor —
+   * rozeti çizen fonksiyonun ta kendisi. Böylece "rozet var ama
+   * sekmede yok" ya da tersi bir tutarsızlık imkânsız. */
+  const [sekme, setSekme] = useState('tumu');
 
   // ⭐ YENİ (GV/Faz 9.4)
   const [agHatasi, setAgHatasi] = useState(false);
@@ -51,33 +95,27 @@ export default function FavorilerimEkrani({ navigation }) {
     }, [token])
   );
 
-  // Arama süzgeci + karttan kalbe basıp çıkarılanları anında gizle
-  const filtreliFavoriler = favoriler
+  // Karttan kalbe basıp çıkarılanları anında gizle + arama süzgeci.
+  const gorunenler = favoriler
     .filter((f) => favoriMi(f.productId))
     .filter((f) =>
       aramaMetni ? f.productName.toLowerCase().includes(aramaMetni.toLowerCase()) : true
     );
 
+  /* ⭐ YENİ — indirimdeki favori sayısı.
+   *
+   * ⚠️ Sayı ARAMADAN ÖNCEKİ listeden değil, aramadan SONRAKİ
+   * listeden hesaplanıyor: sekme etiketi ekranda o an görülecek
+   * kart sayısını söylemeli. "İndirimdekiler (7)" yazıp 2 kart
+   * göstermek, sayının yalan söylemesi olurdu. */
+  const indirimdekiler = gorunenler.filter((f) => indirimBilgisi(urunSekli(f)).indirimliMi);
+
+  const listelenecek = sekme === 'indirim' ? indirimdekiler : gorunenler;
+
   function kartCiz({ item }) {
-    // FavoriteDto → UrunKarti'nın beklediği "urun" şekline çevir
-    const urun = {
-      id: item.productId,
-      name: item.productName,
-      price: item.productPrice,
-
-      // ⭐ DEĞİŞTİ — ham stok yerine türetilmiş alanlar.
-      // Sunucu FavoriteDto'da da ProductDto ile AYNI iki alanı
-      // gönderiyor; böylece favori listesindeki kart ile ana
-      // sayfadaki kart aynı bilgiyi aynı biçimde alıyor.
-      stokDurumu: item.stokDurumu,
-      kalanAdet: item.kalanAdet,
-
-      mainImageUrl: item.productImageUrl,
-    };
-
     return (
       <UrunKarti
-        urun={urun}
+        urun={urunSekli(item)}
         onPress={() =>
           navigation.navigate('AnaSayfa', {
             screen: 'UrunDetay',
@@ -124,18 +162,47 @@ export default function FavorilerimEkrani({ navigation }) {
       </View>
 
       {favoriler.length > 0 && (
-        <View style={styles.aramaYeri}>
-          <AramaCubugu
-            value={aramaMetni}
-            onChangeText={setAramaMetni}
-            onSubmit={() => {}}
-            placeholder="Favorilerimde ara..."
-          />
-        </View>
+        <>
+          <View style={styles.aramaYeri}>
+            <AramaCubugu
+              value={aramaMetni}
+              onChangeText={setAramaMetni}
+              onSubmit={() => {}}
+              placeholder="Favorilerimde ara..."
+            />
+          </View>
+
+          {/* ⭐ YENİ — SEKMELER
+              ⚠️ `Rozet` DEĞİL `Chip`: Rozet tıklanamaz bir durum
+              etiketi, bu ise seçim. Tasarım sisteminde bu ayrım
+              açıkça yazılı. Siparişlerim'deki durum şeridi de aynı
+              bileşeni kullanıyor.
+
+              ⚠️ İndirim sekmesi SAYI GÖSTERİYOR ama sıfırken de
+              çiziliyor ve basılabiliyor: "İndirimdekiler (0)"
+              müşteriye "favorilerinde indirimde ürün yok" der,
+              sekmenin hiç olmaması ise "böyle bir şey var mı?"
+              sorusunu doğurur. (Siparişlerim'de alınan kararın
+              aynısı — orada 0 olan çip pasif çiziliyor.) */}
+          <View style={styles.sekmeSeridi}>
+            <Chip
+              etiket={`Tümü (${gorunenler.length})`}
+              secili={sekme === 'tumu'}
+              onBas={() => setSekme('tumu')}
+            />
+
+            <Chip
+              etiket={`İndirimdekiler (${indirimdekiler.length})`}
+              secili={sekme === 'indirim'}
+              pasif={indirimdekiler.length === 0}
+              onBas={() => setSekme('indirim')}
+            />
+          </View>
+        </>
       )}
 
       <FlatList
-        data={filtreliFavoriler}
+        data={listelenecek}
         keyExtractor={(item) => item.id.toString()}
         renderItem={kartCiz}
         numColumns={2}
@@ -168,6 +235,17 @@ export default function FavorilerimEkrani({ navigation }) {
               aciklama="Beğendiğin ürünlerin kalbine dokun, hepsi burada toplansın."
               eylemYazisi="Ürünlere Göz At"
               onEylem={() => navigation.navigate('AnaSayfa', { screen: 'AnaSayfaMain' })}
+            />
+          ) : sekme === 'indirim' ? (
+            /* ⭐ YENİ — DÖRDÜNCÜ boşluk: favorin var ama indirimde
+               olan yok. Bu bir hata da, boş bir liste de değil —
+               beklenen ve geçici bir durum. Gidilecek bir yer
+               önermiyoruz çünkü müşterinin yapabileceği bir şey
+               yok; indirimi mağaza başlatır. */
+            <BosDurum
+              ikon="pricetag-outline"
+              baslik="Favorilerinde indirimde ürün yok"
+              aciklama="Beğendiğin bir ürün indirime girdiğinde burada görünecek."
             />
           ) : (
             <BosDurum
@@ -244,6 +322,18 @@ const stilOlustur = (renkler) => StyleSheet.create({
      kullanıyordu. */
   aramaYeri: {
     paddingHorizontal: sayfaKenari,
+  },
+
+  /* ⭐ YENİ — sekme şeridi.
+     ⚠️ Yatay ScrollView DEĞİL, düz View: yalnızca iki çip var ve
+     ikisi de her ekrana sığıyor. Kaydırılabilir şerit yapmak,
+     kaydırılacak bir şey olmadığı halde dikey akışta esneme
+     tuzağını (Siparişlerim'de yaşanan) davet ederdi. */
+  sekmeSeridi: {
+    flexDirection: 'row',
+    gap: bosluk.kucuk,
+    paddingHorizontal: sayfaKenari,
+    paddingTop: bosluk.kucuk,
   },
 
   liste: {

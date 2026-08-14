@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiGet, apiPost } from '../services/api';
+import { SUNUCU_URL } from '../services/config';   // ⭐ YENİ — profil fotoğrafının tam adresi
+import * as ImagePicker from 'expo-image-picker';   // ⭐ YENİ
 import { refreshTokenAl } from '../services/tokenStorage';
 import { useAuth } from '../context/AuthContext';
 import { useTema } from '../context/TemaContext';
@@ -12,7 +14,7 @@ import GirisGerekliEkrani from '../components/GirisGerekliEkrani';   // ⭐ misa
 import OnayPenceresi from '../components/OnayPenceresi';   // ⭐ YENİ (2026-08-12)
 
 export default function HesabimEkrani({ navigation }) {
-  const { token, kullanici, cikisYap } = useAuth();
+  const { token, kullanici, cikisYap, profilFotoYukle, profilFotoSil } = useAuth();
   const { renkler, koyuMu, temaDegistir } = useTema();
 
   // Misafir görünümündeki yüzen tema düğmesi için — açıklaması aşağıda.
@@ -45,6 +47,85 @@ export default function HesabimEkrani({ navigation }) {
   // beyaz açılıyor ve markanın rengi yerine sistemin mavisini
   // kullanıyor (gerekçenin tamamı bileşenin başında).
   const [cikisSorusu, setCikisSorusu] = useState(false);
+
+  // ⭐ YENİ — profil fotoğrafı akışı.
+  const [fotoYukleniyor, setFotoYukleniyor] = useState(false);
+  const [fotoSilSorusu, setFotoSilSorusu] = useState(false);
+  const [fotoHatasi, setFotoHatasi] = useState('');
+
+  /* Galeriden fotoğraf seç ve yükle.
+   *
+   * ⚠️ İZİN İSTENİYOR ama reddedilirse UYGULAMA ÇALIŞMAYA DEVAM
+   * EDİYOR: profil fotoğrafı isteğe bağlı bir süs. İzin yoksa
+   * kısa bir açıklama gösterip bırakıyoruz.
+   *
+   * ⚠️ `allowsEditing` + 1:1 oran: avatar yuvarlak ve kare olmayan
+   * bir fotoğraf `cover` ile kırpılır — kullanıcı neyin kırpıldığını
+   * göremez. Kırpmayı ONA yaptırmak, sürprizi ortadan kaldırıyor.
+   *
+   * ⚠️ `quality: 0.7` — telefon kamerası 4-8 MB üretiyor ve sunucu
+   * sınırı 5 MB. Sıkıştırmadan göndersek fotoğrafların bir kısmı
+   * "Dosya en fazla 5 MB olabilir!" ile reddedilirdi; avatar 72dp
+   * çizildiği için kayıp gözle görülmüyor.
+   */
+  async function fotografSec() {
+    setFotoHatasi('');
+
+    const izin = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!izin.granted) {
+      setFotoHatasi('Fotoğraf seçebilmek için galeri izni gerekiyor.');
+      return;
+    }
+
+    const sonuc = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (sonuc.canceled) return;
+
+    const secilen = sonuc.assets?.[0];
+    if (!secilen) return;
+
+    // ⚠️ Ad ve tip ELLE kuruluyor. Galeriden gelen varlıkta
+    // `fileName` bazen null (özellikle Android'de kameradan gelen
+    // dosyalarda) ve `mimeType` her sürümde dolu değil. Sunucu
+    // ikisini de zorunlu tutuyor; boş gönderirsek dosya
+    // "seçilmedi" ya da "geçersiz tip" diye reddedilir.
+    const uzanti = (secilen.uri.split('.').pop() || 'jpg').toLowerCase();
+    const tip = secilen.mimeType || (uzanti === 'png' ? 'image/png' : 'image/jpeg');
+
+    try {
+      setFotoYukleniyor(true);
+
+      await profilFotoYukle({
+        uri: secilen.uri,
+        name: secilen.fileName || `profil.${uzanti}`,
+        type: tip,
+      });
+    } catch (hata) {
+      setFotoHatasi(hata.message);
+    } finally {
+      setFotoYukleniyor(false);
+    }
+  }
+
+  async function fotografiKaldir() {
+    setFotoSilSorusu(false);
+    setFotoHatasi('');
+
+    try {
+      setFotoYukleniyor(true);
+      await profilFotoSil();
+    } catch (hata) {
+      setFotoHatasi(hata.message);
+    } finally {
+      setFotoYukleniyor(false);
+    }
+  }
 
   // Giriş varsa profili çek, çıkışta temizle
   useEffect(() => {
@@ -285,17 +366,12 @@ export default function HesabimEkrani({ navigation }) {
 
               ⚠️ İkon + yazı, sadece ikon DEĞİL: bir kapı ikonu tek
               başına "çıkış mı, giriş mi?" belirsizliği taşıyor. */}
-          <TouchableOpacity
-            style={styles.cikisButon}
-            onPress={() => setCikisSorusu(true)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Çıkış yap"
-          >
-            <Ionicons name="exit-outline" size={18} color={renkler.hata} />
-            <Text style={styles.cikisYazi}>Çıkış Yap</Text>
-          </TouchableOpacity>
-
+          {/* ⭐ DEĞİŞTİ — TEMA SOLA, ÇIKIŞ SAĞA GEÇTİ.
+              ⚠️ JSX sırası da değişti, sadece stil değil: ikisi de
+              mutlak konumda olduğu için görünüm stilden geliyor ama
+              ekran okuyucu JSX sırasını okuyor. Sırayı bırakıp
+              yalnızca stili değiştirseydik, ekranda solda duran
+              düğme ekran okuyucuda ikinci sırada okunurdu. */}
           <TouchableOpacity
             style={styles.temaButon}
             onPress={() => temaDegistir(koyuMu ? 'acik' : 'koyu')}
@@ -308,6 +384,17 @@ export default function HesabimEkrani({ navigation }) {
               size={20}
               color={renkler.yaziKoyu}
             />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cikisButon}
+            onPress={() => setCikisSorusu(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Çıkış yap"
+          >
+            <Ionicons name="exit-outline" size={18} color={renkler.hata} />
+            <Text style={styles.cikisYazi}>Çıkış Yap</Text>
           </TouchableOpacity>
         </View>
 
@@ -343,15 +430,76 @@ export default function HesabimEkrani({ navigation }) {
                 ⚠️ Harf toLocaleUpperCase('tr-TR') ile büyütülüyor —
                 "irem" → "İREM"; varsayılan büyütme "IREM" yapardı. */}
             <View style={styles.kimlik}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarHarf}>
-                  {(kullanici?.fullName || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
-                </Text>
-              </View>
+              {/* ⭐ YENİ — AVATAR ARTIK BASILABİLİR: fotoğraf seçtiriyor.
+                  ⚠️ Ayrı bir "fotoğraf ekle" butonu KOYULMADI. Dokunma
+                  hedefi zaten avatarın kendisi ve sağ altındaki kalem
+                  rozeti basılabilir olduğunu söylüyor; ikinci bir
+                  buton, aynı işi yapan iki kontrol olurdu. */}
+              <TouchableOpacity
+                style={styles.avatarKap}
+                onPress={fotografSec}
+                disabled={fotoYukleniyor}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  kullanici?.profilFotoUrl
+                    ? 'Profil fotoğrafını değiştir'
+                    : 'Profil fotoğrafı ekle'
+                }
+              >
+                <View style={styles.avatar}>
+                  {fotoYukleniyor ? (
+                    <ActivityIndicator color={renkler.lacivertYuzeyUstuYazi} />
+                  ) : kullanici?.profilFotoUrl ? (
+                    /* ⚠️ Adres SUNUCU_URL ile birleştiriliyor: sunucu
+                       göreli yol ("/uploads/profil/a3f9.jpg")
+                       döndürüyor, Image ise tam adres istiyor. */
+                    <Image
+                      source={{ uri: SUNUCU_URL + kullanici.profilFotoUrl }}
+                      style={styles.avatarFoto}
+                    />
+                  ) : (
+                    <Text style={styles.avatarHarf}>
+                      {(kullanici?.fullName || '?').trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'}
+                    </Text>
+                  )}
+                </View>
+
+                {!fotoYukleniyor && (
+                  <View style={styles.avatarRozet}>
+                    <Ionicons
+                      name={kullanici?.profilFotoUrl ? 'pencil' : 'camera'}
+                      size={13}
+                      color={renkler.anaRenkUstuYazi}
+                    />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* ⚠️ Kaldırma bağlantısı YALNIZCA fotoğraf varken.
+                  Olmayan bir şeyi kaldırmayı teklif etmek, ekranda
+                  hiçbir zaman işe yaramayan bir kontrol bırakırdı. */}
+              {kullanici?.profilFotoUrl && !fotoYukleniyor && (
+                <TouchableOpacity
+                  onPress={() => setFotoSilSorusu(true)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.fotoKaldir}>Fotoğrafı kaldır</Text>
+                </TouchableOpacity>
+              )}
 
               <Text style={styles.merhaba} numberOfLines={1}>
                 Merhaba, {(kullanici?.fullName || '').trim().split(' ')[0] || 'hoş geldin'}
               </Text>
+
+              {/* ⚠️ Hata BURADA, pencerede değil: fotoğraf yükleme
+                  kullanıcının başlattığı küçük bir iş. Modal açmak,
+                  "izin vermedin" gibi hafif bir durum için ekranı
+                  kilitlemek olurdu. */}
+              {fotoHatasi !== '' && (
+                <Text style={styles.fotoHata}>{fotoHatasi}</Text>
+              )}
             </View>
 
             {/* ⚠️ G1 — 5. SEKME YOK. Tasarım bazı ekranlarda
@@ -487,6 +635,21 @@ export default function HesabimEkrani({ navigation }) {
           cikisYap();
         }}
       />
+
+      {/* ⭐ YENİ — fotoğraf kaldırma onayı.
+          ⚠️ Onay soruluyor çünkü geri alınamaz: dosya sunucudan da
+          siliniyor, "vazgeçtim" diyen kullanıcı fotoğrafı yeniden
+          seçmek zorunda. */}
+      <OnayPenceresi
+        acik={fotoSilSorusu}
+        ikon="trash-outline"
+        baslik="Fotoğrafı kaldır"
+        mesaj="Profil fotoğrafın silinecek ve yerine adının baş harfi gelecek."
+        onayYazisi="Evet, Kaldır"
+        vazgecYazisi="Vazgeç"
+        onVazgec={() => setFotoSilSorusu(false)}
+        onOnayla={fotografiKaldir}
+      />
     </SafeAreaView>
   );
 }
@@ -539,8 +702,9 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   temaButon: {
+    // ⭐ DEĞİŞTİ — sağdan sola geçti (çıkışla yer değiştirdi).
     position: 'absolute',
-    right: 0,
+    left: 0,
     width: 40,
     height: 40,
     borderRadius: kose.tam,
@@ -563,6 +727,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
   /* 72dp: kartın içindeyken 56 yetiyordu, tek başına ortada duran bir
      öğe olarak küçük kalıyordu. Ekranın "kim olduğunu" söyleyen tek
      görsel bu. */
+  // ⭐ YENİ — avatar + rozet birlikte konumlansın diye sarmalayıcı.
+  avatarKap: {
+    width: 72,
+    height: 72,
+  },
+
   avatar: {
     width: 72,
     height: 72,
@@ -570,6 +740,58 @@ const stilOlustur = (renkler) => StyleSheet.create({
     backgroundColor: renkler.lacivertYuzey,
     justifyContent: 'center',
     alignItems: 'center',
+
+    // ⚠️ Fotoğraf yuvarlak çerçevenin dışına taşmasın.
+    // borderRadius tek başına Android'de alt öğeyi kırpmıyor.
+    overflow: 'hidden',
+  },
+
+  // ⚠️ Kendi ölçüsü DEĞİL, kabın tamamı: ölçü tek yerde (avatar)
+  // tanımlı kalsın. İki yere 72 yazsaydık biri değişince fotoğraf
+  // daireden taşardı.
+  avatarFoto: {
+    width: '100%',
+    height: '100%',
+  },
+
+  /* Kalem/kamera rozeti — avatarın sağ altında.
+     ⚠️ Turuncu ve dolu: bu bir EYLEM işareti ve ekranda dolu turuncu
+     başka bir şey yok, "turuncu = eylem" kuralıyla çakışmıyor.
+     ⚠️ Sayfa zemini renginde ince bir kenarlık, rozeti fotoğraftan
+     ayırıyor — koyu bir fotoğrafta sınırı kaybolurdu. */
+  avatarRozet: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 26,
+    height: 26,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.anaRenk,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: renkler.arkaPlan,
+  },
+
+  fotoKaldir: {
+    marginTop: bosluk.kucuk,
+    fontSize: yazi.kucuk,
+    fontFamily: font.orta,
+    color: renkler.yaziGri,
+
+    // ⚠️ Altı çizili: bu bir bağlantı ve rengi gri. Renk tek başına
+    // "basılabilir" demiyor, biçim de söylemeli.
+    textDecorationLine: 'underline',
+  },
+
+  fotoHata: {
+    marginTop: bosluk.kucuk,
+    paddingHorizontal: sayfaKenari,
+    fontSize: yazi.kucuk,
+    lineHeight: satir.kucuk,
+    fontFamily: font.orta,
+    color: renkler.hata,
+    textAlign: 'center',
   },
 
   avatarHarf: {
@@ -717,8 +939,9 @@ const stilOlustur = (renkler) => StyleSheet.create({
      Çerçevesiz düz satır cihazda "yamuk" duruyordu: zemini yoktu,
      başlıkla aynı hizada yüzen bir yazı gibi görünüyordu. */
   cikisButon: {
+    // ⭐ DEĞİŞTİ — soldan sağa geçti (temayla yer değiştirdi).
     position: 'absolute',
-    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: bosluk.kucuk,

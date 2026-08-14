@@ -142,8 +142,15 @@ export default function KartSecEkrani({ route, navigation }) {
         accessibilityRole={secimModu ? 'radio' : undefined}
         accessibilityState={secimModu ? { selected: secili } : undefined}
       >
+        {/* ⭐ DEĞİŞTİ — İKON KARESİ ARTIK LACİVERT.
+            ⚠️ Eskiden `acikKart` zemin + `yaziOrta` ikon vardı: gri
+            üstüne gri. Ekranın en solundaki ve ilk göze çarpan öğe
+            renksizdi, kart da bu yüzden "eski" duruyordu. Lacivert,
+            paletin ikinci rengi ve avatarda da aynı token kullanılıyor
+            — turuncu yapılmadı çünkü turuncu bu uygulamada EYLEM
+            demek, bu ise bir simge. */}
         <View style={styles.kartIkon}>
-          <Ionicons name="card-outline" size={22} color={renkler.yaziOrta} />
+          <Ionicons name="card" size={24} color={renkler.lacivertYuzeyUstuYazi} />
         </View>
 
         <View style={styles.kartOrta}>
@@ -152,10 +159,21 @@ export default function KartSecEkrani({ route, navigation }) {
               görünüyor. Aynı karar kupon kodunda da verilmişti. */}
           <Text style={styles.kartNumara}>•••• {item.last4Digits}</Text>
           <Text style={styles.kartSahip} numberOfLines={1}>{item.cardHolderName}</Text>
-          <Text style={styles.kartBilgi}>
-            {item.cardType} · {String(item.expiryMonth).padStart(2, '0')}/
-            {String(item.expiryYear).slice(-2)}
-          </Text>
+
+          {/* ⭐ DEĞİŞTİ — kart markası ve son kullanma AYRI okunuyor.
+              ⚠️ Eskiden "Mastercard · 12/30" tek gri satırdı ve ikisi
+              de aynı ağırlıktaydı. Marka bir kimlik (hap içinde),
+              tarih ise bir ayrıntı (küçük, gri) — farklı şeyler,
+              farklı görünmeliler. */}
+          <View style={styles.kartMetaSatir}>
+            <View style={styles.markaHap}>
+              <Text style={styles.markaYazi}>{item.cardType}</Text>
+            </View>
+
+            <Text style={styles.kartBilgi}>
+              {String(item.expiryMonth).padStart(2, '0')}/{String(item.expiryYear).slice(-2)}
+            </Text>
+          </View>
         </View>
 
         {secimModu ? (
@@ -165,12 +183,18 @@ export default function KartSecEkrani({ route, navigation }) {
             color={secili ? renkler.anaRenk : renkler.yaziGri}
           />
         ) : (
+          /* ⭐ DEĞİŞTİ — çıplak ikon yerine yumuşak kırmızı daire.
+             ⚠️ Tek başına duran bir çöp kovası hem dokunma hedefi
+             belirsiz bırakıyordu hem de kartın içinde "başıboş"
+             duruyordu. Daire, hedefi görünür kılıyor ve rengi
+             `yumusakHata` olduğu için kırmızıyı bağırtmıyor. */
           <TouchableOpacity
+            style={styles.silDaire}
             onPress={() => setSilinecek(item)}
             hitSlop={8}
             accessibilityLabel="Kartı sil"
           >
-            <Ionicons name="trash-outline" size={20} color={renkler.hata} />
+            <Ionicons name="trash-outline" size={18} color={renkler.hata} />
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -408,15 +432,22 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
   /* ---------- KART SATIRI ---------- */
 
+  /* ⭐ DEĞİŞTİ — kart artık gölgeli ve daha yuvarlak.
+     ⚠️ `elevation` TEK BAŞINA YAZILMADI: yalnızca Android'de
+     çalışıyor, iOS'ta kart tamamen düz kalırdı. Tema gölgesi
+     shadowColor/Offset/Opacity/Radius + elevation'ı birlikte veriyor.
+     ⚠️ Kenarlık DURUYOR: gölge koyu temada neredeyse görünmez
+     (siyah üstüne siyah), kartın sınırını orada kenarlık taşıyor. */
   kart: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: bosluk.orta,
+    gap: bosluk.normal,
     backgroundColor: renkler.kartArka,
-    borderRadius: kose.buyuk,
+    borderRadius: kose.dev,
     borderWidth: 1,
     borderColor: renkler.kenarlik,
     padding: bosluk.normal,
+    ...renkler.golgeSm,
   },
 
   /* Gerekçe AdresSec'te: kalınlık değişseydi seçim her değiştiğinde
@@ -427,10 +458,10 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   kartIkon: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     borderRadius: kose.orta,
-    backgroundColor: renkler.acikKart,
+    backgroundColor: renkler.lacivertYuzey,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -441,7 +472,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
   kartNumara: {
-    fontSize: yazi.orta,
+    // ⭐ DEĞİŞTİ — bir punto büyüdü: kartı ayırt eden bilgi bu.
+    fontSize: yazi.buyuk,
     color: renkler.yaziKoyu,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     letterSpacing: 1,
@@ -456,7 +488,42 @@ const stilOlustur = (renkler) => StyleSheet.create({
   kartBilgi: {
     fontSize: yazi.kucuk,
     color: renkler.yaziGri,
-    marginTop: 2,
+  },
+
+  /* ⭐ YENİ — marka hapı + son kullanma tarihi aynı satırda. */
+  kartMetaSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: bosluk.kucuk,
+    marginTop: bosluk.kucuk,
+  },
+
+  /* ⚠️ Ortak `Rozet` KULLANILMADI: o bileşen bir DURUM etiketi
+     (basari/uyari/hata/vurgu). Kart markası bir durum değil, bir
+     kimlik. Bilinmeyen bir tip verip gri kutu almak, bileşenin
+     sözleşmesini istismar etmek olurdu. */
+  markaHap: {
+    paddingHorizontal: bosluk.kucuk,
+    paddingVertical: 2,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.yumusakVurgu,
+  },
+
+  markaYazi: {
+    fontSize: yazi.mikro,
+    fontWeight: agirlik.yari,
+    fontFamily: font.yari,
+    color: renkler.anaRenkKoyu,
+  },
+
+  /* ⭐ YENİ — silme dairesi. */
+  silDaire: {
+    width: 36,
+    height: 36,
+    borderRadius: kose.tam,
+    backgroundColor: renkler.yumusakHata,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
 

@@ -15,7 +15,12 @@
 // bu not da onu bilinçli tutmak için.
 //
 // Farklar (kasıtlı): burada SecureStore asenkron, adminde localStorage
-// senkron; adminde ayrıca FormData yükleme ve dosya indirme var.
+// senkron; adminde ayrıca dosya İNDİRME var (Excel), burada yok.
+//
+// ⚠️ FormData yükleme artık İKİSİNDE DE var ama gövdeleri farklı:
+// tarayıcı gerçek bir File nesnesi alırken React Native
+// { uri, name, type } üçlüsü istiyor. Aynı işi yapan iki farklı kod —
+// birini diğerine kopyalamak çalışmaz.
 // ============================================
 import { API_URL } from './config';
 import {
@@ -77,8 +82,19 @@ async function oturumuKapat() {
 export async function apiIstek(yol, secenekler = {}, yenidenDenendi = false) {
   const token = await tokenAl();
 
+  // ⭐ DEĞİŞTİ — FormData gönderirken Content-Type ELLE KONMUYOR.
+  //
+  // ⚠️⚠️ TUZAK: multipart isteğin sınır dizesi (boundary) başlığın
+  // içinde gider — "multipart/form-data; boundary=----X7Yz...".
+  // Biz "application/json" (ya da elle "multipart/form-data") yazarsak
+  // boundary hiç üretilmez ve sunucu gövdeyi çözemez; dosya sessizce
+  // "seçilmedi" görünür. Başlığı fetch'in kendisi kurmalı.
+  //
+  // (Admin api.js'inde aynı kontrol ve aynı gerekçe yazılı.)
+  const formVeriMi = secenekler.body instanceof FormData;
+
   const headers = {
-    'Content-Type': 'application/json',
+    ...(formVeriMi ? {} : { 'Content-Type': 'application/json' }),
     ...(secenekler.headers || {}),
   };
   if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -155,4 +171,26 @@ export function apiPut(yol, govde) {
 
 export function apiDelete(yol) {
   return apiIstek(yol, { method: 'DELETE' });
+}
+
+// ⭐ YENİ — DOSYA YÜKLEME (profil fotoğrafı)
+//
+// ⚠️ React Native'de FormData'ya Blob/File DEĞİL, üç alanlı düz bir
+// nesne konuyor: { uri, name, type }. Web'deki gibi `new File(...)`
+// yazmak RN'de çalışmıyor — o API yok. Bu üçlüyü RN'in ağ katmanı
+// tanıyıp dosyayı diskten kendisi okuyor.
+//
+// ⚠️ `type` ZORUNLU. Boş bırakılırsa RN "application/octet-stream"
+// gönderiyor ve sunucudaki MIME kontrolü dosyayı reddediyor —
+// "Geçersiz dosya tipi!" hatası, gerçek bir jpeg için.
+export function apiYukle(yol, dosya, alanAdi = 'dosya') {
+  const govde = new FormData();
+
+  govde.append(alanAdi, {
+    uri: dosya.uri,
+    name: dosya.name,
+    type: dosya.type,
+  });
+
+  return apiIstek(yol, { method: 'POST', body: govde });
 }
