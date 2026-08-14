@@ -63,10 +63,19 @@ export default function SifreGucu({ sifre }) {
 
   const puan = sifreGucu(sifre);
 
-  // ⚠️ Boş kutuda hiçbir şey çizilmiyor. Kullanıcı daha yazmaya
-  // başlamadan "Çok zayıf" yazan kırmızı bir çubuk göstermek, hata
-  // yapmadan azarlamak olurdu.
-  if (!sifre) return null;
+  /* ⭐⭐ DEĞİŞTİ — LİSTE ARTIK HEP GÖRÜNÜYOR.
+   *
+   * ⚠️ Eskiden şifre boşken `null` dönüyordu. Gerekçesi "hata
+   * yapmadan azarlamamak"tı ve o kaygı hâlâ geçerli — ama bedeli
+   * ağırdı: kullanıcı kutuya dokunduğunda kuralları GÖREMİYORDU,
+   * yazmaya başlayınca liste birden beliriyor ve yerleşim
+   * zıplıyordu. Kurallar tam da yazmaya başlamadan ÖNCE lazım.
+   *
+   * ⚠️ AZARLAMA KAYGISI BAŞKA TÜRLÜ ÇÖZÜLDÜ: şifre boşken güç
+   * çubuğu ve "Şifre gücü: Çok zayıf" satırı ÇİZİLMİYOR (aşağıda
+   * `yazmayaBasladi` kontrolü). Yalnızca kural listesi duruyor ve o
+   * bir değerlendirme değil, bir bilgi. */
+  const yazmayaBasladi = Boolean(sifre);
 
   const seviyeler = [
     { etiket: 'Çok zayıf', renk: renkler.hata },
@@ -84,21 +93,29 @@ export default function SifreGucu({ sifre }) {
           çünkü puan zaten 0–4 arası bir tam sayı. Sürekli bir çubuk
           olsaydı ara değerler gerçek bir hassasiyet varmış gibi
           görünürdü. */}
-      <View style={styles.cubukSatir}>
-        {[0, 1, 2, 3].map((i) => (
-          <View
-            key={i}
-            style={[
-              styles.bolme,
-              i < puan && { backgroundColor: seviye.renk },
-            ]}
-          />
-        ))}
-      </View>
+      {/* ⚠️ Çubuk ve seviye yazısı YALNIZCA yazmaya başlayınca.
+          Boş kutuda "Çok zayıf" yazan kırmızı bir çubuk, hata
+          yapmadan azarlamak olurdu. Kural listesi ise aşağıda her
+          zaman duruyor — o bir değerlendirme değil, bir bilgi. */}
+      {yazmayaBasladi && (
+        <>
+          <View style={styles.cubukSatir}>
+            {[0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                style={[
+                  styles.bolme,
+                  i < puan && { backgroundColor: seviye.renk },
+                ]}
+              />
+            ))}
+          </View>
 
-      <Text style={[styles.seviyeYazi, { color: seviye.renk }]}>
-        Şifre gücü: {seviye.etiket}
-      </Text>
+          <Text style={[styles.seviyeYazi, { color: seviye.renk }]}>
+            Şifre gücü: {seviye.etiket}
+          </Text>
+        </>
+      )}
 
       {/* ---- ZORUNLU KURAL ---- */}
       <View style={styles.kuralSatir}>

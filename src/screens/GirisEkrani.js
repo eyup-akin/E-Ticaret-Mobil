@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
@@ -50,6 +50,16 @@ import { epostaGecerliMi } from '../utils/dogrulama';
 export default function GirisEkrani({ navigation }) {
   const { girisYap } = useAuth();
   const { renkler } = useTema();
+  /* ⚠️⚠️ MUTLAK KONUMLU ÇOCUK GÜVENLİ ALANI GÖRMEZ.
+   *
+   * `SafeAreaView`'in dolgusu yalnızca AKIŞTAKİ çocukları itiyor;
+   * `position: absolute` olan kapatma X'i kutunun en üstünden
+   * ölçülüyor ve durum çubuğunun (saat, pil) ÜSTÜNE biniyordu —
+   * cihazda görüldü. Inset elle ekleniyor.
+   *
+   * Aynı tuzak HesabimEkrani'ndaki yüzen tema düğmesinde de yaşandı;
+   * çözümü de aynı. */
+  const insets = useSafeAreaInsets();
   const styles = stilOlustur(renkler);
 
   const [email, setEmail] = useState('');
@@ -314,7 +324,7 @@ export default function GirisEkrani({ navigation }) {
           beyaz yaprak oluyor, tek renk ikon birinde kaybolurdu. */}
       <TouchableOpacity
         onPress={kapat}
-        style={styles.kapatButon}
+        style={[styles.kapatButon, { top: insets.top + bosluk.kucuk }]}
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Kapat"
@@ -384,7 +394,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
      kaybolurdu. */
   kapatButon: {
     position: 'absolute',
-    top: bosluk.kucuk,
+    // ⚠️ `top` BURADA YOK, çağrı yerinde `insets.top` ile veriliyor.
+    // Sabit bir sayı çentikli/çentiksiz cihazlarda farklı yerde durur.
     right: bosluk.genis,
     width: 36,
     height: 36,

@@ -11,7 +11,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { bosluk, kose, yazi, agirlik, satir, font } from '../theme/olculer';
@@ -51,6 +51,16 @@ import SozlesmeOnayKutusu from '../components/SozlesmeOnayKutusu';   // ⭐ YEN�
 export default function KayitEkrani({ navigation }) {
   const { kayitOl } = useAuth();
   const { renkler } = useTema();
+  /* ⚠️⚠️ MUTLAK KONUMLU ÇOCUK GÜVENLİ ALANI GÖRMEZ.
+   *
+   * `SafeAreaView`'in dolgusu yalnızca AKIŞTAKİ çocukları itiyor;
+   * `position: absolute` olan kapatma X'i kutunun en üstünden
+   * ölçülüyor ve durum çubuğunun (saat, pil) ÜSTÜNE biniyordu —
+   * cihazda görüldü. Inset elle ekleniyor.
+   *
+   * Aynı tuzak HesabimEkrani'ndaki yüzen tema düğmesinde de yaşandı;
+   * çözümü de aynı. */
+  const insets = useSafeAreaInsets();
   const styles = stilOlustur(renkler);
 
   const [adSoyad, setAdSoyad] = useState('');
@@ -58,85 +68,95 @@ export default function KayitEkrani({ navigation }) {
   const [sifre, setSifre] = useState('');
   const [gizli, setGizli] = useState(true);
 
-  /* ⭐ YENİ — ŞİFRE ALANINA BASINCA KRİTERLERİN TAMAMI GÖRÜNSÜN.
+  /* ⭐⭐ ŞİFRE ALANINA BASINCA KRİTERLERİN TAMAMI GÖRÜNSÜN.
    *
-   * ⚠️ SORUN: şifre kutusuna dokunulunca klavye açılıyor ve hemen
-   * altındaki "güçlü şifre" kriter listesini örtüyordu. Kullanıcı
-   * hangi kuralı sağlamadığını göremeden yazmaya çalışıyordu —
-   * listenin var olma sebebi tam olarak o an.
+   * ⚠️⚠️ İKİ KEZ YANLIŞ ÇÖZÜLDÜ, ÜÇÜNCÜDE NEDENİ ANLAŞILDI.
    *
-   * ⚠️ `KeyboardAvoidingView` TEK BAŞINA YETMİYOR: o, formu yukarı
-   * itiyor ama neyin görüneceğine karar vermiyor. Şifre alanı
-   * görünen alanın dibinde kaldığı sürece altındaki liste yine
-   * kapalı kalıyor.
+   * 1. deneme: "bloğu ekranın tepesine kaydır" → kaydırma içeriğin
+   *    sonuna dayanınca kırpıldı.
+   * 2. deneme: "bloğun altını görünen alanın altına oturt" → hesap
+   *    doğruydu ama SIFIR çıkıyordu, çünkü iki varsayım birden
+   *    tutmuyordu.
    *
-   * ⚠️ İLK DENEMEDE "bloğu ekranın TEPESİNE kaydır" yazılmıştı ve
-   * YETMEDİ: kaydırma, içeriğin sonuna dayanınca kırpılıyor
-   * (`contentHeight - visibleHeight` sınırı) ve blok tepeye
-   * çıkamıyordu. Şimdiki hesap tersten kuruluyor — bloğun ALT
-   * KENARINI görünen alanın altına oturtacak kadar kaydırıyoruz.
-   * Gereken en az kaydırma bu ve her zaman ulaşılabilir.
+   * GERÇEK SEBEPLER — ikisi birden:
+   *
+   *   (a) KAYDIRACAK YER YOK. Şifre alanının altında yalnızca sözleşme
+   *       kutusu ve buton var; `contentHeight - visibleHeight` farkı
+   *       birkaç yüz piksel bile değil. `scrollTo` istediğimiz kadar
+   *       gidemiyordu — sessizce kırpıyordu.
+   *
+   *   (b) YERLEŞİM KÜÇÜLMÜYOR OLABİLİR. Hesap, klavye açılınca
+   *       ScrollView'in `onLayout`'unun daha küçük bir yükseklikle
+   *       tetiklenmesine güveniyordu. Android'de `edgeToEdgeEnabled`
+   *       açıkken pencere her zaman `resize` davranmıyor; yükseklik
+   *       aynı kalınca hedef sıfır çıkıyor ve hiç kaydırma olmuyordu.
+   *
+   * ÇÖZÜM İKİSİNİ DE KAPATIYOR:
+   *   (a) → klavye açıkken içeriğin altına klavye boyunda dolgu
+   *         ekleniyor; kaydıracak yer garanti.
+   *   (b) → kullanılabilir yükseklik LAYOUT'A SORULMUYOR, klavye
+   *         olayının verdiği yükseklikten hesaplanıyor. Yerleşim
+   *         küçüldüyse onu, küçülmediyse tam boydan klavyeyi
+   *         çıkararak buluyoruz — iki durumda da doğru.
    */
   const kaydirmaRef = useRef(null);
 
-  /* ⚠️⚠️ ÜÇ AYRI ÖLÇÜM, HEPSİ GEREKLİ.
-   *
-   * `onLayout` konumu HER ZAMAN doğrudan üst öğeye göre veriyor:
-   *   yaprakY      → yaprağın kaydırma içeriği içindeki yeri
-   *   sifreBlokY   → şifre bloğunun YAPRAK içindeki yeri
-   *   sifreBlokBoy → bloğun (kutu + kriter listesi) yüksekliği
-   * İkisini toplamadan kullansaydık bandın yüksekliği kadar eksik
-   * kaydırırdık — bir şey olur ama yetmez, yani hatanın sessiz olanı.
-   *
-   * Değerler state'te DEĞİL ref'te: yalnızca kaydırma anında
-   * okunuyorlar ve state'e yazmak her ölçümde gereksiz bir render
-   * tetiklerdi. */
+  /* Klavye kapalıyken ölçülen tam yükseklik. Küçülme olup olmadığını
+     ancak bununla karşılaştırarak anlayabiliyoruz. */
+  const tamYukseklik = useRef(0);
+  const oAnkiYukseklik = useRef(0);
+
+  /* ⚠️ Konum ölçümleri ref'te, state'te DEĞİL: yalnızca kaydırma
+     anında okunuyorlar ve state'e yazmak her ölçümde gereksiz bir
+     render tetiklerdi. */
   const yaprakY = useRef(0);
   const sifreBlokY = useRef(0);
   const sifreBlokBoy = useRef(0);
-
-  /* Kaydırma alanının O ANKİ görünen yüksekliği.
-   *
-   * ⚠️ SABİT EKRAN YÜKSEKLİĞİ KULLANILMIYOR. Klavye açılınca
-   * yerleşim küçülüyor (Android'de pencere `resize`, iOS'ta
-   * KeyboardAvoidingView'in dolgusu) ve `onLayout` yeni yükseklikle
-   * tekrar tetikleniyor. Ekran yüksekliğini kullansaydık klavyenin
-   * kapladığı alanı hesaba katmamış olurduk — düzeltmeye çalıştığımız
-   * şeyin ta kendisi. */
-  const gorunurYukseklik = useRef(0);
-
-  // Şifre alanı şu an odakta mı? Klavye olayında buna bakılıyor.
   const sifreOdakta = useRef(false);
 
-  function kriterleriGoster() {
-    if (gorunurYukseklik.current === 0) return;
+  /* ⭐ Klavye yüksekliği STATE — çünkü içeriğin dolgusunu değiştiriyor
+     ve dolgu değişimi yeniden render gerektiriyor. Diğer ölçümlerden
+     farkı bu. */
+  const [klavyeYuksekligi, setKlavyeYuksekligi] = useState(0);
+
+  function kriterleriGoster(klavye) {
+    const tam = tamYukseklik.current;
+    if (tam === 0) return;
+
+    /* Kullanılabilir yükseklik: yerleşim küçüldüyse onu kullan,
+       küçülmediyse tam boydan klavyeyi çıkar.
+       ⚠️ 50'lik tolerans: küçük yerleşim oynamalarını "küçüldü"
+       sanmamak için. */
+    const kucululdu = oAnkiYukseklik.current < tam - 50;
+    const kullanilabilir = kucululdu ? oAnkiYukseklik.current : tam - klavye;
 
     const blokAlt = yaprakY.current + sifreBlokY.current + sifreBlokBoy.current;
-
-    // Bloğun alt kenarı görünen alanın altına otursun + nefes payı.
-    const hedef = blokAlt - gorunurYukseklik.current + bosluk.normal;
+    const hedef = blokAlt - kullanilabilir + bosluk.normal;
 
     kaydirmaRef.current?.scrollTo({ y: Math.max(0, hedef), animated: true });
   }
 
-  /* ⚠️ KLAVYE OLAYINA BAĞLI, zamanlayıcıya DEĞİL.
-   *
-   * Önce 250ms'lik bir `setTimeout` kullanılıyordu ve bu bir tahmindi:
-   * klavye animasyonu cihazdan cihaza değişiyor, yavaş bir telefonda
-   * kaydırma klavye açılmadan önce çalışıp yanlış yerde duruyordu.
-   * `keyboardDidShow` tam olarak "klavye yerine oturdu" diyor.
-   *
-   * ⚠️ İçindeki küçük gecikme yerleşim ölçümü için: olay ile
-   * `onLayout`'un yeni yüksekliği yazması arasında bir kare fark
-   * olabiliyor. */
+  /* ⚠️ Klavye OLAYINA bağlı, zamanlayıcıya değil: animasyon süresi
+     cihazdan cihaza değişiyor ve tahmin edilen bir gecikme yavaş bir
+     telefonda erken çalışıyordu. */
   useEffect(() => {
-    const abone = Keyboard.addListener('keyboardDidShow', () => {
+    const acildi = Keyboard.addListener('keyboardDidShow', (olay) => {
+      const boy = olay.endCoordinates?.height ?? 0;
+      setKlavyeYuksekligi(boy);
+
+      /* ⚠️ Dolgu bir sonraki render'da uygulanıyor; kaydırmayı aynı
+         karede yaparsak kaydıracak yer HENÜZ yok. Bir kare beklemek
+         şart. */
       if (sifreOdakta.current) {
-        setTimeout(kriterleriGoster, 60);
+        setTimeout(() => kriterleriGoster(boy), 80);
       }
     });
 
-    return () => abone.remove();
+    const kapandi = Keyboard.addListener('keyboardDidHide', () => {
+      setKlavyeYuksekligi(0);
+    });
+
+    return () => { acildi.remove(); kapandi.remove(); };
   }, []);
 
   // ⚠️ Varsayılan false — onay kutusu önceden işaretli gelmez.
@@ -238,15 +258,32 @@ export default function KayitEkrani({ navigation }) {
       >
         <ScrollView
           ref={kaydirmaRef}
-          contentContainerStyle={styles.kaydirmaIcerik}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
 
-          /* ⚠️ Klavye açılınca bu ölçü KÜÇÜLÜYOR ve olay yeniden
-             tetikleniyor — kaydırma hesabının dayandığı sayı bu. */
+          /* ⚠️ İKİ AYRI DEĞER TUTULUYOR: klavye kapalıyken ölçülen
+             TAM yükseklik ve o anki yükseklik. Farkları, yerleşimin
+             klavyeyle birlikte küçülüp küçülmediğini söylüyor — hesap
+             buna göre iki yoldan biriyle yapılıyor. */
           onLayout={(olay) => {
-            gorunurYukseklik.current = olay.nativeEvent.layout.height;
+            const boy = olay.nativeEvent.layout.height;
+            oAnkiYukseklik.current = boy;
+
+            if (klavyeYuksekligi === 0) tamYukseklik.current = boy;
           }}
+
+          /* ⚠️⚠️ KAYDIRACAK YERİ GARANTİ EDEN SATIR.
+             Şifre alanının altında yalnızca sözleşme kutusu ve buton
+             var; klavye açıkken `contentHeight - visibleHeight` farkı
+             istediğimiz kaydırmaya yetmiyor ve `scrollTo` sessizce
+             kırpılıyordu. Klavye boyunda dolgu, o farkı her zaman
+             yeterli yapıyor.
+             ⚠️ Kullanıcı bu boşluğu görmüyor: hedefe kaydırıyoruz,
+             en dibe değil. */
+          contentContainerStyle={[
+            styles.kaydirmaIcerik,
+            { paddingBottom: klavyeYuksekligi },
+          ]}
         >
       {/* ---- LACİVERT BANT ---- */}
       <View style={styles.bant}>
@@ -318,7 +355,7 @@ export default function KayitEkrani({ navigation }) {
               sifreBlokY.current = y;
               sifreBlokBoy.current = height;
 
-              if (sifreOdakta.current) kriterleriGoster();
+              if (sifreOdakta.current) kriterleriGoster(klavyeYuksekligi);
             }}
           >
             <FormAlani
@@ -338,7 +375,9 @@ export default function KayitEkrani({ navigation }) {
                 /* ⚠️ Burada da çağrılıyor: klavye ZATEN AÇIKSA
                    (e-posta alanından şifreye geçiş) `keyboardDidShow`
                    bir daha tetiklenmiyor ve kaydırma hiç olmazdı. */
-                setTimeout(kriterleriGoster, 60);
+                if (klavyeYuksekligi > 0) {
+                  setTimeout(() => kriterleriGoster(klavyeYuksekligi), 80);
+                }
               }}
               onBlur={() => { sifreOdakta.current = false; }}
               sagIkon={gizli ? 'eye-outline' : 'eye-off-outline'}
@@ -412,7 +451,7 @@ export default function KayitEkrani({ navigation }) {
           ikon, yaprağın üstüne gelince görünmez olurdu. */}
       <TouchableOpacity
         onPress={kapat}
-        style={styles.kapatButon}
+        style={[styles.kapatButon, { top: insets.top + bosluk.kucuk }]}
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel="Kapat"
@@ -477,7 +516,8 @@ const stilOlustur = (renkler) => StyleSheet.create({
      yaprak oluyor. Tek renk bir ikon, ikisinden birinde kaybolurdu. */
   kapatButon: {
     position: 'absolute',
-    top: bosluk.kucuk,
+    // ⚠️ `top` BURADA YOK, çağrı yerinde `insets.top` ile veriliyor.
+    // Sabit bir sayı çentikli/çentiksiz cihazlarda farklı yerde durur.
     right: bosluk.genis,
     width: 36,
     height: 36,
