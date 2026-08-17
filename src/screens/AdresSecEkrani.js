@@ -71,7 +71,10 @@ export default function AdresSecEkrani({ route, navigation }) {
       Alert.alert('Adres seç', 'Devam etmek için bir teslimat adresi seçmelisin.');
       return;
     }
-    navigation.navigate('KartSec', { adresId: seciliId });
+    // ⭐ DEĞİŞTİ — kart seçme adımı KALDIRILDI.
+    // Kart iyzico'nun ödeme sayfasında seçiliyor; burada seçtirmek
+    // müşteriye iki kez kart sormak olurdu.
+    navigation.navigate('SiparisOnay', { adresId: seciliId });
   }
 
   async function adresiSil(item) {
@@ -203,7 +206,9 @@ export default function AdresSecEkrani({ route, navigation }) {
           {/* Adım göstergesi başlığın ALTINA, küçük punto ile taşındı.
               Ayrı bir satırdayken içerikle başlık arasında sahipsiz
               duruyordu; artık başlığın alt satırı. */}
-          {secimModu && <Text style={styles.adimYazi}>1 / 3 — Adres seç</Text>}
+          {/* ⭐ DEĞİŞTİ — akış 3 adımdan 2'ye indi: kart seçme adımı
+              kaldırıldı, ödeme iyzico sayfasında yapılıyor. */}
+          {secimModu && <Text style={styles.adimYazi}>1 / 2 — Adres seç</Text>}
         </View>
       </View>
 

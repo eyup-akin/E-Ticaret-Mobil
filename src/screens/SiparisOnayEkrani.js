@@ -45,13 +45,18 @@ function istekAnahtariUret() {
 
 
 export default function SiparisOnayEkrani({ route, navigation }) {
-  const { adresId, kartId } = route.params;
+  // ⭐ DEĞİŞTİ — kartId artık gelmiyor. Kart iyzico'nun ödeme
+  // sayfasında seçiliyor; sipariş anında hangi kartla ödeneceği
+  // bilinmiyor ve bilinmesi de gerekmiyor.
+  const { adresId } = route.params;
 
   const { renkler } = useTema();
 
   const {
     sepet,
-    sepetiSifirla,
+
+    // ⛔ sepetiSifirla ARTIK KULLANILMIYOR — sepeti ödeme onayı
+    // temizliyor (OdemeEkrani).
 
     // ⭐ YENİ — kupon bilgileri
     kupon,
@@ -74,7 +79,6 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   const styles = stilOlustur(renkler);
 
   const [adres, setAdres] = useState(null);
-  const [kart, setKart] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(true);
   const [gonderiliyor, setGonderiliyor] = useState(false);
 
@@ -148,16 +152,14 @@ export default function SiparisOnayEkrani({ route, navigation }) {
   }
 
 
-  // Seçilen adres ve kartın detaylarını getir (özet göstermek için)
+  // ⭐ DEĞİŞTİ — yalnızca adres çekiliyor.
+  // /cards isteği kaldırıldı: bu ekranda kart gösterilmiyor, boşuna
+  // bir istek olurdu.
   useEffect(() => {
     async function ozetiGetir() {
       try {
-        const [adresler, kartlar] = await Promise.all([
-          apiGet('/addresses'),
-          apiGet('/cards'),
-        ]);
+        const adresler = await apiGet('/addresses');
         setAdres(adresler.find((a) => a.id === adresId));
-        setKart(kartlar.find((k) => k.id === kartId));
       } catch (hata) {
         console.log('Özet alınamadı:', hata.message);
       } finally {
@@ -224,7 +226,8 @@ export default function SiparisOnayEkrani({ route, navigation }) {
         // ⭐ YENİ (Aşama 10) — mesafeli satış + ön bilgilendirme onayı.
         sozlesmeOnayi: sozlesmeOnayi,
         addressId: adresId,
-        cardId: kartId,
+
+        // ⛔ cardId GÖNDERİLMİYOR — backend'de de kaldırıldı.
         couponCode: kuponsuzDene ? null : (kupon?.kod ?? null),
 
         // ⭐ YENİ — sipariş notu.
@@ -249,29 +252,21 @@ export default function SiparisOnayEkrani({ route, navigation }) {
         idempotencyKey: istekAnahtariRef.current,
       });
 
-      sepetiSifirla(); // backend sepeti temizledi, ekranı da senkronla (kuponu da bırakır)
+      // ⛔ sepetiSifirla() KALDIRILDI.
+      //
+      // ⚠️ Sepeti artık ÖDEME ONAYI temizliyor, sipariş oluşması
+      // değil. Burada temizlesek ve ödeme başarısız olsa müşteri hem
+      // siparişsiz hem sepetsiz kalırdı — backend'de de aynı gerekçeyle
+      // taşındı. Temizlik OdemeEkrani'nda, ödeme onaylanınca yapılıyor.
 
-      // Başarı ekranına git (geri tuşuyla buraya dönemesin)
-      navigation.replace('SiparisBasarili', {
-        siparisId: sonuc.siparisId,   // detaya gitmek için gerekli (URL anahtarı)
-        siparisNo: sonuc.siparisNo,   // ⭐ ekranda gösterilecek numara
+      // ⭐ DEĞİŞTİ — başarı ekranı yerine ÖDEME ekranına gidiliyor.
+      //
+      // replace: geri tuşuyla bu ekrana dönülmesin. Sipariş zaten
+      // oluştu; buraya dönmek ikinci bir sipariş denemesi olurdu.
+      navigation.replace('OdemeEkrani', {
+        siparisId: sonuc.siparisId,
+        siparisNo: sonuc.siparisNo,
         toplam: sonuc.toplam,
-
-        // ⭐ YENİ — indirim dökümü.
-        //    Sunucunun döndürdüğü değerleri taşıyoruz, kendi
-        //    hesabımızı değil. Ekranda gösterilen sayı ile
-        //    veritabanına yazılan sayı birebir aynı olsun.
-        araToplam: sonuc.araToplam,
-        indirim: sonuc.indirim,
-        kuponKodu: sonuc.kuponKodu,
-
-        // ⭐ YENİ — kargo ücreti.
-        //
-        // Olmadan başarı ekranındaki döküm TUTMUYOR: ara toplam
-        // eksi indirim, ödenen tutarı vermiyor. Müşteri sipariş
-        // verdikten sonra hesabın tutmadığını görürse, doğru olsa
-        // bile güveni sarsılır.
-        kargoUcreti: sonuc.kargoUcreti,
       });
     } catch (hata) {
       setGonderiliyor(false);
@@ -330,7 +325,7 @@ export default function SiparisOnayEkrani({ route, navigation }) {
 
         <View style={styles.ustOrta}>
           <Text style={styles.ustBaslik}>Sipariş Özeti</Text>
-          <Text style={styles.adimYazi}>3 / 3 — Onayla</Text>
+          <Text style={styles.adimYazi}>2 / 2 — Onayla</Text>
         </View>
       </View>
 
@@ -396,26 +391,27 @@ export default function SiparisOnayEkrani({ route, navigation }) {
           </View>
         </View>
 
+        {/* ⭐ DEĞİŞTİ — KART SEÇİMİ KALDIRILDI.
+            Kart bilgisi iyzico'nun güvenli sayfasında giriliyor; bu
+            ekranda kart göstermek "seçim burada yapılıyor" izlenimi
+            verirdi. Onun yerine bir sonraki adımın ne olduğu
+            söyleniyor. */}
         <View style={styles.kart}>
           <View style={styles.kartUst}>
-            <Text style={styles.kartEtiket}>ÖDEME YÖNTEMİ</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('KartSec', { adresId })}
-              hitSlop={8}
-            >
-              <Text style={styles.degistirYazi}>Değiştir</Text>
-            </TouchableOpacity>
+            <Text style={styles.kartEtiket}>ÖDEME</Text>
           </View>
 
           <View style={styles.kartGovde}>
             <View style={styles.kartIkon}>
-              <Ionicons name="card-outline" size={20} color={renkler.yaziOrta} />
+              <Ionicons name="lock-closed-outline" size={20} color={renkler.basari} />
             </View>
 
             <View style={styles.kartOrta}>
-              <Text style={styles.kartBaslik}>•••• {kart?.last4Digits}</Text>
-              <Text style={styles.kartMetin}>{kart?.cardHolderName}</Text>
-              <Text style={styles.kartAlt}>{kart?.cardType}</Text>
+              <Text style={styles.kartBaslik}>Güvenli ödeme sayfası</Text>
+              <Text style={styles.kartMetin}>
+                Kart bilgilerini bir sonraki adımda, iyzico'nun güvenli
+                sayfasında gireceksin. Kart numaran bize hiç ulaşmıyor.
+              </Text>
             </View>
           </View>
         </View>
@@ -661,9 +657,13 @@ export default function SiparisOnayEkrani({ route, navigation }) {
           onPress={() => siparisiTamamla(false)}
           disabled={gonderiliyor || (fiyatDegisenVar && !fiyatlariKabul) || !sozlesmeOnayi}
         >
+          {/* ⭐ DEĞİŞTİ — "Siparişi Tamamla" → "Ödemeye Geç".
+              Buton artık siparişi bitirmiyor, ödeme sayfasını açıyor.
+              Eski metin "iş bitti" diyordu ve müşteri ödeme ekranını
+              beklenmedik bir adım sanardı. */}
           {gonderiliyor
             ? <ActivityIndicator color={renkler.anaRenkUstuYazi} />
-            : <Text style={styles.tamamlaYazi}>Siparişi Tamamla</Text>}
+            : <Text style={styles.tamamlaYazi}>Ödemeye Geç</Text>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

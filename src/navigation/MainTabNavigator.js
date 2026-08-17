@@ -32,8 +32,13 @@ const Tab = createBottomTabNavigator();
  */
 const CUBUK_GIZLENEN_EKRANLAR = [
   'AdresSec',
-  'KartSec',
   'SiparisOnay',
+
+  // ⭐ YENİ — ödeme ekranı. ⚠️ Burada olması ötekilerden daha kritik:
+  // müşteri 3DS ekranındayken sekmeye basıp çıkarsa ödeme yarıda
+  // kalır ve stok 30 dakika boşuna rezerve durur.
+  'OdemeEkrani',
+
   'SiparisBasarili',
 ];
 

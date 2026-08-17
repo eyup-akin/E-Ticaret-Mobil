@@ -18,23 +18,26 @@ import { apiGet, apiDelete } from '../services/api';
 import { useTema } from '../context/TemaContext';
 import OnayPenceresi from '../components/OnayPenceresi';
 
-export default function KartSecEkrani({ route, navigation }) {
-  // adresId varsa SİPARİŞ AKIŞINDAYIZ (seçim modu)
-  // yoksa HESABIM'dan geldik (yönetim modu)
-  const adresId = route.params?.adresId;
-  const secimModu = adresId !== undefined;
+// ⭐ DEĞİŞTİ — SEÇİM MODU KALDIRILDI.
+//
+// ⚠️ Bu ekran sipariş akışının bir adımıydı ("2 / 3 — Kart seç").
+// Kart artık iyzico'nun ödeme sayfasında seçiliyor, yani seçim modu
+// hiçbir yerden çağrılmıyordu. Ölü kodu bırakmak, okuyana "demek ki
+// bir yerden çağrılıyor" dedirtirdi.
+//
+// Ekran yalnızca Hesabım altında: listele + sil.
+export default function KartSecEkrani({ navigation }) {
 
   const { renkler } = useTema();
   const styles = stilOlustur(renkler);
 
   const [kartlar, setKartlar] = useState([]);
   const [yukleniyor, setYukleniyor] = useState(true);
-  const [seciliId, setSeciliId] = useState(null);
 
-  /* ⭐ DEĞİŞTİ — FORM STATE'LERİ BU EKRANDAN GİTTİ.
-   * Kart numarası, CVV ve kaydetme durumu artık KartEkleEkrani'nda.
-   * ⚠️ Hassas verinin bu ekranda hiç tutulmaması ayrıca iyi: liste
-   * ekranı açık kaldığı sürece CVV bellekte duruyordu. */
+  /* ⭐ DEĞİŞTİ — KART FORMU ARTIK HİÇ YOK.
+   * Kart numarası ve CVV bu uygulamada hiçbir yerde toplanmıyor;
+   * iyzico'nun ödeme sayfası topluyor. Bize yalnızca son 4 hane
+   * ve bir jeton dönüyor. */
 
   // ⭐ YENİ (GV/Faz 6.10) — silinecek kart. Gerekçe AdresSec'te yazılı:
   // sistem penceresi tema dışı kalıyordu.
@@ -44,7 +47,6 @@ export default function KartSecEkrani({ route, navigation }) {
     try {
       const veri = await apiGet('/cards');
       setKartlar(veri);
-      if (secimModu && veri.length === 1) setSeciliId(veri[0].id);
     } catch (hata) {
       console.log('Kartlar alınamadı:', hata.message);
     } finally {
@@ -67,14 +69,6 @@ export default function KartSecEkrani({ route, navigation }) {
     }
   }
 
-  function devamEt() {
-    if (!seciliId) {
-      Alert.alert('Kart seç', 'Devam etmek için bir kart seçmelisin.');
-      return;
-    }
-    navigation.navigate('SiparisOnay', { adresId: adresId, kartId: seciliId });
-  }
-
   /* ⭐ DEĞİŞTİ (GV/Faz 6.10) — KART SATIRI, ADRES KARTIYLA AYNI DİLDE.
 
      İki ekran aynı akışın iki adımı ve aynı soruyu soruyor
@@ -85,17 +79,8 @@ export default function KartSecEkrani({ route, navigation }) {
      numarası tek başına hangi kart olduğunu söylemiyor, dört hane
      birbirine benziyor. */
   function kartKarti(item) {
-    const secili = seciliId === item.id;
-
     return (
-      <TouchableOpacity
-        key={item.id}
-        style={[styles.kart, secimModu && secili && styles.kartSecili]}
-        onPress={() => secimModu && setSeciliId(item.id)}
-        activeOpacity={secimModu ? 0.85 : 1}
-        accessibilityRole={secimModu ? 'radio' : undefined}
-        accessibilityState={secimModu ? { selected: secili } : undefined}
-      >
+      <View key={item.id} style={styles.kart}>
         {/* ⭐ DEĞİŞTİ — İKON KARESİ ARTIK LACİVERT.
             ⚠️ Eskiden `acikKart` zemin + `yaziOrta` ikon vardı: gri
             üstüne gri. Ekranın en solundaki ve ilk göze çarpan öğe
@@ -120,38 +105,51 @@ export default function KartSecEkrani({ route, navigation }) {
               tarih ise bir ayrıntı (küçük, gri) — farklı şeyler,
               farklı görünmeliler. */}
           <View style={styles.kartMetaSatir}>
-            <View style={styles.markaHap}>
-              <Text style={styles.markaYazi}>{item.cardType}</Text>
-            </View>
+            {item.cardType ? (
+              <View style={styles.markaHap}>
+                <Text style={styles.markaYazi}>{item.cardType}</Text>
+              </View>
+            ) : null}
 
-            <Text style={styles.kartBilgi}>
-              {String(item.expiryMonth).padStart(2, '0')}/{String(item.expiryYear).slice(-2)}
-            </Text>
+            {/* ⚠️ Son kullanma tarihi iyzico'dan GELMİYOR ve biz
+                uydurmuyoruz — 0 yazılı kayıtlarda satır hiç
+                çizilmiyor. "Yanlış sayı, eksik sayıdan tehlikelidir." */}
+            {item.expiryYear > 0 ? (
+              <Text style={styles.kartBilgi}>
+                {String(item.expiryMonth).padStart(2, '0')}/{String(item.expiryYear).slice(-2)}
+              </Text>
+            ) : null}
+
+            {item.bankaAdi ? (
+              <Text style={styles.kartBilgi}>{item.bankaAdi}</Text>
+            ) : null}
           </View>
+
+          {/* ⚠️ Jetonu olmayan kart ödemede KULLANILAMAZ (bu
+              özellikten önce elle eklenmiş kayıtlar). Sessizce
+              listede durup ödeme anında patlamasındansa burada
+              söylüyoruz. */}
+          {item.odemeyeHazir === false && (
+            <Text style={styles.kullanilamazYazi}>
+              Bu kart ödemede kullanılamıyor, silebilirsin.
+            </Text>
+          )}
         </View>
 
-        {secimModu ? (
-          <Ionicons
-            name={secili ? 'radio-button-on' : 'radio-button-off'}
-            size={22}
-            color={secili ? renkler.anaRenk : renkler.yaziGri}
-          />
-        ) : (
-          /* ⭐ DEĞİŞTİ — çıplak ikon yerine yumuşak kırmızı daire.
-             ⚠️ Tek başına duran bir çöp kovası hem dokunma hedefi
-             belirsiz bırakıyordu hem de kartın içinde "başıboş"
-             duruyordu. Daire, hedefi görünür kılıyor ve rengi
-             `yumusakHata` olduğu için kırmızıyı bağırtmıyor. */
-          <TouchableOpacity
-            style={styles.silDaire}
-            onPress={() => setSilinecek(item)}
-            hitSlop={8}
-            accessibilityLabel="Kartı sil"
-          >
-            <Ionicons name="trash-outline" size={18} color={renkler.hata} />
-          </TouchableOpacity>
-        )}
-      </TouchableOpacity>
+        {/* ⭐ DEĞİŞTİ — çıplak ikon yerine yumuşak kırmızı daire.
+            ⚠️ Tek başına duran bir çöp kovası hem dokunma hedefi
+            belirsiz bırakıyordu hem de kartın içinde "başıboş"
+            duruyordu. Daire, hedefi görünür kılıyor ve rengi
+            `yumusakHata` olduğu için kırmızıyı bağırtmıyor. */}
+        <TouchableOpacity
+          style={styles.silDaire}
+          onPress={() => setSilinecek(item)}
+          hitSlop={8}
+          accessibilityLabel="Kartı sil"
+        >
+          <Ionicons name="trash-outline" size={18} color={renkler.hata} />
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -175,10 +173,7 @@ export default function KartSecEkrani({ route, navigation }) {
         </TouchableOpacity>
 
         <View style={styles.ustOrta}>
-          <Text style={styles.ustBaslik}>
-            {secimModu ? 'Ödeme Yöntemi' : 'Kartlarım'}
-          </Text>
-          {secimModu && <Text style={styles.adimYazi}>2 / 3 — Kart seç</Text>}
+          <Text style={styles.ustBaslik}>Kartlarım</Text>
         </View>
       </View>
 
@@ -194,38 +189,26 @@ export default function KartSecEkrani({ route, navigation }) {
         >
           {kartlar.length === 0 && (
             <Text style={styles.bosYazi}>
-              Henüz kartın yok. Aşağıdan ekleyebilirsin.
+              Henüz kayıtlı kartın yok.
             </Text>
           )}
 
           {kartlar.map(kartKarti)}
 
-          {/* ⭐ DEĞİŞTİ — SATIR İÇİ FORM KALDIRILDI, AYRI EKRANA GEÇTİ.
-              Gerekçe AdresSecEkrani'ndaki notta; ikisi aynı akışın
-              iki adımı ve aynı şekilde davranmalı. */}
-          <TouchableOpacity
-            style={styles.ekleSatir}
-            onPress={() => navigation.navigate('KartEkle')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.ekleYazi}>Yeni kart ekle</Text>
-            <Ionicons name="add" size={22} color={renkler.anaRenk} />
-          </TouchableOpacity>
-        </ScrollView>
-
-        {/* Devam butonu SADECE seçim modunda */}
-        {secimModu && (
-          <View style={styles.altBar}>
-            <TouchableOpacity
-              style={[styles.devamButon, !seciliId && styles.devamButonPasif]}
-              onPress={devamEt}
-              disabled={!seciliId}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.devamYazi}>Devam Et</Text>
-            </TouchableOpacity>
+          {/* ⭐ DEĞİŞTİ — "Yeni kart ekle" KALDIRILDI, yerine açıklama.
+              ⚠️ Kart numarasını artık biz toplamıyoruz; ekleme
+              butonu bıraksak müşteri burada bir form bekleyip
+              bulamazdı. Kartın nasıl kaydedildiğini söylemek,
+              çalışmayan bir butondan iyidir. */}
+          <View style={styles.bilgiKutu}>
+            <Ionicons name="lock-closed-outline" size={18} color={renkler.basari} />
+            <Text style={styles.bilgiYazi}>
+              Kartlar ödeme sırasında, iyzico'nun güvenli sayfasında
+              "kartımı kaydet" seçilerek eklenir. Kart numaran bizde
+              hiç saklanmıyor.
+            </Text>
           </View>
-        )}
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <OnayPenceresi
@@ -285,12 +268,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
     color: renkler.yaziKoyu,
   },
 
-  adimYazi: {
-    fontSize: yazi.kucuk,
-    color: renkler.yaziGri,
-    marginTop: 2,
-  },
-
   icerik: {
     padding: sayfaKenari,
     gap: bosluk.orta,
@@ -339,13 +316,6 @@ const stilOlustur = (renkler) => StyleSheet.create({
      * ELENDİ: tema dosyasında bu rengin neden rgba olduğu yazılı —
      * hem beyaz kart hem kırık-beyaz sayfa üstünde kullanılıyor ve
      * düz renk ikisinden birinde tutmuyor. */
-  },
-
-  /* Gerekçe AdresSec'te: kalınlık değişseydi seçim her değiştiğinde
-     liste 1px zıplardı. */
-  kartSecili: {
-    borderColor: renkler.anaRenk,
-    backgroundColor: renkler.yumusakVurgu,
   },
 
   kartIkon: {
@@ -418,12 +388,12 @@ const stilOlustur = (renkler) => StyleSheet.create({
   },
 
 
-  /* ---------- YENİ KART SATIRI ---------- */
+  /* ---------- BİLGİ KUTUSU ---------- */
 
-  ekleSatir: {
+  bilgiKutu: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: bosluk.orta,
     backgroundColor: renkler.acikKart,
     borderRadius: kose.buyuk,
     borderWidth: 1,
@@ -431,11 +401,17 @@ const stilOlustur = (renkler) => StyleSheet.create({
     padding: bosluk.normal,
   },
 
-  ekleYazi: {
-    fontSize: yazi.orta,
-    fontWeight: agirlik.yari,
-    fontFamily: font.yari,
-    color: renkler.anaRenk,
+  bilgiYazi: {
+    flex: 1,
+    fontSize: yazi.normal,
+    color: renkler.yaziOrta,
+    lineHeight: yazi.normal * satir.normal,
+  },
+
+  kullanilamazYazi: {
+    marginTop: bosluk.mikro,
+    fontSize: yazi.kucuk,
+    color: renkler.hata,
   },
 
 
@@ -454,31 +430,4 @@ const stilOlustur = (renkler) => StyleSheet.create({
 
 
 
-  /* ---------- ALT ÇUBUK ---------- */
-
-  altBar: {
-    paddingHorizontal: sayfaKenari,
-    paddingVertical: bosluk.orta,
-    borderTopWidth: 1,
-    borderTopColor: renkler.kenarlik,
-    backgroundColor: renkler.kartArka,
-  },
-
-  devamButon: {
-    backgroundColor: renkler.anaRenk,
-    paddingVertical: bosluk.normal,
-    borderRadius: kose.orta,
-    alignItems: 'center',
-  },
-
-  devamButonPasif: {
-    backgroundColor: renkler.pasif,
-  },
-
-  devamYazi: {
-    color: renkler.anaRenkUstuYazi,
-    fontSize: yazi.orta,
-    fontWeight: agirlik.kalin,
-    fontFamily: font.kalin,
-  },
 });

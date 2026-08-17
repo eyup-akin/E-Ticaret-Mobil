@@ -13,8 +13,12 @@ import KartSecEkrani from '../screens/KartSecEkrani';
 // uygulama "böyle bir rota yok" diye patlardı — Numaralarim'de
 // öğrenilen dersin aynısı.
 import AdresEkleEkrani from '../screens/AdresEkleEkrani';
-import KartEkleEkrani from '../screens/KartEkleEkrani';
 import NumaralarimEkrani from '../screens/NumaralarimEkrani';   // ⭐ YENİ (4.9)
+
+// ⭐ YENİ — ödeme WebView'i. Buraya da kayıtlı çünkü Siparişlerim
+// ekranındaki "Ödemeyi tamamla" bu stack'ten açılıyor.
+import OdemeEkrani from '../screens/OdemeEkrani';
+import SiparisBasariliEkrani from '../screens/SiparisBasariliEkrani';
 
 // ⭐ YENİ (Aşama 8.4) — destek ekranları
 import DestekTalepleriEkrani from '../screens/DestekTalepleriEkrani';
@@ -47,9 +51,18 @@ export default function HesabimStack() {
       <Stack.Screen name="Adreslerim" component={AdresSecEkrani} />
       <Stack.Screen name="Kartlarim" component={KartSecEkrani} />
       <Stack.Screen name="AdresEkle" component={AdresEkleEkrani} />
-      <Stack.Screen name="KartEkle" component={KartEkleEkrani} />
+
+      {/* ⛔ KartEkle KALDIRILDI — kart artık iyzico'nun ödeme
+          sayfasında ekleniyor, biz kart numarası toplamıyoruz. */}
+
       <Stack.Screen name="Numaralarim" component={NumaralarimEkrani} />{/* ⭐ YENİ (4.9) */}
       <Stack.Screen name="Odemelerim" component={OdemelerimEkrani} />
+
+      {/* ⭐ YENİ — "Ödemeyi tamamla" akışı. SiparisBasarili da burada
+          olmak zorunda: ödeme başarılı olunca oraya yönleniyor ve
+          yalnızca SepetStack'te kalsaydı rota bulunamazdı. */}
+      <Stack.Screen name="OdemeEkrani" component={OdemeEkrani} />
+      <Stack.Screen name="SiparisBasarili" component={SiparisBasariliEkrani} />
 
       {/* ⭐ YENİ — Aşama 6 hesap yönetimi ekranları.
           HesabimStack içinde olmaları önemli: geri tuşu doğal olarak

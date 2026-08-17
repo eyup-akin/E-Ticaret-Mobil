@@ -16,7 +16,7 @@ import { SatirListesiIskeleti } from '../components/Iskelet';
 import Chip from '../components/Chip';
 import Rozet from '../components/Rozet';
 import { useSiparisTekrarla } from '../hooks/useSiparisTekrarla';
-import { durumYazisi, odemeYazisi, odemeRengi } from '../utils/durum';
+import { durumYazisi, odemeYazisi, odemeRengi, odemeTamamlanabilirMi } from '../utils/durum';
 import { paraBicimle, tarihBicimle } from '../utils/bicimlendir';
 import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/olculer';
 
@@ -32,6 +32,8 @@ import { bosluk, kose, yazi, agirlik, satir, font, sayfaKenari } from '../theme/
 // O yüzden ikisini burada AÇIKÇA eşleştiriyoruz — birini değiştirip
 // diğerini unutmak, sayacın hep 0 görünmesine yol açardı.
 const DURUMLAR = [
+  // ⭐ YENİ — ödeme akışının ilk durumu, hazırlanıyordan ÖNCE gelir.
+  { ozetAnahtari: 'odemeBekliyor', durumKodu: 'odeme_bekliyor', etiket: 'Ödeme Bekliyor' },
   { ozetAnahtari: 'hazirlaniyor', durumKodu: 'hazirlaniyor', etiket: 'Hazırlanıyor' },
   { ozetAnahtari: 'kargoda', durumKodu: 'kargoda', etiket: 'Kargoda' },
   { ozetAnahtari: 'teslimEdildi', durumKodu: 'teslim_edildi', etiket: 'Teslim Edildi' },
@@ -177,7 +179,18 @@ export default function SiparislerimEkrani({ navigation }) {
     const odemeIkon =
       item.paymentStatus === 'odendi' ? 'checkmark-circle'
       : item.paymentStatus === 'iade_edildi' ? 'arrow-undo-outline'
+      // ⭐ YENİ — ödeme alınamadıysa uyarı ikonu; "bekliyor" ile
+      // "reddedildi" aynı saat ikonunu paylaşmamalı.
+      : item.paymentStatus === 'odeme_basarisiz' ? 'close-circle-outline'
       : 'time-outline';
+
+    // ⭐ YENİ — ödemesi yarım kalmış sipariş. Kural utils/durum.js'te
+    // tek yerde: "doğrulanıyor" olanlar HARİÇ (para çekilmiş olabilir,
+    // ikinci deneme çift ödeme demek).
+    const odemeBekliyor = odemeTamamlanabilirMi({
+      durum: item.status,
+      odemeDurumu: item.paymentStatus,
+    });
 
     return (
       <TouchableOpacity
@@ -200,7 +213,13 @@ export default function SiparislerimEkrani({ navigation }) {
             <Text style={[styles.odemeYazi, { color: odemeR }]}>
               {odemeYazisi(item.paymentStatus)}
             </Text>
-            <Text style={styles.kartBilgi}>•••• {item.cardLast4}</Text>
+
+            {/* ⭐ DEĞİŞTİ — kart son 4 hanesi ödeme onaylanınca
+                yazılıyor. Boşken "•••• " yazmak, olmayan bir kartı
+                varmış gibi göstermek olurdu. */}
+            {item.cardLast4 ? (
+              <Text style={styles.kartBilgi}>•••• {item.cardLast4}</Text>
+            ) : null}
           </View>
 
           {/* ⚠️ Tutar turuncu DEĞİL: bu ekranda tıklanabilir olan
@@ -220,20 +239,41 @@ export default function SiparislerimEkrani({ navigation }) {
             ⚠️ Artık DOLU turuncu: kendi satırında tek başına
             durduğuna göre kartın asıl dokunuşuyla yarışmıyor ve
             tasarım referansı da böyle. */}
-        <TouchableOpacity
-          style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
-          onPress={() => tekrarlaSor(item.id)}
-          disabled={tekrarIslemde}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={item.orderNumber + ' siparişini tekrarla'}
-        >
-          {tekrarIslemde ? (
-            <ActivityIndicator size="small" color={renkler.anaRenkUstuYazi} />
-          ) : (
-            <Text style={styles.tekrarYazi}>Siparişi Tekrarla</Text>
-          )}
-        </TouchableOpacity>
+        {/* ⭐ YENİ — ÖDEMESİ YARIM KALAN SİPARİŞ.
+            ⚠️ "Siparişi Tekrarla" YERİNE, yanına değil: o buton sepeti
+            dolduruyor ve müşteri ödenmemiş siparişi tekrarlarsa
+            backend eskisini iptal eder (K7) — yani parasını ödemek
+            isterken siparişini iptal etmiş olurdu. */}
+        {odemeBekliyor ? (
+          <TouchableOpacity
+            style={styles.tekrarButon}
+            onPress={() => navigation.navigate('OdemeEkrani', {
+              siparisId: item.id,
+              siparisNo: item.orderNumber,
+              toplam: item.total,
+            })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={item.orderNumber + ' siparişinin ödemesini tamamla'}
+          >
+            <Text style={styles.tekrarYazi}>Ödemeyi Tamamla</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.tekrarButon, tekrarIslemde && styles.tekrarButonPasif]}
+            onPress={() => tekrarlaSor(item.id)}
+            disabled={tekrarIslemde}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={item.orderNumber + ' siparişini tekrarla'}
+          >
+            {tekrarIslemde ? (
+              <ActivityIndicator size="small" color={renkler.anaRenkUstuYazi} />
+            ) : (
+              <Text style={styles.tekrarYazi}>Siparişi Tekrarla</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   }
